@@ -3,10 +3,14 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
     "dev": "astro dev --host",
     "start": "astro dev",
     "build": "astro build",
+    "postbuild": "node scripts/fix-vercel-runtime.mjs",
     "preview": "astro preview",
     "astro": "astro"
   },
@@ -14,7 +18,7 @@
     "@astrojs/node": "^8.3.0",
     "@astrojs/react": "^3.6.2",
     "@astrojs/tailwind": "^5.1.1",
-    "@astrojs/vercel": "^7.8.0",
+    "@astrojs/vercel": "^7.8.2",
     "@nanostores/react": "^0.7.3",
     "astro": "^4.15.8",
     "clsx": "^2.1.1",
