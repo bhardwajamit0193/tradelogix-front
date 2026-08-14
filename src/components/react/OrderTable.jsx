@@ -25,28 +25,28 @@ export default function OrderTable() {
   const getStatusBadge = (status) => {
     switch (status) {
       case 'Delivered':
-        return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
+        return 'bg-emerald-50 text-emerald-700 border-emerald-200';
       case 'Shipped':
-        return 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30';
+        return 'bg-cyan-50 text-cyan-700 border-cyan-200';
       case 'Processing':
-        return 'bg-brand-500/20 text-brand-400 border-brand-500/30';
+        return 'bg-brand-50 text-brand-700 border-brand-200';
       default:
-        return 'bg-amber-500/20 text-amber-400 border-amber-500/30';
+        return 'bg-amber-50 text-amber-700 border-amber-200';
     }
   };
 
   return (
     <div className="space-y-6">
       {/* Controls */}
-      <div className="glass-panel p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 border border-white/10">
+      <div className="glass-panel p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 border border-slate-200 bg-white shadow-sm">
         <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search by Order ID or Customer..."
-            className="w-full pl-10 pr-4 py-2 glass-input text-xs"
+            className="w-full pl-10 pr-4 py-2 glass-input bg-slate-50 border-slate-300 text-slate-900 text-xs"
           />
         </div>
 
@@ -57,8 +57,8 @@ export default function OrderTable() {
               onClick={() => setStatusFilter(st)}
               className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
                 statusFilter === st
-                  ? 'gradient-brand text-white shadow-glow-primary'
-                  : 'bg-gray-900/80 text-gray-400 hover:text-white border border-white/5'
+                  ? 'gradient-brand text-white shadow-sm'
+                  : 'bg-slate-100 text-slate-600 hover:text-slate-900 border border-slate-200'
               }`}
             >
               {st}
@@ -68,10 +68,10 @@ export default function OrderTable() {
       </div>
 
       {/* Orders Table */}
-      <div className="glass-panel rounded-3xl overflow-hidden border border-white/10 shadow-xl">
+      <div className="glass-panel rounded-3xl overflow-hidden border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-gray-900/90 text-gray-400 font-semibold border-b border-white/10 uppercase tracking-wider">
+            <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200 uppercase tracking-wider">
               <tr>
                 <th className="p-4 pl-6">Order ID</th>
                 <th className="p-4">Customer</th>
@@ -82,21 +82,21 @@ export default function OrderTable() {
                 <th className="p-4 pr-6 text-right">Update Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody className="divide-y divide-slate-100">
               {filteredOrders.map((order) => (
-                <tr key={order.id} className="hover:bg-white/5 transition-colors">
-                  <td className="p-4 pl-6 font-mono font-bold text-brand-400">
+                <tr key={order.id} className="hover:bg-slate-50 transition-colors">
+                  <td className="p-4 pl-6 font-mono font-bold text-brand-600">
                     {order.id}
                   </td>
                   <td className="p-4">
-                    <div className="font-semibold text-white">{order.customerName}</div>
-                    <div className="text-[11px] text-gray-400">{order.customerEmail}</div>
+                    <div className="font-semibold text-slate-900">{order.customerName}</div>
+                    <div className="text-[11px] text-slate-500">{order.customerEmail}</div>
                   </td>
-                  <td className="p-4 text-gray-400">{order.date}</td>
-                  <td className="p-4 text-gray-300">
-                    <span className="font-bold text-white">{order.itemsCount}</span> items
+                  <td className="p-4 text-slate-500">{order.date}</td>
+                  <td className="p-4 text-slate-600">
+                    <span className="font-bold text-slate-900">{order.itemsCount}</span> items
                   </td>
-                  <td className="p-4 font-display font-bold text-white text-sm">
+                  <td className="p-4 font-display font-bold text-slate-900 text-sm">
                     {formatPrice(order.total)}
                   </td>
                   <td className="p-4">
@@ -108,12 +108,12 @@ export default function OrderTable() {
                     <select
                       value={order.status}
                       onChange={(e) => handleStatusChange(order.id, e.target.value)}
-                      className="glass-input text-[11px] py-1 px-2 bg-gray-900 cursor-pointer font-semibold"
+                      className="glass-input text-[11px] py-1 px-2 bg-slate-100 border-slate-300 text-slate-800 cursor-pointer font-semibold"
                     >
-                      <option value="Pending">Pending</option>
-                      <option value="Processing">Processing</option>
-                      <option value="Shipped">Shipped</option>
-                      <option value="Delivered">Delivered</option>
+                      <option value="Pending" className="bg-white text-slate-900">Pending</option>
+                      <option value="Processing" className="bg-white text-slate-900">Processing</option>
+                      <option value="Shipped" className="bg-white text-slate-900">Shipped</option>
+                      <option value="Delivered" className="bg-white text-slate-900">Delivered</option>
                     </select>
                   </td>
                 </tr>

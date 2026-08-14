@@ -9,20 +9,20 @@ const navItems = [
 ];
 ---
 
-<aside class="w-64 bg-gray-950 border-r border-white/10 flex flex-col justify-between shrink-0 min-h-screen">
+<aside class="w-64 bg-white border-r border-slate-200 flex flex-col justify-between shrink-0 min-h-screen">
   <div class="p-6 space-y-8">
     <!-- Brand Header with logo.jpeg -->
     <a href="/admin" class="flex items-center gap-3">
        <img
-        src="/logo-white.png"
+        src="/logo.jpeg"
         alt="TradeLogix Logo"
-        class="h-14 w-auto  object-contain  group-hover:scale-105 transition-transform"
+        class="h-14 w-auto object-contain rounded-lg group-hover:scale-105 transition-transform"
       />
     </a>
 
     <!-- Navigation Menu -->
     <nav class="space-y-1.5">
-      <p class="px-3 text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Main Menu</p>
+      <p class="px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Main Menu</p>
       {navItems.map((item) => {
         const isActive = currentPath === item.path;
         return (
@@ -30,8 +30,8 @@ const navItems = [
             href={item.path}
             class={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
               isActive
-                ? 'bg-brand-500/20 text-brand-300 border border-brand-500/30 shadow-glow-primary'
-                : 'text-gray-400 hover:text-white hover:bg-white/5'
+                ? 'bg-brand-50 text-brand-600 font-semibold border-r-2 border-brand-600 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
             }`}
           >
             <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -45,12 +45,12 @@ const navItems = [
   </div>
 
   <!-- Bottom Return Button -->
-  <div class="p-6 border-t border-white/10 space-y-3">
+  <div class="p-6 border-t border-slate-200 space-y-3">
     <a
       href="/"
-      class="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl bg-gray-900 border border-white/10 text-gray-300 hover:text-white text-xs font-semibold hover:border-white/20 transition-all"
+      class="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 hover:text-slate-900 text-xs font-semibold hover:bg-slate-100 transition-all"
     >
-      <svg class="w-4 h-4 text-brand-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg class="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
       </svg>
       Back to Storefront

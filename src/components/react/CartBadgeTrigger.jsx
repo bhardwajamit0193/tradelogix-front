@@ -9,16 +9,16 @@ export default function CartBadgeTrigger() {
   return (
     <button
       onClick={() => toggleCart(true)}
-      className="relative p-2.5 rounded-full text-gray-300 hover:text-white hover:bg-white/5 transition-all focus:outline-none group"
+      className="relative p-2.5 rounded-full text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-all focus:outline-none group"
       aria-label="Open Shopping Cart"
     >
-      <ShoppingCart className="w-5 h-5 text-gray-300 group-hover:text-brand-400 transition-colors" />
+      <ShoppingCart className="w-5 h-5 text-slate-700 group-hover:text-brand-600 transition-colors" />
       
-      {/* Glowing Blue Dot Indicator matching user screenshot & docs/home.html */}
+      {/* Glowing Blue Dot Indicator */}
       {count > 0 && (
         <span className="absolute top-1 right-1 flex h-3.5 w-3.5">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-500 opacity-75"></span>
-          <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-brand-500 text-white text-[9px] font-extrabold items-center justify-center shadow-glow-primary border border-[#0b0f19]">
+          <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-brand-600 text-white text-[9px] font-extrabold items-center justify-center border border-white">
             {count}
           </span>
         </span>

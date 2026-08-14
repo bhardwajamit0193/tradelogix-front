@@ -50,15 +50,15 @@ export default function CheckoutStepper() {
 
   if (items.length === 0 && step !== 3) {
     return (
-      <div className="glass-panel p-12 rounded-3xl text-center space-y-4 max-w-md mx-auto">
-        <div className="w-16 h-16 rounded-full bg-gray-900 flex items-center justify-center mx-auto text-gray-500 border border-white/10">
+      <div className="glass-panel p-12 rounded-3xl text-center space-y-4 max-w-md mx-auto bg-white border border-slate-200 shadow-sm">
+        <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400 border border-slate-200">
           <Truck className="w-8 h-8" />
         </div>
-        <h2 className="text-xl font-bold text-white">Your cart is empty</h2>
-        <p className="text-xs text-gray-400">Add items to your cart before proceeding to checkout.</p>
+        <h2 className="text-xl font-bold text-slate-900">Your cart is empty</h2>
+        <p className="text-xs text-slate-500">Add items to your cart before proceeding to checkout.</p>
         <a
           href="/shop"
-          className="inline-block px-6 py-2.5 rounded-xl gradient-brand text-white text-xs font-semibold shadow-glow-primary hover:opacity-90"
+          className="inline-block px-6 py-2.5 rounded-xl gradient-brand text-white text-xs font-semibold shadow-md hover:opacity-90"
         >
           Return to Storefront
         </a>
@@ -70,22 +70,22 @@ export default function CheckoutStepper() {
     <div className="max-w-4xl mx-auto space-y-8">
       {/* Step Indicators */}
       <div className="flex items-center justify-between relative px-4">
-        <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-0.5 bg-gray-800 -z-10" />
+        <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-0.5 bg-slate-200 -z-10" />
         
         <div className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-          step >= 1 ? 'bg-brand-600 text-white shadow-glow-primary' : 'bg-gray-900 text-gray-500 border border-white/10'
+          step >= 1 ? 'bg-brand-600 text-white shadow-sm' : 'bg-slate-100 text-slate-500 border border-slate-200'
         }`}>
           <Truck className="w-4 h-4" /> Step 1: Shipping
         </div>
 
         <div className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-          step >= 2 ? 'bg-brand-600 text-white shadow-glow-primary' : 'bg-gray-900 text-gray-500 border border-white/10'
+          step >= 2 ? 'bg-brand-600 text-white shadow-sm' : 'bg-slate-100 text-slate-500 border border-slate-200'
         }`}>
           <CreditCard className="w-4 h-4" /> Step 2: Payment
         </div>
 
         <div className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-          step === 3 ? 'bg-emerald-600 text-white shadow-glow-primary' : 'bg-gray-900 text-gray-500 border border-white/10'
+          step === 3 ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-100 text-slate-500 border border-slate-200'
         }`}>
           <CheckCircle2 className="w-4 h-4" /> Step 3: Confirmation
         </div>
@@ -94,33 +94,33 @@ export default function CheckoutStepper() {
       {/* Main Container */}
       {step === 3 && createdOrder ? (
         /* Step 3: Success Confirmation */
-        <div className="glass-panel p-8 sm:p-12 rounded-3xl text-center space-y-6 border border-emerald-500/30 animate-pulse-slow">
-          <div className="w-20 h-20 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center mx-auto shadow-glow-accent">
+        <div className="glass-panel p-8 sm:p-12 rounded-3xl text-center space-y-6 bg-white border border-emerald-200 shadow-lg">
+          <div className="w-20 h-20 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center mx-auto shadow-sm">
             <CheckCircle2 className="w-10 h-10" />
           </div>
 
           <div className="space-y-2">
-            <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-bold uppercase tracking-wider">
+            <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold uppercase tracking-wider border border-emerald-200">
               Order Confirmed
             </span>
-            <h2 className="font-display text-3xl font-extrabold text-white">Thank You for Your Order!</h2>
-            <p className="text-gray-400 text-xs">
-              Order ID: <span className="text-brand-400 font-mono font-bold">{createdOrder.id}</span> • A receipt has been sent to <span className="text-white">{createdOrder.customerEmail}</span>
+            <h2 className="font-display text-3xl font-extrabold text-slate-900">Thank You for Your Order!</h2>
+            <p className="text-slate-500 text-xs">
+              Order ID: <span className="text-brand-600 font-mono font-bold">{createdOrder.id}</span> • A receipt has been sent to <span className="text-slate-900 font-semibold">{createdOrder.customerEmail}</span>
             </p>
           </div>
 
-          <div className="glass-panel p-6 rounded-2xl max-w-md mx-auto text-left space-y-3 text-xs border border-white/5">
-            <div className="flex justify-between font-bold text-white pb-2 border-b border-white/10">
+          <div className="glass-panel p-6 rounded-2xl max-w-md mx-auto text-left space-y-3 text-xs border border-slate-200 bg-slate-50">
+            <div className="flex justify-between font-bold text-slate-900 pb-2 border-b border-slate-200">
               <span>Order Summary ({createdOrder.itemsCount} items)</span>
-              <span className="text-brand-400 font-display text-base">₹{createdOrder.total.toFixed(2)}</span>
+              <span className="text-brand-600 font-display text-base">₹{createdOrder.total.toFixed(2)}</span>
             </div>
             {createdOrder.items.map((item, idx) => (
-              <div key={idx} className="flex justify-between text-gray-300">
+              <div key={idx} className="flex justify-between text-slate-700">
                 <span>{item.name} (x{item.qty})</span>
                 <span>₹{(item.price * item.qty).toFixed(2)}</span>
               </div>
             ))}
-            <div className="pt-2 border-t border-white/10 text-gray-400">
+            <div className="pt-2 border-t border-slate-200 text-slate-500">
               <strong>Shipping to:</strong> {createdOrder.shippingAddress}
             </div>
           </div>
@@ -128,13 +128,13 @@ export default function CheckoutStepper() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
             <a
               href="/admin/orders"
-              className="px-6 py-3 rounded-xl bg-gray-900 border border-white/10 hover:bg-gray-800 text-white text-xs font-semibold transition-all"
+              className="px-6 py-3 rounded-xl bg-slate-100 border border-slate-200 hover:bg-slate-200 text-slate-800 text-xs font-semibold transition-all"
             >
               Track in Admin Panel
             </a>
             <a
               href="/shop"
-              className="px-6 py-3 rounded-xl gradient-brand text-white text-xs font-semibold shadow-glow-primary hover:opacity-90 transition-all flex items-center gap-2"
+              className="px-6 py-3 rounded-xl gradient-brand text-white text-xs font-semibold shadow-md hover:opacity-90 transition-all flex items-center gap-2"
             >
               Continue Shopping <ArrowRight className="w-4 h-4" />
             </a>
@@ -146,69 +146,69 @@ export default function CheckoutStepper() {
           <form onSubmit={handleNextStep} className="lg:col-span-2 space-y-6">
             {step === 1 ? (
               /* Step 1: Shipping Form */
-              <div className="glass-panel p-6 sm:p-8 rounded-3xl space-y-4 border border-white/10">
-                <h3 className="font-display text-xl font-bold text-white flex items-center gap-2">
-                  <Truck className="w-5 h-5 text-brand-400" /> Shipping & Delivery Address
+              <div className="glass-panel p-6 sm:p-8 rounded-3xl space-y-4 border border-slate-200 bg-white shadow-sm">
+                <h3 className="font-display text-xl font-bold text-slate-900 flex items-center gap-2">
+                  <Truck className="w-5 h-5 text-brand-600" /> Shipping & Delivery Address
                 </h3>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                   <div className="space-y-1">
-                    <label className="text-gray-300 font-medium">Full Name</label>
+                    <label className="text-slate-700 font-medium">Full Name</label>
                     <input
                       type="text"
                       name="fullName"
                       value={formData.fullName}
                       onChange={handleInputChange}
                       required
-                      className="w-full p-3 glass-input"
+                      className="w-full p-3 glass-input bg-slate-50 border-slate-300 text-slate-900"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-gray-300 font-medium">Email Address</label>
+                    <label className="text-slate-700 font-medium">Email Address</label>
                     <input
                       type="email"
                       name="email"
                       value={formData.email}
                       onChange={handleInputChange}
                       required
-                      className="w-full p-3 glass-input"
+                      className="w-full p-3 glass-input bg-slate-50 border-slate-300 text-slate-900"
                     />
                   </div>
 
                   <div className="sm:col-span-2 space-y-1">
-                    <label className="text-gray-300 font-medium">Street Address</label>
+                    <label className="text-slate-700 font-medium">Street Address</label>
                     <input
                       type="text"
                       name="address"
                       value={formData.address}
                       onChange={handleInputChange}
                       required
-                      className="w-full p-3 glass-input"
+                      className="w-full p-3 glass-input bg-slate-50 border-slate-300 text-slate-900"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-gray-300 font-medium">City</label>
+                    <label className="text-slate-700 font-medium">City</label>
                     <input
                       type="text"
                       name="city"
                       value={formData.city}
                       onChange={handleInputChange}
                       required
-                      className="w-full p-3 glass-input"
+                      className="w-full p-3 glass-input bg-slate-50 border-slate-300 text-slate-900"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-gray-300 font-medium">Postal Code</label>
+                    <label className="text-slate-700 font-medium">Postal Code</label>
                     <input
                       type="text"
                       name="zip"
                       value={formData.zip}
                       onChange={handleInputChange}
                       required
-                      className="w-full p-3 glass-input"
+                      className="w-full p-3 glass-input bg-slate-50 border-slate-300 text-slate-900"
                     />
                   </div>
                 </div>
@@ -216,7 +216,7 @@ export default function CheckoutStepper() {
                 <div className="pt-4 flex justify-end">
                   <button
                     type="submit"
-                    className="px-8 py-3 rounded-xl gradient-brand text-white font-semibold text-xs shadow-glow-primary hover:opacity-90 transition-all flex items-center gap-2"
+                    className="px-8 py-3 rounded-xl gradient-brand text-white font-semibold text-xs shadow-md hover:opacity-90 transition-all flex items-center gap-2"
                   >
                     Proceed to Payment <ArrowRight className="w-4 h-4" />
                   </button>
@@ -224,18 +224,18 @@ export default function CheckoutStepper() {
               </div>
             ) : (
               /* Step 2: Payment Form */
-              <div className="glass-panel p-6 sm:p-8 rounded-3xl space-y-6 border border-white/10">
+              <div className="glass-panel p-6 sm:p-8 rounded-3xl space-y-6 border border-slate-200 bg-white shadow-sm">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-display text-xl font-bold text-white flex items-center gap-2">
-                    <CreditCard className="w-5 h-5 text-brand-400" /> Payment Details
+                  <h3 className="font-display text-xl font-bold text-slate-900 flex items-center gap-2">
+                    <CreditCard className="w-5 h-5 text-brand-600" /> Payment Details
                   </h3>
-                  <span className="flex items-center gap-1 text-[11px] text-emerald-400 font-semibold bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
+                  <span className="flex items-center gap-1 text-[11px] text-emerald-700 font-semibold bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
                     <Lock className="w-3 h-3" /> 256-Bit SSL Encrypted
                   </span>
                 </div>
 
                 {/* Mock Card UI */}
-                <div className="gradient-brand p-6 rounded-2xl text-white shadow-2xl relative overflow-hidden space-y-4">
+                <div className="gradient-brand p-6 rounded-2xl text-white shadow-xl relative overflow-hidden space-y-4">
                   <div className="flex justify-between items-center">
                     <span className="font-display font-extrabold text-lg tracking-wider">TradeLogix Pay</span>
                     <Sparkles className="w-5 h-5 opacity-80" />
@@ -245,11 +245,11 @@ export default function CheckoutStepper() {
                   </div>
                   <div className="flex justify-between text-xs font-medium pt-2">
                     <div>
-                      <div className="text-[9px] uppercase tracking-wider text-indigo-200">Cardholder</div>
+                      <div className="text-[9px] uppercase tracking-wider text-indigo-100">Cardholder</div>
                       <div>{formData.fullName}</div>
                     </div>
                     <div>
-                      <div className="text-[9px] uppercase tracking-wider text-indigo-200">Expires</div>
+                      <div className="text-[9px] uppercase tracking-wider text-indigo-100">Expires</div>
                       <div>{formData.cardExp}</div>
                     </div>
                   </div>
@@ -257,38 +257,38 @@ export default function CheckoutStepper() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                   <div className="sm:col-span-2 space-y-1">
-                    <label className="text-gray-300 font-medium">Card Number</label>
+                    <label className="text-slate-700 font-medium">Card Number</label>
                     <input
                       type="text"
                       name="cardNumber"
                       value={formData.cardNumber}
                       onChange={handleInputChange}
                       required
-                      className="w-full p-3 glass-input font-mono"
+                      className="w-full p-3 glass-input bg-slate-50 border-slate-300 text-slate-900 font-mono"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-gray-300 font-medium">Expiration Date</label>
+                    <label className="text-slate-700 font-medium">Expiration Date</label>
                     <input
                       type="text"
                       name="cardExp"
                       value={formData.cardExp}
                       onChange={handleInputChange}
                       required
-                      className="w-full p-3 glass-input"
+                      className="w-full p-3 glass-input bg-slate-50 border-slate-300 text-slate-900"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-gray-300 font-medium">Security CVC</label>
+                    <label className="text-slate-700 font-medium">Security CVC</label>
                     <input
                       type="text"
                       name="cardCvc"
                       value={formData.cardCvc}
                       onChange={handleInputChange}
                       required
-                      className="w-full p-3 glass-input"
+                      className="w-full p-3 glass-input bg-slate-50 border-slate-300 text-slate-900"
                     />
                   </div>
                 </div>
@@ -297,13 +297,13 @@ export default function CheckoutStepper() {
                   <button
                     type="button"
                     onClick={() => setStep(1)}
-                    className="px-5 py-2.5 rounded-xl bg-gray-900 text-gray-300 text-xs font-semibold hover:text-white border border-white/10"
+                    className="px-5 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold hover:bg-slate-200 border border-slate-200"
                   >
                     Back to Shipping
                   </button>
                   <button
                     type="submit"
-                    className="px-8 py-3.5 rounded-xl gradient-brand text-white font-semibold text-xs shadow-glow-primary hover:opacity-90 transition-all flex items-center gap-2"
+                    className="px-8 py-3.5 rounded-xl gradient-brand text-white font-semibold text-xs shadow-md hover:opacity-90 transition-all flex items-center gap-2"
                   >
                     <ShieldCheck className="w-4 h-4" /> Place Order - ₹{subtotal.toFixed(2)}
                   </button>
@@ -313,36 +313,36 @@ export default function CheckoutStepper() {
           </form>
 
           {/* Right Sidebar: Order Summary */}
-          <div className="glass-panel p-6 rounded-3xl h-fit space-y-4 border border-white/10">
-            <h4 className="font-display text-base font-bold text-white border-b border-white/10 pb-3">
+          <div className="glass-panel p-6 rounded-3xl h-fit space-y-4 border border-slate-200 bg-white shadow-sm">
+            <h4 className="font-display text-base font-bold text-slate-900 border-b border-slate-200 pb-3">
               Order Summary
             </h4>
 
             <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
               {items.map((item, idx) => (
                 <div key={idx} className="flex items-center gap-3 text-xs">
-                  <img src={item.image} alt={item.name} className="w-12 h-12 rounded-xl object-cover border border-white/10 shrink-0" />
+                  <img src={item.image} alt={item.name} className="w-12 h-12 rounded-xl object-cover border border-slate-200 shrink-0 bg-slate-100" />
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-white truncate">{item.name}</p>
-                    <p className="text-[10px] text-gray-400">Qty: {item.quantity}</p>
+                    <p className="font-semibold text-slate-900 truncate">{item.name}</p>
+                    <p className="text-[10px] text-slate-500">Qty: {item.quantity}</p>
                   </div>
-                  <span className="font-bold text-gray-200">₹{(item.price * item.quantity).toFixed(2)}</span>
+                  <span className="font-bold text-slate-800">₹{(item.price * item.quantity).toFixed(2)}</span>
                 </div>
               ))}
             </div>
 
-            <div className="space-y-2 text-xs text-gray-400 pt-3 border-t border-white/10">
+            <div className="space-y-2 text-xs text-slate-500 pt-3 border-t border-slate-200">
               <div className="flex justify-between">
                 <span>Subtotal</span>
-                <span className="text-gray-200">₹{subtotal.toFixed(2)}</span>
+                <span className="text-slate-800 font-medium">₹{subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
                 <span>Express Shipping</span>
-                <span className="text-emerald-400 font-bold">FREE</span>
+                <span className="text-emerald-600 font-bold">FREE</span>
               </div>
-              <div className="flex justify-between text-sm font-extrabold text-white pt-2 border-t border-white/10">
+              <div className="flex justify-between text-sm font-extrabold text-slate-900 pt-2 border-t border-slate-200">
                 <span>Total Due</span>
-                <span className="text-brand-400 font-display">₹{subtotal.toFixed(2)}</span>
+                <span className="text-brand-600 font-display">₹{subtotal.toFixed(2)}</span>
               </div>
             </div>
           </div>

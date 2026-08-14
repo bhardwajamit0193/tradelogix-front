@@ -10,10 +10,10 @@ const customers = getUsers();
   headerTitle="Customer Directory & Profiles"
   headerSubtitle="Manage customer accounts, lifetime value metrics, and order history frequency"
 >
-  <div class="glass-panel rounded-3xl overflow-hidden border border-white/10 shadow-xl">
+  <div class="glass-panel rounded-3xl overflow-hidden border border-slate-200 bg-white shadow-sm">
     <div class="overflow-x-auto">
       <table class="w-full text-left text-xs">
-        <thead class="bg-gray-900/90 text-gray-400 font-semibold border-b border-white/10 uppercase tracking-wider">
+        <thead class="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200 uppercase tracking-wider">
           <tr>
             <th class="p-4 pl-6">Customer Profile</th>
             <th class="p-4">Membership Level</th>
@@ -23,32 +23,32 @@ const customers = getUsers();
             <th class="p-4 pr-6 text-right">Account Status</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-white/5">
+        <tbody class="divide-y divide-slate-100">
           {customers.map((cust) => (
-            <tr key={cust.id} class="hover:bg-white/5 transition-colors">
+            <tr key={cust.id} class="hover:bg-slate-50 transition-colors">
               <td class="p-4 pl-6 flex items-center gap-3">
                 <img
                   src={cust.avatar}
                   alt={cust.name}
-                  class="w-10 h-10 rounded-xl object-cover border border-white/10 shrink-0"
+                  class="w-10 h-10 rounded-xl object-cover border border-slate-200 shrink-0"
                 />
                 <div>
-                  <div class="font-semibold text-white">{cust.name}</div>
-                  <div class="text-[11px] text-gray-400">{cust.email}</div>
+                  <div class="font-semibold text-slate-900">{cust.name}</div>
+                  <div class="text-[11px] text-slate-500">{cust.email}</div>
                 </div>
               </td>
               <td class="p-4">
-                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase bg-brand-500/20 text-brand-300 border border-brand-500/30">
+                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase bg-brand-50 text-brand-700 border border-brand-200">
                   {cust.role}
                 </span>
               </td>
-              <td class="p-4 text-gray-400">{cust.joinedDate}</td>
-              <td class="p-4 font-semibold text-white">{cust.ordersCount} orders</td>
-              <td class="p-4 font-display font-extrabold text-white text-sm">
+              <td class="p-4 text-slate-500">{cust.joinedDate}</td>
+              <td class="p-4 font-semibold text-slate-900">{cust.ordersCount} orders</td>
+              <td class="p-4 font-display font-extrabold text-slate-900 text-sm">
                 ₹{cust.totalSpent.toFixed(2)}
               </td>
               <td class="p-4 pr-6 text-right">
-                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200">
                   {cust.status}
                 </span>
               </td>
