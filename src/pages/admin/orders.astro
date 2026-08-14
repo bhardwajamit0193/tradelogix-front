@@ -1,0 +1,13 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import OrderTable from '../../components/react/OrderTable.jsx';
+---
+
+<AdminLayout
+  title="Customer Orders | TradeLogix Studio"
+  headerTitle="Order Fulfillment & Tracking"
+  headerSubtitle="Track incoming customer orders, update shipping statuses, and review total receipts"
+>
+  <!-- React Island: Filterable Order Table -->
+  <OrderTable client:load />
+</AdminLayout>

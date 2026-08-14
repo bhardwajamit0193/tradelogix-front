@@ -1,0 +1,19 @@
+---
+import ShopLayout from '../layouts/ShopLayout.astro';
+import CheckoutStepper from '../components/react/CheckoutStepper.jsx';
+---
+
+<ShopLayout title="Checkout | TradeLogix Storefront">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-8">
+    <div class="text-center max-w-xl mx-auto space-y-2">
+      <span class="px-3 py-1 rounded-full bg-brand-500/10 text-brand-300 text-xs font-bold uppercase tracking-wider border border-brand-500/30">
+        Secure Checkout
+      </span>
+      <h1 class="font-display font-extrabold text-3xl sm:text-4xl text-white">Complete Your Order</h1>
+      <p class="text-xs text-gray-400">Fast, encrypted checkout experience with instant order placement.</p>
+    </div>
+
+    <!-- React Island: Multi-step Checkout Stepper -->
+    <CheckoutStepper client:load />
+  </div>
+</ShopLayout>

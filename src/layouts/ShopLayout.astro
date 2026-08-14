@@ -1,0 +1,27 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import Navbar from '../components/common/Navbar.astro';
+import Footer from '../components/common/Footer.astro';
+import CartDrawer from '../components/react/CartDrawer.jsx';
+
+export interface Props {
+  title?: string;
+  description?: string;
+  image?: string;
+}
+
+const props = Astro.props;
+---
+
+<BaseLayout {...props}>
+  <div class="flex flex-col min-h-screen">
+    <Navbar />
+    <main class="flex-grow">
+      <slot />
+    </main>
+    <Footer />
+  </div>
+
+  <!-- React Island: Interactive Slide-out Shopping Cart Drawer -->
+  <CartDrawer client:load />
+</BaseLayout>

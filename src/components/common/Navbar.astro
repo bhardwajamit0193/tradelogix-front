@@ -1,0 +1,50 @@
+---
+import CartBadgeTrigger from '../react/CartBadgeTrigger.jsx';
+import UserMenuDropdown from '../react/UserMenuDropdown.jsx';
+---
+
+<header class="glass-nav sticky top-0 z-50 border-b border-white/10 shadow-lg">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-20 gap-4">
+    <!-- Brand Logo using logo.jpeg -->
+    <a href="/" class="flex items-center gap-3 group shrink-0">
+      <img
+        src="/logo-white.png"
+        alt="TradeLogix Logo"
+        class="h-14 w-auto  object-contain  group-hover:scale-105 transition-transform"
+      />
+    
+    </a>
+
+    <!-- Integrated Search Bar (Matching docs/home.html) -->
+    <form action="/shop" method="GET" class="flex-1 max-w-xl mx-4 hidden md:block">
+      <div class="relative flex items-center">
+        <span class="material-symbols-outlined absolute left-3.5 text-gray-400 text-[20px]">search</span>
+        <input
+          type="text"
+          name="search"
+          placeholder="Search bulk hardware, audio gear, displays..."
+          class="w-full h-11 pl-11 pr-36 glass-input text-xs"
+        />
+        <div class="absolute right-1 top-1 bottom-1 flex items-center border-l border-white/10 px-2 bg-gray-900/90 rounded-r-lg">
+          <select name="category" class="bg-transparent border-none text-[11px] font-semibold text-gray-300 focus:ring-0 cursor-pointer pr-4">
+            <option value="All" class="bg-gray-900 text-white">All Categories</option>
+            <option value="Audio" class="bg-gray-900 text-white">Audio</option>
+            <option value="Displays" class="bg-gray-900 text-white">Displays</option>
+            <option value="Peripherals" class="bg-gray-900 text-white">Peripherals</option>
+            <option value="Wearables" class="bg-gray-900 text-white">Wearables</option>
+            <option value="Storage" class="bg-gray-900 text-white">Storage</option>
+          </select>
+        </div>
+      </div>
+    </form>
+
+    <!-- Trailing Actions (Cart & User Account Islands matching docs/home.html) -->
+    <div class="flex items-center gap-3 shrink-0">
+      <!-- Cart Island -->
+      <CartBadgeTrigger client:load />
+
+      <!-- User Account Island -->
+      <UserMenuDropdown client:load />
+    </div>
+  </div>
+</header>

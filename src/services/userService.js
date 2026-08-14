@@ -1,0 +1,61 @@
+export const CUSTOMERS = [
+  {
+    id: 'cust-101',
+    name: 'Sarah Jenkins',
+    email: 'sarah.j@example.com',
+    role: 'VIP Customer',
+    joinedDate: '2025-03-15',
+    ordersCount: 14,
+    totalSpent: 4250.00,
+    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
+    status: 'Active',
+  },
+  {
+    id: 'cust-102',
+    name: 'Marcus Vance',
+    email: 'marcus.vance@techcorp.com',
+    role: 'Enterprise',
+    joinedDate: '2025-06-20',
+    ordersCount: 8,
+    totalSpent: 8900.50,
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+    status: 'Active',
+  },
+  {
+    id: 'cust-103',
+    name: 'Elena Rostova',
+    email: 'elena.rostova@designstudio.io',
+    role: 'Standard',
+    joinedDate: '2025-11-04',
+    ordersCount: 5,
+    totalSpent: 1420.00,
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+    status: 'Active',
+  },
+  {
+    id: 'cust-104',
+    name: 'David Kalu',
+    email: 'david.kalu@gmail.com',
+    role: 'Standard',
+    joinedDate: '2026-01-12',
+    ordersCount: 3,
+    totalSpent: 690.00,
+    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
+    status: 'Active',
+  },
+  {
+    id: 'cust-105',
+    name: 'Chloe Bennett',
+    email: 'chloe.b@startup.co',
+    role: 'Pro Member',
+    joinedDate: '2026-04-01',
+    ordersCount: 6,
+    totalSpent: 2180.00,
+    avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80',
+    status: 'Active',
+  },
+];
+
+export function getUsers() {
+  return CUSTOMERS;
+}

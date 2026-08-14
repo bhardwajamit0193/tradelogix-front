@@ -1,0 +1,13 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import ProductManager from '../../components/react/ProductManager.jsx';
+---
+
+<AdminLayout
+  title="Products Management | TradeLogix Studio"
+  headerTitle="Catalog Management (CRUD)"
+  headerSubtitle="Add new inventory items, edit pricing, manage variants, and update stock counts"
+>
+  <!-- React Island: Product Manager -->
+  <ProductManager client:load />
+</AdminLayout>
