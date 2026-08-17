@@ -6,12 +6,14 @@ export interface Props {
   title?: string;
   description?: string;
   image?: string;
+  noindex?: boolean;
 }
 
 const {
   title = 'TradeLogix | Next-Gen Tech & Electronics Storefront',
   description = 'Discover premium audio gear, OLED monitors, mechanical keyboards, and modern lifestyle tech accessories.',
   image = '/og-image.jpg',
+  noindex = false,
 } = Astro.props;
 ---
 
@@ -30,6 +32,7 @@ const {
     <meta property="og:description" content={description} />
     <meta property="og:image" content={image} />
     <meta property="twitter:card" content="summary_large_image" />
+    {noindex && <meta name="robots" content="noindex, nofollow" />}
 
     <!-- Google Fonts & Material Symbols -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />

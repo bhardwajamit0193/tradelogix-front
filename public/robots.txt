@@ -1,0 +1,7 @@
+# robots.txt for TradeLogix
+# Exclude admin and secure login portals from SEO crawl and indexing
+
+User-agent: *
+Disallow: /admin/
+Disallow: /admin-login
+Disallow: /admin/login

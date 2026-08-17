@@ -2,6 +2,8 @@ import React from 'react';
 import { Star } from 'lucide-react';
 import AddToCartButton from './AddToCartButton.jsx';
 import { formatPrice } from '../../utils/formatters.js';
+import { useStore } from '@nanostores/react';
+import { userStore } from '../../store/authStore.js';
 
 export const getBadgeStyle = (badge) => {
   switch (badge) {
@@ -20,6 +22,8 @@ export const getBadgeStyle = (badge) => {
 
 export default function ProductCard({ product }) {
   const defaultFallbackImage = 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&auto=format&fit=crop&q=80';
+  const user = useStore(userStore);
+  const isLoggedIn = user?.isLoggedIn;
 
   return (
     <div className="glass-panel glass-panel-hover rounded-3xl p-4 flex flex-col justify-between group border border-slate-200/80 bg-white/90 shadow-sm hover:shadow-xl hover:shadow-slate-200/50">
@@ -70,16 +74,27 @@ export default function ProductCard({ product }) {
       </div>
 
       {/* Product Price & Add to Cart Action */}
-      <div className="flex items-center justify-between pt-4 border-t border-slate-100 mt-2">
-        <div>
-          <span className="text-lg font-extrabold font-display text-slate-900">{formatPrice(product.price)}</span>
-          {product.originalPrice && (
-            <span className="text-xs text-slate-400 line-through ml-2">
-              {formatPrice(product.originalPrice)}
-            </span>
-          )}
-        </div>
-        <AddToCartButton product={product} compact={true} />
+      <div className="flex items-center justify-between pt-4 border-t border-slate-100 mt-2 w-full">
+        {isLoggedIn ? (
+          <>
+            <div>
+              <span className="text-lg font-extrabold font-display text-slate-900">{formatPrice(product.price)}</span>
+              {product.originalPrice && (
+                <span className="text-xs text-slate-400 line-through ml-2">
+                  {formatPrice(product.originalPrice)}
+                </span>
+              )}
+            </div>
+            <AddToCartButton product={product} compact={true} />
+          </>
+        ) : (
+          <a
+            href="/login"
+            className="w-full text-center py-2.5 px-4 rounded-xl border border-brand-200 text-brand-600 bg-brand-50 hover:bg-brand-100 font-semibold text-xs transition-colors"
+          >
+            Sign In to View Price
+          </a>
+        )}
       </div>
     </div>
   );

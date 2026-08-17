@@ -1,0 +1,14 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import CustomerEditor from '../../../components/react/CustomerEditor.jsx';
+
+const { id } = Astro.params;
+---
+
+<AdminLayout
+  title="Edit B2B Customer Profile | TradeLogix Studio"
+  headerTitle="Edit B2B Customer Profile"
+  headerSubtitle="Modify categorizations, classification, credit limits, and approval status"
+>
+  <CustomerEditor customerId={id} client:load />
+</AdminLayout>

@@ -18,7 +18,23 @@ const {
 const currentPath = Astro.url.pathname;
 ---
 
-<BaseLayout title={title}>
+<BaseLayout title={title} noindex={true}>
+  <script is:inline>
+    (function() {
+      try {
+        const saved = localStorage.getItem('tradelogix_user');
+        if (saved) {
+          const user = JSON.parse(saved);
+          if (user.isLoggedIn && user.role.toLowerCase() === 'admin') {
+            return; // Authorized
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      }
+      window.location.href = '/admin/login';
+    })();
+  </script>
   <div class="flex min-h-screen bg-slate-50">
     <!-- Left Sidebar -->
     <AdminSidebar currentPath={currentPath} />
