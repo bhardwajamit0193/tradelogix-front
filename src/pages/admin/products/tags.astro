@@ -1,0 +1,13 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import TagManager from '../../../components/react/TagManager.jsx';
+---
+
+<AdminLayout
+  title="Product Tags | TradeLogix Studio"
+  headerTitle="Product Tags"
+  headerSubtitle="Create and manage product tags — add descriptive keywords to help customers discover products"
+>
+  <TagManager client:load />
+</AdminLayout>
+

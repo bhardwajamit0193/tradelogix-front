@@ -1,0 +1,13 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import CategoryManager from '../../../components/react/CategoryManager.jsx';
+---
+
+<AdminLayout
+  title="Product Categories | TradeLogix Studio"
+  headerTitle="Product Categories"
+  headerSubtitle="Create and manage product categories, slugs, parent hierarchy and descriptions"
+>
+  <CategoryManager client:load />
+</AdminLayout>
+

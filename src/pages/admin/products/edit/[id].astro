@@ -1,0 +1,14 @@
+---
+import AdminLayout from '../../../../layouts/AdminLayout.astro';
+import ProductForm from '../../../../components/react/ProductForm.jsx';
+
+const { id } = Astro.params;
+---
+
+<AdminLayout
+  title="Edit Product | TradeLogix Studio"
+  headerTitle="Edit Product Configuration"
+  headerSubtitle={`Modify variant stock allocations and price group hierarchies for product ID ${id}`}
+>
+  <ProductForm productId={id} client:load />
+</AdminLayout>

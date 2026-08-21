@@ -1,7 +1,8 @@
 ---
 const { currentPath = '/admin' } = Astro.props;
 
-// Determine if we are on the customers page
+// Determine active section
+const isProductsPage = currentPath.startsWith('/admin/products');
 const isCustomersPage = currentPath.startsWith('/admin/users');
 
 // Get active status parameter from Astro.url
@@ -9,8 +10,14 @@ const statusQuery = Astro.url.searchParams.get('status') || '';
 
 const navItems = [
   { label: 'Overview', path: '/admin', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
-  { label: 'Products Catalog', path: '/admin/products', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
   { label: 'Customer Orders', path: '/admin/orders', icon: 'M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z' },
+];
+
+const productSubItems = [
+  { label: 'All Products',  path: '/admin/products' },
+  { label: 'Add New',       path: '/admin/products/add' },
+  { label: 'Categories',    path: '/admin/products/categories' },
+  { label: 'Tags',          path: '/admin/products/tags' },
 ];
 
 const customerSubItems = [
@@ -68,6 +75,46 @@ const isSubItemActive = (subStatus) => {
           </a>
         );
       })}
+
+      {/* Products Catalog Dropdown */}
+      <details class="group select-none" open={isProductsPage}>
+        <summary class={`flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold cursor-pointer list-none transition-all ${
+          isProductsPage
+            ? 'bg-brand-50 text-brand-600'
+            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+        }`}>
+          <div class="flex items-center gap-3">
+            <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            </svg>
+            <span>Products Catalog</span>
+          </div>
+          <svg class="w-3.5 h-3.5 transition-transform duration-200 group-open:rotate-180 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+          </svg>
+        </summary>
+
+        <div class="pl-7 mt-1.5 space-y-1 border-l-2 border-slate-100 ml-5">
+          {productSubItems.map((subItem) => {
+            const isSubActive = currentPath === subItem.path;
+            return (
+              <a
+                href={subItem.path}
+                class={`flex items-center justify-between px-3 py-2 rounded-lg text-[11px] font-medium transition-all ${
+                  isSubActive
+                    ? 'text-brand-600 bg-brand-50/50 font-semibold'
+                    : 'text-slate-500 hover:text-slate-900 hover:pl-4'
+                }`}
+              >
+                <span>{subItem.label}</span>
+                {isSubActive && (
+                  <span class="w-1.5 h-1.5 rounded-full bg-brand-500 shadow-glow-primary animate-pulse" />
+                )}
+              </a>
+            );
+          })}
+        </div>
+      </details>
 
       <!-- Customers Dropdown Menu -->
       <details class="group select-none" open={isCustomersPage}>

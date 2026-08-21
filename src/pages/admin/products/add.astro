@@ -1,0 +1,12 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import ProductForm from '../../../components/react/ProductForm.jsx';
+---
+
+<AdminLayout
+  title="Add Product | TradeLogix Studio"
+  headerTitle="Add New B2B Product"
+  headerSubtitle="Configure product variants, depot stock levels, and price group discount tiers"
+>
+  <ProductForm client:load />
+</AdminLayout>
