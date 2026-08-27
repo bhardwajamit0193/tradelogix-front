@@ -1,0 +1,13 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import WarehouseManager from '../../components/react/WarehouseManager.jsx';
+---
+
+<AdminLayout
+  title="Warehouses | TradeLogix Studio"
+  headerTitle="Warehouses"
+  headerSubtitle="Manage regional fulfillment hubs, depots, and inventory locations"
+>
+  <!-- React Island: Warehouse Manager -->
+  <WarehouseManager client:load />
+</AdminLayout>

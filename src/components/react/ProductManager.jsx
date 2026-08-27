@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 import { getMockProducts, saveMockProduct, deleteMockProduct } from '../../utils/mockDb.js';
 
+const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:4000';
+
 export default function ProductManager() {
   const [productList, setProductList] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -23,16 +25,46 @@ export default function ProductManager() {
   // Expanded variant row tracking
   const [expandedProduct, setExpandedProduct] = useState(null);
 
-  // Fetch catalog from local mock DB
+  const getAuthToken = () => {
+    return userStore.get()?.accessToken || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('tradelogix_user') || '{}')?.accessToken : '') || '';
+  };
+
+  // Fetch catalog from backend API or local fallback
   const fetchCatalog = async () => {
     setIsLoading(true);
     setError(null);
+    try {
+      const token = getAuthToken();
+      const res = await fetch(`${API_URL}/api/admin/products`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const data = json.data !== undefined ? json.data : json;
+        if (Array.isArray(data)) {
+          if (data.length > 0) {
+            setProductList(data);
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('tradelogix_products_v4', JSON.stringify(data));
+            }
+          } else {
+            const seed = getMockProducts();
+            setProductList(seed);
+          }
+          setIsLoading(false);
+          return;
+        }
+      }
+    } catch {
+      // fallback
+    }
+
     try {
       const data = getMockProducts();
       setProductList(data);
     } catch (err) {
       console.error(err);
-      setError(err.message || 'Error loading static product data');
+      setError(err.message || 'Error loading product data');
     } finally {
       setIsLoading(false);
     }
@@ -233,13 +265,24 @@ export default function ProductManager() {
                 {filtered.map((product) => {
                   const isExpanded = expandedProduct === product.id;
                   const cfg = product.pricingConfigurations?.[0];
-                  const totalStock = cfg
-                    ? (cfg.totalStock || cfg.warehouseStocks?.reduce((s, w) => s + (w.stock || 0), 0) || 0)
-                    : (product.variants?.reduce((sum, v) => sum + (v.stock || 0), 0) || 0);
-                  const displaySKU = product.sku || product.variants?.[0]?.sku || 'N/A';
-                  const defaultPriceTier = cfg?.pricestiers?.find(pt => pt.priceGroup === 'Default');
-                  const minPrice = defaultPriceTier ? parseFloat(defaultPriceTier.price || 0) :
-                    Math.min(...(product.variants?.map(v => parseFloat(v.pricing?.unitPrice || 0)).filter(p => p > 0) || [0]));
+                  
+                  // Compute total stock from product.totalStock or warehouse arrays
+                  const currentWhStocks = product.warehouseStocks || cfg?.warehouseStocks || product.variants?.[0]?.warehouseStocks || [];
+                  const totalStock = product.totalStock !== undefined && product.totalStock !== null
+                    ? parseInt(product.totalStock, 10)
+                    : currentWhStocks.reduce((sum, w) => sum + (parseInt(w.stock, 10) || 0), 0);
+
+                  const displaySKU = product.sku || cfg?.sku || product.variants?.[0]?.sku || 'N/A';
+
+                  // Compute base / min price
+                  const allPriceList = product.pricestiers || cfg?.pricestiers || product.prices || [];
+                  const defaultPriceTier = allPriceList.find(pt => pt.priceGroup === 'Default');
+                  const rawMinPrice = defaultPriceTier?.price !== undefined
+                    ? defaultPriceTier.price
+                    : allPriceList[0]?.price !== undefined
+                    ? allPriceList[0].price
+                    : product.pricing?.unitPrice || 0;
+                  const minPrice = parseFloat(rawMinPrice) || 0;
 
                   return (
                     <React.Fragment key={product.id}>
@@ -280,8 +323,17 @@ export default function ProductManager() {
                           </a>
 
                           <button
-                            onClick={() => {
+                            onClick={async () => {
                               if (window.confirm(`Delete "${product.name}"? This cannot be undone.`)) {
+                                try {
+                                  const token = getAuthToken();
+                                  await fetch(`${API_URL}/api/admin/products/${product.id}`, {
+                                    method: 'DELETE',
+                                    headers: token ? { Authorization: `Bearer ${token}` } : {},
+                                  });
+                                } catch {
+                                  // fallback
+                                }
                                 deleteMockProduct(product.id);
                                 setProductList(prev => prev.filter(p => p.id !== product.id));
                               }
@@ -323,14 +375,14 @@ export default function ProductManager() {
                                 </div>
 
                                 <div className="grid grid-cols-3 gap-2">
-                                  {(cfg?.warehouseStocks || product.variants?.[0]?.warehouseStocks || []).length > 0 ? (
-                                    (cfg?.warehouseStocks || product.variants?.[0]?.warehouseStocks || []).map((ws) => (
+                                  {currentWhStocks.length > 0 ? (
+                                    currentWhStocks.map((ws) => (
                                       <div key={ws.warehouseId || ws.warehouseCode} className="bg-slate-50 border border-slate-100 p-2 rounded-lg text-center">
                                         <div className="text-[9px] font-bold text-slate-500 truncate" title={ws.warehouseName}>
-                                          {ws.warehouseCode}
+                                          {ws.warehouseCode || ws.warehouseName}
                                         </div>
                                         <div className="font-mono text-xs font-bold text-slate-800 mt-1">
-                                          {ws.stock} units
+                                          {ws.stock || 0} units
                                         </div>
                                       </div>
                                     ))
@@ -343,11 +395,11 @@ export default function ProductManager() {
                               </div>
 
                               {/* B2B Pricing Groups */}
-                              {cfg?.pricestiers && cfg.pricestiers.length > 0 && (
+                              {allPriceList.length > 0 && (
                                 <div className="space-y-2">
                                   <div className="text-xs font-bold text-slate-700 uppercase tracking-wide">B2B Group Pricing</div>
                                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                    {cfg.pricestiers.map(pt => (
+                                    {allPriceList.map(pt => (
                                       <div key={pt.priceGroup} className="bg-white border border-slate-200 p-3 rounded-xl text-center relative">
                                         <div className="text-[10px] font-bold text-slate-500 uppercase">{pt.priceGroup}</div>
                                         {pt.compare_at_price && (

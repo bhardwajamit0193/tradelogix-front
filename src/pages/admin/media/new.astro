@@ -1,0 +1,13 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import MediaUploader from '../../../components/react/MediaUploader.jsx';
+---
+
+<AdminLayout
+  title="Upload New Media | TradeLogix Studio"
+  headerTitle="Upload New Media"
+  headerSubtitle="Add images, documents, and assets to your Media Library"
+>
+  <!-- React Island: Media Uploader -->
+  <MediaUploader client:load />
+</AdminLayout>

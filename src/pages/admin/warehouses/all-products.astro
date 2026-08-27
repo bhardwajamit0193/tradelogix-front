@@ -1,0 +1,13 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import WarehouseInventoryManager from '../../../components/react/WarehouseInventoryManager.jsx';
+---
+
+<AdminLayout
+  title="All Products Inventory | TradeLogix Studio"
+  headerTitle="All Products Inventory"
+  headerSubtitle="Manage, allocate, and distribute product stock quantities across fulfillment warehouses"
+>
+  <!-- React Island: Warehouse Inventory Manager -->
+  <WarehouseInventoryManager client:load />
+</AdminLayout>

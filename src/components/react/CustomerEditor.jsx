@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { getCustomerByIdApi, updateCustomerStatusApi, userStore } from '../../store/authStore.js';
 import { ArrowLeft, Save, Building2, User2, Mail, Phone, Calendar, ShieldCheck, MapPin, AlertCircle, RefreshCw } from 'lucide-react';
+import { getWarehouses } from '../../utils/mockDb.js';
+
+const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:4000';
 
 export default function CustomerEditor({ customerId }) {
   const [customer, setCustomer] = useState(null);
+  const [warehousesList, setWarehousesList] = useState(() => getWarehouses());
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -18,6 +22,27 @@ export default function CustomerEditor({ customerId }) {
   const [creditEligibility, setCreditEligibility] = useState(false);
 
   const token = userStore.get()?.accessToken || '';
+
+  // Fetch warehouses list dynamically
+  useEffect(() => {
+    const fetchWarehouses = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/admin/warehouses`);
+        if (res.ok) {
+          const json = await res.json();
+          const list = json.data || json;
+          if (Array.isArray(list) && list.length > 0) {
+            setWarehousesList(list);
+            return;
+          }
+        }
+      } catch (e) {
+        // fallback to local mock
+      }
+      setWarehousesList(getWarehouses());
+    };
+    fetchWarehouses();
+  }, []);
 
   useEffect(() => {
     if (!token) {
@@ -191,13 +216,18 @@ export default function CustomerEditor({ customerId }) {
 
               <div className="space-y-1">
                 <label className="text-slate-700 font-semibold">Assigned Warehouse</label>
-                <input
-                  type="text"
+                <select
                   value={warehouse}
                   onChange={(e) => setWarehouse(e.target.value)}
-                  placeholder="e.g. Mumbai Hub"
-                  className="w-full p-2.5 glass-input bg-slate-50 border-slate-300 text-slate-900 text-xs"
-                />
+                  className="w-full p-2.5 glass-input bg-slate-50 border-slate-300 text-slate-900 focus:outline-none text-xs cursor-pointer"
+                >
+                  <option value="">-- Select Fulfillment Warehouse --</option>
+                  {warehousesList.map((wh) => (
+                    <option key={wh.id || wh.code} value={wh.name}>
+                      {wh.name} ({wh.code}) - {wh.city}, {wh.state}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 

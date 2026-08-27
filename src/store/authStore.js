@@ -143,6 +143,12 @@ export const logoutUser = () => {
     role: 'guest',
     avatar: null,
   });
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.removeItem('tradelogix_user');
+      localStorage.removeItem('tradelogix_auth_token');
+    } catch {}
+  }
 };
 
 let refreshPromise = null;
@@ -193,6 +199,41 @@ export const refreshAccessToken = async () => {
   })();
 
   return refreshPromise;
+};
+
+/**
+ * Universal authenticated fetch with automatic JWT refresh on 401
+ */
+export const fetchWithAuth = async (url, options = {}) => {
+  const currentUser = userStore.get() || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('tradelogix_user') || '{}') : {});
+  let token = currentUser?.accessToken;
+
+  const headers = new Headers(options.headers || {});
+  if (token && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  let res = await fetch(url, {
+    ...options,
+    headers,
+  });
+
+  if (res.status === 401) {
+    try {
+      const newToken = await refreshAccessToken();
+      if (newToken) {
+        headers.set('Authorization', `Bearer ${newToken}`);
+        res = await fetch(url, {
+          ...options,
+          headers,
+        });
+      }
+    } catch (refreshErr) {
+      console.warn('Auto token refresh failed:', refreshErr);
+    }
+  }
+
+  return res;
 };
 
 export const getCustomersApi = async (token, params = {}) => {

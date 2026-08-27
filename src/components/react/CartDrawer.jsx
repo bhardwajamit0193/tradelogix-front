@@ -88,14 +88,20 @@ export default function CartDrawer() {
                   className="glass-panel p-3.5 rounded-2xl flex items-center gap-3 border border-slate-200 bg-slate-50/80 hover:border-slate-300 transition-all"
                 >
                   <img
-                    src={item.image}
+                    src={item.image || item.featuredImage || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&auto=format&fit=crop&q=80'}
                     alt={item.name}
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&auto=format&fit=crop&q=80';
+                    }}
                     className="w-16 h-16 rounded-xl object-cover border border-slate-200 shrink-0 bg-white"
                   />
                   <div className="flex-1 min-w-0">
                     <h4 className="text-sm font-semibold text-slate-900 truncate">{item.name}</h4>
                     <p className="text-[11px] text-slate-500">Variant: {item.variant}</p>
-                    <p className="text-xs font-bold text-brand-600 mt-1">₹{item.price.toFixed(2)}</p>
+                    <p className="text-xs font-bold text-brand-600 mt-1">
+                      ₹{typeof item.price === 'number' ? item.price.toLocaleString('en-IN') : item.price} <span className="text-[10px] text-slate-400 font-normal">/ unit</span>
+                    </p>
                   </div>
 
                   {/* Quantity Modifiers */}

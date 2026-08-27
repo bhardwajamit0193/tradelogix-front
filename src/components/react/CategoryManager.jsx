@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Trash2, Search, RefreshCw, FolderTree, ChevronRight, X, Pencil } from 'lucide-react';
 import { getCategories, saveCategory, deleteCategory, getMockProducts } from '../../utils/mockDb.js';
+import { userStore } from '../../store/authStore.js';
+
+const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:4000';
 
 const slugify = (text) =>
   text.toString().toLowerCase().trim()
@@ -24,7 +27,31 @@ export default function CategoryManager() {
   const [selected, setSelected]     = useState([]);
   const [saveMsg, setSaveMsg]       = useState(null);
 
-  const load = useCallback(() => {
+  const getAuthToken = () => {
+    return userStore.get()?.accessToken || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('tradelogix_user') || '{}')?.accessToken : '') || '';
+  };
+
+  const load = useCallback(async () => {
+    try {
+      const token = getAuthToken();
+      const res = await fetch(`${API_URL}/api/admin/categories`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const data = json.data || json;
+        if (Array.isArray(data)) {
+          setCategories(data);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('tradelogix_categories_v1', JSON.stringify(data));
+          }
+          setProducts(getMockProducts());
+          return;
+        }
+      }
+    } catch {
+      // fallback
+    }
     setCategories(getCategories());
     setProducts(getMockProducts());
   }, []);
@@ -53,15 +80,31 @@ export default function CategoryManager() {
   };
 
   // Add-new submit
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.name.trim()) return;
-    saveCategory({
+
+    const payload = {
       name: form.name.trim(),
       slug: form.slug || slugify(form.name),
       parentId: form.parentId || null,
       description: form.description.trim(),
-    });
+    };
+
+    try {
+      const token = getAuthToken();
+      await fetch(`${API_URL}/api/admin/categories`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(payload),
+      });
+    } catch {
+      // local fallback
+    }
+    saveCategory(payload);
     load();
     setForm(EMPTY_FORM);
     setIsSlugManual(false);
@@ -86,33 +129,68 @@ export default function CategoryManager() {
   const closeEditModal = () => { setEditModal(null); setEditSlugManual(false); };
 
   // Edit modal submit
-  const handleEditSubmit = (e) => {
+  const handleEditSubmit = async (e) => {
     e.preventDefault();
     if (!editModal.name.trim()) return;
-    saveCategory({
-      id: editModal.id,
+
+    const payload = {
       name: editModal.name.trim(),
       slug: editModal.slug || slugify(editModal.name),
       parentId: editModal.parentId || null,
       description: editModal.description.trim(),
-    });
+    };
+
+    try {
+      const token = getAuthToken();
+      await fetch(`${API_URL}/api/admin/categories/${editModal.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(payload),
+      });
+    } catch {
+      // local fallback
+    }
+    saveCategory({ id: editModal.id, ...payload });
     load();
     closeEditModal();
     setSaveMsg('Category updated.');
     setTimeout(() => setSaveMsg(null), 3000);
   };
 
-  const handleDelete = (catId, catName) => {
+  const handleDelete = async (catId, catName) => {
     if (!window.confirm(`Delete category "${catName}"? This cannot be undone.`)) return;
+    try {
+      const token = getAuthToken();
+      await fetch(`${API_URL}/api/admin/categories/${catId}`, {
+        method: 'DELETE',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+    } catch {
+      // local fallback
+    }
     deleteCategory(catId);
     setSelected(prev => prev.filter(id => id !== catId));
     load();
   };
 
-  const handleBulkDelete = () => {
+  const handleBulkDelete = async () => {
     if (!selected.length) return;
     if (!window.confirm(`Delete ${selected.length} selected categories?`)) return;
-    selected.forEach(id => deleteCategory(id));
+    for (const id of selected) {
+      try {
+        const token = getAuthToken();
+        await fetch(`${API_URL}/api/admin/categories/${id}`, {
+          method: 'DELETE',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+      } catch {
+        // fallback
+      }
+      deleteCategory(id);
+    }
     setSelected([]);
     load();
   };

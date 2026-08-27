@@ -1,0 +1,45 @@
+/* ─── Uppy Dashboard TradeLogix Theme Overrides ──────────────────────────────── */
+
+.uppy-Dashboard-inner {
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 1rem !important;
+  background: #f8fafc !important;
+}
+
+.uppy-Dashboard-AddFiles {
+  border: 2px dashed #cbd5e1 !important;
+  border-radius: 0.75rem !important;
+}
+
+.uppy-Dashboard-AddFiles:hover {
+  border-color: var(--color-brand-500, #4f46e5) !important;
+}
+
+.uppy-Dashboard-AddFiles-title {
+  font-family: 'Inter', system-ui, sans-serif !important;
+  font-weight: 600 !important;
+  color: #475569 !important;
+}
+
+.uppy-DashboardTab-btn {
+  font-family: 'Inter', system-ui, sans-serif !important;
+}
+
+.uppy-StatusBar-actionBtn--upload {
+  background: var(--color-brand-600, #4338ca) !important;
+  border-radius: 0.5rem !important;
+  font-weight: 600 !important;
+}
+
+.uppy-StatusBar-progress {
+  background: var(--color-brand-600, #4338ca) !important;
+}
+
+.uppy-StatusBar-statusPrimary {
+  font-family: 'Inter', system-ui, sans-serif !important;
+}
+
+/* Hide the Uppy branding link */
+.uppy-Dashboard-poweredBy {
+  display: none !important;
+}

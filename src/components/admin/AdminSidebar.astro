@@ -4,6 +4,8 @@ const { currentPath = '/admin' } = Astro.props;
 // Determine active section
 const isProductsPage = currentPath.startsWith('/admin/products');
 const isCustomersPage = currentPath.startsWith('/admin/users');
+const isMediaPage = currentPath.startsWith('/admin/media');
+const isWarehousesPage = currentPath.startsWith('/admin/warehouses');
 
 // Get active status parameter from Astro.url
 const statusQuery = Astro.url.searchParams.get('status') || '';
@@ -18,6 +20,16 @@ const productSubItems = [
   { label: 'Add New',       path: '/admin/products/add' },
   { label: 'Categories',    path: '/admin/products/categories' },
   { label: 'Tags',          path: '/admin/products/tags' },
+];
+
+const mediaSubItems = [
+  { label: 'Library',  path: '/admin/media' },
+  { label: 'Add New',  path: '/admin/media/new' },
+];
+
+const warehouseSubItems = [
+  { label: 'Warehouses',         path: '/admin/warehouses' },
+  { label: 'All Products Stock', path: '/admin/warehouses/all-products' },
 ];
 
 const customerSubItems = [
@@ -96,6 +108,86 @@ const isSubItemActive = (subStatus) => {
 
         <div class="pl-7 mt-1.5 space-y-1 border-l-2 border-slate-100 ml-5">
           {productSubItems.map((subItem) => {
+            const isSubActive = currentPath === subItem.path;
+            return (
+              <a
+                href={subItem.path}
+                class={`flex items-center justify-between px-3 py-2 rounded-lg text-[11px] font-medium transition-all ${
+                  isSubActive
+                    ? 'text-brand-600 bg-brand-50/50 font-semibold'
+                    : 'text-slate-500 hover:text-slate-900 hover:pl-4'
+                }`}
+              >
+                <span>{subItem.label}</span>
+                {isSubActive && (
+                  <span class="w-1.5 h-1.5 rounded-full bg-brand-500 shadow-glow-primary animate-pulse" />
+                )}
+              </a>
+            );
+          })}
+        </div>
+      </details>
+
+      {/* Media Dropdown Menu */}
+      <details class="group select-none" open={isMediaPage}>
+        <summary class={`flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold cursor-pointer list-none transition-all ${
+          isMediaPage
+            ? 'bg-brand-50 text-brand-600'
+            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+        }`}>
+          <div class="flex items-center gap-3">
+            <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <span>Media</span>
+          </div>
+          <svg class="w-3.5 h-3.5 transition-transform duration-200 group-open:rotate-180 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+          </svg>
+        </summary>
+
+        <div class="pl-7 mt-1.5 space-y-1 border-l-2 border-slate-100 ml-5">
+          {mediaSubItems.map((subItem) => {
+            const isSubActive = currentPath === subItem.path;
+            return (
+              <a
+                href={subItem.path}
+                class={`flex items-center justify-between px-3 py-2 rounded-lg text-[11px] font-medium transition-all ${
+                  isSubActive
+                    ? 'text-brand-600 bg-brand-50/50 font-semibold'
+                    : 'text-slate-500 hover:text-slate-900 hover:pl-4'
+                }`}
+              >
+                <span>{subItem.label}</span>
+                {isSubActive && (
+                  <span class="w-1.5 h-1.5 rounded-full bg-brand-500 shadow-glow-primary animate-pulse" />
+                )}
+              </a>
+            );
+          })}
+        </div>
+      </details>
+
+      {/* Warehouses Dropdown Menu */}
+      <details class="group select-none" open={isWarehousesPage}>
+        <summary class={`flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold cursor-pointer list-none transition-all ${
+          isWarehousesPage
+            ? 'bg-brand-50 text-brand-600'
+            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+        }`}>
+          <div class="flex items-center gap-3">
+            <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+            <span>Warehouses</span>
+          </div>
+          <svg class="w-3.5 h-3.5 transition-transform duration-200 group-open:rotate-180 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+          </svg>
+        </summary>
+
+        <div class="pl-7 mt-1.5 space-y-1 border-l-2 border-slate-100 ml-5">
+          {warehouseSubItems.map((subItem) => {
             const isSubActive = currentPath === subItem.path;
             return (
               <a

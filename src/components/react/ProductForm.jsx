@@ -1,17 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { userStore } from '../../store/authStore.js';
+import { userStore, fetchWithAuth } from '../../store/authStore.js';
 import { 
   Plus, Trash2, X, Check, ChevronLeft, Link, Image, Tag, Folder,
-  Search, ChevronDown, CheckSquare, Square, Info, ShieldAlert, Package,
-  MapPin, HelpCircle, RefreshCw, Layers, GitBranch
+  Search, ChevronDown, CheckSquare, Square, Info, ShieldAlert, AlertTriangle, Package,
+  MapPin, HelpCircle, RefreshCw, Layers, GitBranch, FileImage, Upload
 } from 'lucide-react';
-import { getMockProducts, saveMockProduct } from '../../utils/mockDb.js';
+import { getMockProducts, saveMockProduct, getWarehouses } from '../../utils/mockDb.js';
+import MediaLibraryModal from './MediaLibraryModal.jsx';
+import TiptapEditor from './TiptapEditor.jsx';
 
-const DEFAULT_WAREHOUSES = [
-  { code: 'MUM-01', name: 'Mumbai Central' },
-  { code: 'DEL-01', name: 'Delhi Hub' },
-  { code: 'BLR-01', name: 'Bengaluru Depot' }
-];
+const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:6543';
 
 const DEFAULT_PRICE_GROUPS = ['Default', 'Dealer', 'Distributor', 'Special'];
 
@@ -29,7 +27,14 @@ const slugify = (text) => {
 
 export default function ProductForm({ productId }) {
   const isEditingMode = !!productId;
+
+  const getAuthToken = () => {
+    return userStore.get()?.accessToken || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('tradelogix_user') || '{}')?.accessToken : '') || '';
+  };
   
+  // Available Warehouses (Dynamically fetched from backend/store)
+  const [availableWarehouses, setAvailableWarehouses] = useState(() => getWarehouses());
+
   // Product details
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -42,7 +47,7 @@ export default function ProductForm({ productId }) {
   const [tags, setTags] = useState([]);
   const [images, setImages] = useState([]);
 
-  // Shipping state
+  // Shipping & Physical Attributes
   const [isPhysicalProduct, setIsPhysicalProduct] = useState(true);
   const [productWeight, setProductWeight] = useState('');
   const [shippingLength, setShippingLength] = useState('');
@@ -54,7 +59,9 @@ export default function ProductForm({ productId }) {
   const [showShippingDetails, setShowShippingDetails] = useState(false);
 
   const [sku, setSku] = useState('');
-  const [warehouseStocks, setWarehouseStocks] = useState(DEFAULT_WAREHOUSES.map(w => ({ warehouseCode: w.code, stock: 0 })));
+  const [warehouseStocks, setWarehouseStocks] = useState(() => 
+    getWarehouses().map(w => ({ warehouseCode: w.code, warehouseName: w.name, stock: 0 }))
+  );
   const [prices, setPrices] = useState(DEFAULT_PRICE_GROUPS.map(pg => ({ priceGroup: pg, price: '', tiers: [] })));
   
   // Product Type: 'simple' | 'variation'
@@ -69,6 +76,9 @@ export default function ProductForm({ productId }) {
   const [error, setError] = useState(null);
   const [formStatus, setFormStatus] = useState(null);
   const [isSavingForm, setIsSavingForm] = useState(false);
+
+  // Media Library modal
+  const [showMediaModal, setShowMediaModal] = useState(false);
 
   // Category Popover UI state
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
@@ -113,6 +123,54 @@ export default function ProductForm({ productId }) {
       ]
     }
   ]);
+
+  // Raw backend categories & tags
+  const [rawCategories, setRawCategories] = useState([]);
+  const [rawTags, setRawTags] = useState([]);
+
+  // Load backend categories & tags dynamically
+  useEffect(() => {
+    const fetchCategoriesAndTags = async () => {
+      try {
+        const [catRes, tagRes] = await Promise.all([
+          fetchWithAuth(`${API_URL}/api/admin/categories`),
+          fetchWithAuth(`${API_URL}/api/admin/tags`)
+        ]);
+
+        if (catRes.ok) {
+          const json = await catRes.json();
+          const list = json.data !== undefined ? json.data : json;
+          if (Array.isArray(list) && list.length > 0) {
+            setRawCategories(list);
+            // Build tree from flat list
+            const roots = list.filter(c => !c.parentId).map(c => ({
+              id: c.id,
+              name: c.name,
+              children: list.filter(sub => sub.parentId === c.id).map(sub => ({
+                id: sub.id,
+                name: sub.name,
+                children: []
+              }))
+            }));
+            if (roots.length > 0) {
+              setCategoryTree(roots);
+            }
+          }
+        }
+
+        if (tagRes.ok) {
+          const tJson = await tagRes.json();
+          const tList = tJson.data !== undefined ? tJson.data : tJson;
+          if (Array.isArray(tList) && tList.length > 0) {
+            setRawTags(tList);
+          }
+        }
+      } catch {
+        // fallback
+      }
+    };
+    fetchCategoriesAndTags();
+  }, []);
 
   const handleCategoryToggle = (catName) => {
     setSelectedCategories(prev => {
@@ -175,19 +233,38 @@ export default function ProductForm({ productId }) {
     });
   };
 
-  const handleConfirmAddCategory = () => {
+  const handleCreateCategorySubmit = async (e) => {
+    e.preventDefault();
+    if (!newCategoryName.trim()) return;
+
     const nameTrimmed = newCategoryName.trim();
-    if (!nameTrimmed) {
-      alert('Category name is required.');
-      return;
+    const parentTrimmed = newCategoryParent.trim();
+
+    // Persist category to backend
+    try {
+      const token = getAuthToken();
+      await fetch(`${API_URL}/api/admin/categories`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          name: nameTrimmed,
+          slug: slugify(nameTrimmed),
+        }),
+      });
+    } catch {
+      // fallback
     }
 
-    setCategoryTree(prev => {
-      if (!newCategoryParent) {
-        if (prev.some(c => c.name === nameTrimmed)) return prev;
-        return [...prev, { name: nameTrimmed, children: [] }];
+    setCategoryTree(prevTree => {
+      if (parentTrimmed) {
+        return addChildToParent(prevTree, parentTrimmed, nameTrimmed);
+      } else {
+        if (prevTree.some(node => node.name === nameTrimmed)) return prevTree;
+        return [...prevTree, { name: nameTrimmed, children: [] }];
       }
-      return addChildToParent(prev, newCategoryParent, nameTrimmed);
     });
 
     setSelectedCategories(prev => {
@@ -232,18 +309,34 @@ export default function ProductForm({ productId }) {
         setIsLoading(true);
         setError(null);
         try {
-          const mockProducts = getMockProducts();
-          const product = mockProducts.find(p => p.id === productId);
-          if (!product) {
-            throw new Error('Product not found in static catalog');
+          let product = null;
+          try {
+            const res = await fetchWithAuth(`${API_URL}/api/admin/products/${productId}`);
+            if (res.ok) {
+              const json = await res.json();
+              product = json.data || json;
+            }
+          } catch (fetchErr) {
+            console.warn('API fetch product failed, checking fallback:', fetchErr);
           }
 
-          setName(product.name);
+          if (!product) {
+            const mockProducts = getMockProducts();
+            product = mockProducts.find(p => p.id === productId || p.slug === productId);
+          }
+
+          if (!product) {
+            throw new Error('Product not found in database or catalog');
+          }
+
+          setName(product.name || '');
           setDescription(product.description || '');
           setSlug(product.slug || '');
-          setIsActive(product.isActive);
-          const catString = product.category || '';
-          const catList = catString.split(',').map(s => s.trim()).filter(s => s !== '');
+          setIsActive(product.isActive !== undefined ? product.isActive : true);
+          
+          const catList = Array.isArray(product.categories) && product.categories.length > 0
+            ? product.categories.map(c => (typeof c === 'object' && c ? c.name : String(c)))
+            : (typeof product.category === 'string' ? product.category.split(',').map(s => s.trim()).filter(Boolean) : []);
           setSelectedCategories(catList);
           
           if (catList.length > 0) {
@@ -278,60 +371,75 @@ export default function ProductForm({ productId }) {
               return next;
             });
           }
-          setTags(product.tags || []);
+
+          const tagNames = Array.isArray(product.tagsList) && product.tagsList.length > 0
+            ? product.tagsList.map(t => (typeof t === 'object' && t ? t.name : String(t)))
+            : (Array.isArray(product.tags) ? product.tags.map(t => (typeof t === 'object' && t ? t.name : String(t))) : []);
+          setTags(tagNames);
           setImages(product.images || []);
+          setProductType(product.productType || 'simple');
+          setLinkedProducts(product.linkedProducts || []);
 
-          // Load from new pricingConfigurations structure
-          const cfg = product.pricingConfigurations?.[0];
-          if (cfg) {
-            setSku(product.sku || '');
-            
-            const whStocks = DEFAULT_WAREHOUSES.map(wh => {
-              const matched = cfg.warehouseStocks?.find(ws => ws.warehouseCode === wh.code);
-              return {
-                warehouseCode: wh.code,
-                stock: matched ? matched.stock : 0
-              };
-            });
-            setWarehouseStocks(whStocks);
-
-            const mappedPrices = DEFAULT_PRICE_GROUPS.map(pg => {
-              const matched = cfg.pricestiers?.find(p => p.priceGroup === pg);
-              return {
-                priceGroup: pg,
-                price: matched ? matched.price : '',
-                compare_at_price: matched?.compare_at_price || '',
-                tiers: matched?.tiers ? matched.tiers.map(t => ({ minQuantity: t.minQuantity, price: t.price })) : []
-              };
-            });
-            setPrices(mappedPrices);
-          } else if (product.variants && product.variants.length > 0) {
-            // Fallback: old variants structure
-            const firstVar = product.variants[0];
-            setSku(firstVar.sku || '');
-            
-            const whStocks = DEFAULT_WAREHOUSES.map(wh => {
-              const matched = firstVar.warehouseStocks?.find(ws => ws.warehouseCode === wh.code);
-              return {
-                warehouseCode: wh.code,
-                stock: matched ? matched.stock : 0
-              };
-            });
-            setWarehouseStocks(whStocks);
-
-            const mappedPrices = DEFAULT_PRICE_GROUPS.map(pg => {
-              const matched = firstVar.prices?.find(p => p.priceGroup === pg);
-              return {
-                priceGroup: pg,
-                price: matched ? matched.price : '',
-                compare_at_price: matched?.compare_at_price || '',
-                tiers: matched?.tiers ? matched.tiers.map(t => ({ minQuantity: t.minQuantity, price: t.price })) : []
-              };
-            });
-            setPrices(mappedPrices);
+          // Restore Shipping & Physical attributes
+          setIsPhysicalProduct(product.isPhysicalProduct !== undefined ? product.isPhysicalProduct : true);
+          setProductWeight(product.productWeight !== undefined && product.productWeight !== null ? String(product.productWeight) : '');
+          setShippingLength(product.shippingLength !== undefined && product.shippingLength !== null ? String(product.shippingLength) : '');
+          setShippingWidth(product.shippingWidth !== undefined && product.shippingWidth !== null ? String(product.shippingWidth) : '');
+          setShippingHeight(product.shippingHeight !== undefined && product.shippingHeight !== null ? String(product.shippingHeight) : '');
+          setShippingClass(product.shippingClass || 'No shipping class');
+          setCountryOfOrigin(product.countryOfOrigin || '');
+          setHsCode(product.hsCode || '');
+          if (product.countryOfOrigin || product.hsCode) {
+            setShowShippingDetails(true);
           }
+
+          // Load warehouses list dynamically
+          let activeWarehouses = availableWarehouses;
+          try {
+            const res = await fetchWithAuth(`${API_URL}/api/admin/warehouses`);
+            if (res.ok) {
+              const json = await res.json();
+              const list = json.data || json;
+              if (Array.isArray(list) && list.length > 0) {
+                activeWarehouses = list;
+                setAvailableWarehouses(list);
+              }
+            }
+          } catch (e) {
+            // fallback
+          }
+
+          // 1. SKU
+          setSku(product.sku || product.pricingConfigurations?.[0]?.sku || product.variants?.[0]?.sku || '');
+
+          // 2. Warehouse Stocks
+          const rawWhStocks = product.warehouseStocks || product.pricingConfigurations?.[0]?.warehouseStocks || product.variants?.[0]?.warehouseStocks || [];
+          const whStocks = activeWarehouses.map(wh => {
+            const matched = rawWhStocks.find(
+              ws => ws.warehouseCode === wh.code || ws.warehouseName === wh.name || ws.warehouseId === wh.id
+            );
+            return {
+              warehouseCode: wh.code,
+              warehouseName: wh.name,
+              stock: matched ? (parseInt(matched.stock, 10) || 0) : 0
+            };
+          });
+          setWarehouseStocks(whStocks);
+
+          // 3. Pricing Matrix
+          const rawPrices = product.pricestiers || product.prices || product.pricingConfigurations?.[0]?.pricestiers || product.variants?.[0]?.prices || [];
+          const mappedPrices = DEFAULT_PRICE_GROUPS.map(pg => {
+            const matched = rawPrices.find(p => p.priceGroup === pg);
+            return {
+              priceGroup: pg,
+              price: matched?.price !== undefined && matched?.price !== null ? String(matched.price) : '',
+              compare_at_price: matched?.compare_at_price || matched?.compareAtPrice || '',
+              tiers: matched?.tiers ? matched.tiers.map(t => ({ minQuantity: t.minQuantity, price: String(t.price) })) : []
+            };
+          });
+          setPrices(mappedPrices);
         } catch (err) {
-          console.error(err);
+          console.error('Error loading product details:', err);
           setError(err.message || 'Error loading product');
         } finally {
           setIsLoading(false);
@@ -340,9 +448,26 @@ export default function ProductForm({ productId }) {
       loadProduct();
     } else {
       // Create empty default variant mapping if adding
-      setSku('');
-      setWarehouseStocks(DEFAULT_WAREHOUSES.map(w => ({ warehouseCode: w.code, stock: 0 })));
-      setPrices(DEFAULT_PRICE_GROUPS.map(pg => ({ priceGroup: pg, price: '', compare_at_price: '', tiers: [] })));
+      const fetchAndSetEmptyWarehouses = async () => {
+        let activeWarehouses = availableWarehouses;
+        try {
+          const res = await fetch(`${API_URL}/api/admin/warehouses`);
+          if (res.ok) {
+            const json = await res.json();
+            const list = json.data || json;
+            if (Array.isArray(list) && list.length > 0) {
+              activeWarehouses = list;
+              setAvailableWarehouses(list);
+            }
+          }
+        } catch (e) {
+          // fallback
+        }
+        setSku('');
+        setWarehouseStocks(activeWarehouses.map(w => ({ warehouseCode: w.code, warehouseName: w.name, stock: 0 })));
+        setPrices(DEFAULT_PRICE_GROUPS.map(pg => ({ priceGroup: pg, price: '', compare_at_price: '', tiers: [] })));
+      };
+      fetchAndSetEmptyWarehouses();
     }
   }, [productId]);
 
@@ -463,24 +588,53 @@ export default function ProductForm({ productId }) {
     setIsSavingForm(true);
     setFormStatus(null);
 
-    // Compile B2B Product details for static catalog (new pricingConfigurations schema)
+    // Compile B2B Product details for static catalog & API
     const savedProd = {
       id: productId || `prod-${Date.now()}`,
       name,
       description,
       slug,
       images,
+      // Resolve categoryIds and tagIds
+      categoryIds: selectedCategories
+        .map(nameOrId => rawCategories.find(c => c.id === nameOrId || c.name.toLowerCase() === nameOrId.toLowerCase())?.id)
+        .filter(Boolean),
       category: selectedCategories.length > 0 ? selectedCategories.join(', ') : null,
+      tagIds: tags
+        .map(nameOrId => rawTags.find(t => t.id === nameOrId || t.name.toLowerCase() === nameOrId.toLowerCase())?.id)
+        .filter(Boolean),
       tags,
       isActive,
       sku,
+      productType,
+      linkedProducts,
+      // Shipping & Physical Attributes
+      isPhysicalProduct,
+      productWeight: productWeight ? parseFloat(productWeight) : null,
+      shippingLength: shippingLength ? parseFloat(shippingLength) : null,
+      shippingWidth: shippingWidth ? parseFloat(shippingWidth) : null,
+      shippingHeight: shippingHeight ? parseFloat(shippingHeight) : null,
+      shippingClass,
+      countryOfOrigin: countryOfOrigin || null,
+      hsCode: hsCode || null,
+      warehouseStocks: warehouseStocks.map(ws => ({
+        warehouseCode: ws.warehouseCode,
+        warehouseName: ws.warehouseName || ws.warehouseCode,
+        stock: ws.stock || 0
+      })),
+      prices: prices.filter(p => p.price !== '').map(p => ({
+        priceGroup: p.priceGroup,
+        price: p.price,
+        compare_at_price: p.compare_at_price || undefined,
+        tiers: p.tiers ? p.tiers.filter(t => t.price !== '') : []
+      })),
       pricingConfigurations: [
         {
           totalStock: warehouseStocks.reduce((sum, ws) => sum + (ws.stock || 0), 0),
           warehouseStocks: warehouseStocks.map(ws => ({
             warehouseCode: ws.warehouseCode,
             warehouseName: ws.warehouseName || ws.warehouseCode,
-            stock: ws.stock
+            stock: ws.stock || 0
           })),
           pricestiers: prices.filter(p => p.price !== '').map(p => ({
             priceGroup: p.priceGroup,
@@ -495,11 +649,28 @@ export default function ProductForm({ productId }) {
     };
 
     try {
+      const method = isEditingMode ? 'PATCH' : 'POST';
+      const endpoint = isEditingMode
+        ? `${API_URL}/api/admin/products/${productId}`
+        : `${API_URL}/api/admin/products`;
+
+      try {
+        await fetchWithAuth(endpoint, {
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(savedProd),
+        });
+      } catch (apiErr) {
+        console.warn('API sync failed, falling back to local store:', apiErr);
+      }
+
       saveMockProduct(savedProd);
 
       setFormStatus({
         success: true,
-        message: `B2B Product '${name}' saved successfully (Local Storage)!`
+        message: `B2B Product '${name}' saved successfully!`
       });
 
       setTimeout(() => {
@@ -543,7 +714,8 @@ export default function ProductForm({ productId }) {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 pb-20">
+    <>
+      <div className="max-w-6xl mx-auto space-y-6 pb-20">
       {/* Top Navigation */}
       <div className="flex items-center justify-between border-b border-slate-200 pb-4">
         <div className="flex items-center gap-3">
@@ -660,46 +832,41 @@ export default function ProductForm({ productId }) {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700">Description</label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Product descriptions..."
-                className="w-full h-32 p-3.5 border border-slate-300 rounded-xl text-slate-800 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600 transition-shadow bg-slate-50 hover:bg-slate-50/50"
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-700">Description</label>
+                <span className="text-[10px] text-slate-400">Rich Text (Tiptap)</span>
+              </div>
+              <TiptapEditor
+                content={description}
+                onChange={(val) => setDescription(val)}
+                placeholder="Write product specifications, key features, bullet points, and descriptions..."
               />
             </div>
           </div>
 
           {/* Card 2: Media / Images Upload */}
           <div className="border border-slate-200 bg-white rounded-2xl p-6 shadow-sm space-y-4">
-            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-              <Image className="w-4 h-4 text-slate-400" /> Media
-            </h3>
-            
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={imageInputText}
-                  onChange={(e) => setImageInputText(e.target.value)}
-                  onKeyDown={handleImageAddKeyPress}
-                  placeholder="Paste image URL and press Enter..."
-                  className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600 bg-slate-50"
-                />
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                <Image className="w-4 h-4 text-slate-400" /> Media
+              </h3>
+              {images.length > 0 && (
                 <button
                   type="button"
-                  onClick={() => handleImageAddKeyPress({ key: 'Enter', preventDefault: () => {} })}
-                  className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl border border-slate-200 transition-colors"
+                  onClick={() => setShowMediaModal(true)}
+                  className="text-xs text-brand-600 hover:text-brand-700 font-bold flex items-center gap-1 transition-colors"
                 >
-                  Add
+                  <Upload className="w-3.5 h-3.5" /> Add from Media Library
                 </button>
-              </div>
-
+              )}
+            </div>
+            
+            <div>
               {/* Thumbnails grid */}
               {images.length > 0 ? (
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 pt-2">
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                   {images.map((img, i) => (
-                    <div key={i} className="relative group aspect-square rounded-xl overflow-hidden border border-slate-200 bg-slate-50">
+                    <div key={i} className="relative group aspect-square rounded-xl overflow-hidden border border-slate-200 bg-slate-50 shadow-sm">
                       <img
                         src={img}
                         alt="Product visual"
@@ -715,11 +882,34 @@ export default function ProductForm({ productId }) {
                       </button>
                     </div>
                   ))}
+
+                  {/* Add more button tile in grid */}
+                  <button
+                    type="button"
+                    onClick={() => setShowMediaModal(true)}
+                    className="aspect-square rounded-xl border-2 border-dashed border-slate-300 hover:border-brand-500 hover:bg-brand-50/40 flex flex-col items-center justify-center gap-1.5 text-slate-400 hover:text-brand-600 transition-all cursor-pointer group"
+                  >
+                    <Plus className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                    <span className="text-[11px] font-bold">Add Media</span>
+                  </button>
                 </div>
               ) : (
-                <div className="border border-dashed border-slate-200 rounded-xl p-8 text-center text-slate-400 text-xs flex flex-col items-center justify-center gap-2 bg-slate-50">
-                  <Image className="w-8 h-8 text-slate-300" />
-                  <div>No product photos added. Paste Unsplash or CDN media links above.</div>
+                /* Clickable empty state dropzone */
+                <div
+                  onClick={() => setShowMediaModal(true)}
+                  className="border-2 border-dashed border-slate-200 hover:border-brand-400 hover:bg-brand-50/30 rounded-2xl p-10 text-center text-slate-400 text-xs flex flex-col items-center justify-center gap-3 bg-slate-50/50 cursor-pointer transition-all group"
+                >
+                  <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-sm group-hover:scale-105 group-hover:border-brand-200 transition-all">
+                    <Upload className="w-6 h-6 text-brand-600" />
+                  </div>
+                  <div>
+                    <div className="font-bold text-slate-700 text-xs group-hover:text-brand-600 transition-colors">
+                      Open Media Library
+                    </div>
+                    <div className="text-[11px] text-slate-400 mt-0.5">
+                      Click to upload photos or select from existing media files
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -887,17 +1077,26 @@ export default function ProductForm({ productId }) {
 
               {/* Warehouse stocks */}
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-700 uppercase">Warehouse stock levels</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700 uppercase">Warehouse stock levels</label>
+                  <span className="text-[10px] text-slate-400 font-medium">({warehouseStocks.length} warehouses active)</span>
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {warehouseStocks.map((ws, wsIdx) => (
-                    <div key={ws.warehouseCode} className="flex flex-col bg-slate-50 border border-slate-200 p-2.5 rounded-xl text-center">
-                      <span className="text-[10px] font-bold text-slate-505">{ws.warehouseCode}</span>
+                    <div key={ws.warehouseCode} className="flex flex-col bg-slate-50 border border-slate-200 p-2.5 rounded-xl text-center shadow-sm hover:border-slate-300 transition-colors">
+                      <span className="text-[11px] font-bold text-slate-800 truncate" title={ws.warehouseName || ws.warehouseCode}>
+                        {ws.warehouseName || ws.warehouseCode}
+                      </span>
+                      <span className="text-[9px] font-mono font-bold text-brand-600 bg-brand-50 rounded px-1.5 py-0.5 self-center mt-0.5 border border-brand-100">
+                        {ws.warehouseCode}
+                      </span>
                       <input
                         type="number"
                         min="0"
                         value={ws.stock}
                         onChange={(e) => handleStockChange(wsIdx, e.target.value)}
-                        className="w-full border-none focus:outline-none text-xs font-mono text-center font-bold mt-1 bg-transparent"
+                        className="w-full border border-slate-200 rounded-lg focus:outline-none focus:border-brand-500 text-xs font-mono text-center font-bold mt-1.5 py-1 bg-white shadow-inner"
+                        placeholder="0"
                       />
                     </div>
                   ))}
@@ -1101,35 +1300,93 @@ export default function ProductForm({ productId }) {
                       </div>
                     );
                     return (
-                      <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-white border border-slate-200 rounded-xl shadow-lg max-h-52 overflow-y-auto">
-                        {results.map(p => (
-                          <button
-                            key={p.id}
-                            type="button"
-                            onClick={() => {
-                              setLinkedProducts(prev => [...prev, p]);
-                              setVariationSearch('');
-                              setIsVariationSearchOpen(false);
-                            }}
-                            className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-indigo-50 transition-colors text-left group border-b border-slate-50 last:border-none"
-                          >
-                            <div className="p-1.5 bg-slate-100 group-hover:bg-indigo-100 rounded-lg shrink-0 transition-colors">
-                              <GitBranch className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-600" />
-                            </div>
-                            <div className="min-w-0">
-                              <div className="text-xs font-semibold text-slate-800 truncate">{p.name}</div>
-                              <div className="text-[10px] font-mono text-slate-400">{p.sku || 'No SKU'}</div>
-                            </div>
-                            <Plus className="w-3.5 h-3.5 text-slate-300 group-hover:text-indigo-500 ml-auto shrink-0" />
-                          </button>
-                        ))}
+                      <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-white border border-slate-200 rounded-xl shadow-lg max-h-56 overflow-y-auto divide-y divide-slate-50">
+                        {results.map(p => {
+                          const existingLinkCount = Array.isArray(p.linkedProducts) ? p.linkedProducts.length : 0;
+                          return (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onClick={() => {
+                                const allProds = getMockProducts();
+                                const clusterProducts = [p];
+
+                                // 1. Follow p's direct linkedProducts
+                                if (Array.isArray(p.linkedProducts)) {
+                                  p.linkedProducts.forEach(lp => {
+                                    const fullProd = allProds.find(prod => prod.id === lp.id);
+                                    const itemToUse = fullProd || lp;
+                                    if (!clusterProducts.some(cp => cp.id === itemToUse.id)) {
+                                      clusterProducts.push(itemToUse);
+                                    }
+                                  });
+                                }
+
+                                // 2. Follow products that link to p
+                                allProds.forEach(prod => {
+                                  if (Array.isArray(prod.linkedProducts) && prod.linkedProducts.some(lp => lp.id === p.id)) {
+                                    if (!clusterProducts.some(cp => cp.id === prod.id)) {
+                                      clusterProducts.push(prod);
+                                    }
+                                  }
+                                });
+
+                                // 3. Filter out current product id
+                                const toAdd = clusterProducts.filter(item => item.id !== productId);
+
+                                setLinkedProducts(prev => {
+                                  const combined = [...prev];
+                                  toAdd.forEach(item => {
+                                    if (!combined.some(c => c.id === item.id)) {
+                                      combined.push(item);
+                                    }
+                                  });
+                                  return combined;
+                                });
+
+                                setVariationSearch('');
+                                setIsVariationSearchOpen(false);
+                              }}
+                              className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-indigo-50 transition-colors text-left group"
+                            >
+                              <div className="p-1.5 bg-slate-100 group-hover:bg-indigo-100 rounded-lg shrink-0 transition-colors">
+                                <GitBranch className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-600" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="text-xs font-semibold text-slate-800 truncate">{p.name}</div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[10px] font-mono text-slate-400">{p.sku || 'No SKU'}</span>
+                                  {existingLinkCount > 0 && (
+                                    <span className="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.2 rounded border border-indigo-100">
+                                      +{existingLinkCount} associated variation{existingLinkCount > 1 ? 's' : ''}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <Plus className="w-3.5 h-3.5 text-slate-300 group-hover:text-indigo-500 ml-auto shrink-0" />
+                            </button>
+                          );
+                        })}
                       </div>
                     );
                   })()}
                 </div>
 
-                {linkedProducts.length === 0 && (
-                  <p className="text-[10px] text-slate-400">Search and add products that are variations of this product.</p>
+                {linkedProducts.length === 0 ? (
+                  <p className="text-[10px] text-slate-400">Search and add products that are variations of this product. Selecting an existing variation will automatically pull in all its associated items.</p>
+                ) : (
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-[10px] text-slate-400">
+                      {linkedProducts.length} variation product{linkedProducts.length > 1 ? 's' : ''} linked
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setLinkedProducts([])}
+                      className="text-[10px] font-semibold text-rose-500 hover:text-rose-700 transition-colors"
+                    >
+                      Unlink all
+                    </button>
+                  </div>
                 )}
               </div>
             )}
@@ -1357,5 +1614,21 @@ export default function ProductForm({ productId }) {
         </div>
       )}
     </div>
+
+      {/* Media Library Modal */}
+      <MediaLibraryModal
+        isOpen={showMediaModal}
+        onClose={() => setShowMediaModal(false)}
+        onSelect={(media) => {
+          // media = { id, url, filename }
+          const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:4000';
+          const fullUrl = media.url?.startsWith('http') ? media.url : `${API_URL}${media.url}`;
+          if (!images.includes(fullUrl)) {
+            setImages(prev => [...prev, fullUrl]);
+          }
+        }}
+        authToken={userStore.get()?.accessToken || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('tradelogix_user') || '{}')?.accessToken : '') || ''}
+      />
+    </>
   );
 }

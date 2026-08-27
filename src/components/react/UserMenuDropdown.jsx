@@ -48,6 +48,7 @@ export default function UserMenuDropdown() {
                 onClick={() => {
                   logoutUser();
                   setIsOpen(false);
+                  window.location.href = '/';
                 }}
                 className="w-full text-left px-3 py-2 rounded-xl text-rose-600 hover:bg-rose-50 transition-all flex items-center gap-2.5 font-semibold"
               >

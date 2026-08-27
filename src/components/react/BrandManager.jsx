@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Trash2, Search, RefreshCw, Bookmark, X, Pencil } from 'lucide-react';
 import { getBrands, saveBrand, deleteBrand, getMockProducts } from '../../utils/mockDb.js';
+import { userStore } from '../../store/authStore.js';
+
+const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:4000';
 
 const slugify = (text) =>
   text.toString().toLowerCase().trim()
@@ -24,7 +27,31 @@ export default function BrandManager() {
   const [selected, setSelected]   = useState([]);
   const [saveMsg, setSaveMsg]     = useState(null);
 
-  const load = useCallback(() => {
+  const getAuthToken = () => {
+    return userStore.get()?.accessToken || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('tradelogix_user') || '{}')?.accessToken : '') || '';
+  };
+
+  const load = useCallback(async () => {
+    try {
+      const token = getAuthToken();
+      const res = await fetch(`${API_URL}/api/admin/brands`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const data = json.data || json;
+        if (Array.isArray(data)) {
+          setBrands(data);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('tradelogix_brands_v1', JSON.stringify(data));
+          }
+          setProducts(getMockProducts());
+          return;
+        }
+      }
+    } catch {
+      // fallback
+    }
     setBrands(getBrands());
     setProducts(getMockProducts());
   }, []);
@@ -47,10 +74,31 @@ export default function BrandManager() {
     setForm(f => ({ ...f, slug: val }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.name.trim()) return;
-    saveBrand({ name: form.name.trim(), slug: form.slug || slugify(form.name), description: form.description.trim() });
+
+    const payload = {
+      name: form.name.trim(),
+      slug: form.slug || slugify(form.name),
+      description: form.description.trim(),
+    };
+
+    try {
+      const token = getAuthToken();
+      await fetch(`${API_URL}/api/admin/brands`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(payload),
+      });
+    } catch {
+      // local fallback
+    }
+
+    saveBrand(payload);
     load();
     setForm(EMPTY_FORM);
     setIsSlugManual(false);
@@ -74,10 +122,31 @@ export default function BrandManager() {
 
   const closeEditModal = () => { setEditModal(null); setEditSlugManual(false); };
 
-  const handleEditSubmit = (e) => {
+  const handleEditSubmit = async (e) => {
     e.preventDefault();
     if (!editModal.name.trim()) return;
-    saveBrand({ id: editModal.id, name: editModal.name.trim(), slug: editModal.slug || slugify(editModal.name), description: editModal.description.trim() });
+
+    const payload = {
+      name: editModal.name.trim(),
+      slug: editModal.slug || slugify(editModal.name),
+      description: editModal.description.trim(),
+    };
+
+    try {
+      const token = getAuthToken();
+      await fetch(`${API_URL}/api/admin/brands/${editModal.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(payload),
+      });
+    } catch {
+      // local fallback
+    }
+
+    saveBrand({ id: editModal.id, ...payload });
     load();
     closeEditModal();
     setSaveMsg('Brand updated.');
@@ -85,17 +154,37 @@ export default function BrandManager() {
   };
 
   // ── Delete ────────────────────────────────────────────────────────────────
-  const handleDelete = (brandId, brandName) => {
-    if (!window.confirm(`Delete tag "${tagName}"? This cannot be undone.`)) return;
+  const handleDelete = async (brandId, brandName) => {
+    if (!window.confirm(`Delete brand "${brandName}"? This cannot be undone.`)) return;
+    try {
+      const token = getAuthToken();
+      await fetch(`${API_URL}/api/admin/brands/${brandId}`, {
+        method: 'DELETE',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+    } catch {
+      // fallback
+    }
     deleteBrand(brandId);
     setSelected(prev => prev.filter(id => id !== brandId));
     load();
   };
 
-  const handleBulkDelete = () => {
+  const handleBulkDelete = async () => {
     if (!selected.length) return;
-    if (!window.confirm(`Delete ${selected.length} selected tags?`)) return;
-    selected.forEach(id => deleteBrand(id));
+    if (!window.confirm(`Delete ${selected.length} selected brands?`)) return;
+    for (const id of selected) {
+      try {
+        const token = getAuthToken();
+        await fetch(`${API_URL}/api/admin/brands/${id}`, {
+          method: 'DELETE',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+      } catch {
+        // fallback
+      }
+      deleteBrand(id);
+    }
     setSelected([]);
     load();
   };

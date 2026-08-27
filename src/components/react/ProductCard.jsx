@@ -20,13 +20,47 @@ export const getBadgeStyle = (badge) => {
   }
 };
 
+export const ProductCardSkeleton = () => {
+  return (
+    <div className="glass-panel rounded-3xl p-4 flex flex-col justify-between border border-slate-200/80 bg-white/90 shadow-sm animate-pulse">
+      <div>
+        {/* Skeleton Image */}
+        <div className="w-full h-52 rounded-2xl bg-slate-200/70 mb-4" />
+        
+        {/* Skeleton Category & Rating */}
+        <div className="flex items-center justify-between mb-2">
+          <div className="h-3 w-20 bg-slate-200 rounded" />
+          <div className="h-3 w-12 bg-slate-200 rounded" />
+        </div>
+
+        {/* Skeleton Title */}
+        <div className="space-y-2 mb-4">
+          <div className="h-4 w-full bg-slate-200 rounded" />
+          <div className="h-4 w-3/4 bg-slate-200 rounded" />
+        </div>
+      </div>
+
+      {/* Skeleton Price & Button */}
+      <div className="flex items-center justify-between pt-4 border-t border-slate-100 mt-2">
+        <div className="h-6 w-24 bg-slate-200 rounded" />
+        <div className="h-9 w-24 bg-slate-200 rounded-xl" />
+      </div>
+    </div>
+  );
+};
+
 export default function ProductCard({ product }) {
   const defaultFallbackImage = 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&auto=format&fit=crop&q=80';
   const user = useStore(userStore);
   const isLoggedIn = user?.isLoggedIn;
 
+  const displayImage = product.featuredImage || product.image || (product.images && product.images[0]) || defaultFallbackImage;
+  const displayCategory = (Array.isArray(product.categories) && product.categories.length > 0)
+    ? (product.categories[0].name || product.categories[0])
+    : (typeof product.category === 'string' ? product.category.split(',')[0].trim() : '') || 'Hardware';
+
   return (
-    <div className="glass-panel glass-panel-hover rounded-3xl p-4 flex flex-col justify-between group border border-slate-200/80 bg-white/90 shadow-sm hover:shadow-xl hover:shadow-slate-200/50">
+    <div className="glass-panel glass-panel-hover rounded-3xl p-4 flex flex-col justify-between group border border-slate-200/80 bg-white/90 shadow-sm hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-300">
       <div>
         {/* Product Image Container with High-Contrast Badge */}
         <a
@@ -43,7 +77,7 @@ export default function ProductCard({ product }) {
             </span>
           )}
           <img
-            src={product.image || defaultFallbackImage}
+            src={displayImage}
             alt={product.name}
             onError={(e) => {
               e.target.onerror = null;
@@ -55,14 +89,18 @@ export default function ProductCard({ product }) {
 
         {/* Product Category & Rating */}
         <div className="flex items-center justify-between text-xs text-slate-500 mb-1.5">
-          <span className="font-semibold text-brand-600 uppercase tracking-wider text-[10px]">
-            {product.category}
+          <span className="font-semibold text-brand-600 uppercase tracking-wider text-[10px] truncate max-w-[150px]">
+            {displayCategory}
           </span>
-          <div className="flex items-center gap-1 text-amber-500 font-bold">
-            <Star className="w-3.5 h-3.5 fill-amber-500" />
-            <span>{product.rating}</span>
-            <span className="text-slate-400 text-[10px]">({product.reviewCount})</span>
-          </div>
+          {product.rating && (
+            <div className="flex items-center gap-1 text-amber-500 font-bold">
+              <Star className="w-3.5 h-3.5 fill-amber-500" />
+              <span>{product.rating}</span>
+              {product.reviewCount && (
+                <span className="text-slate-400 text-[10px]">({product.reviewCount})</span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Product Title */}
@@ -85,7 +123,7 @@ export default function ProductCard({ product }) {
                 </span>
               )}
             </div>
-            <AddToCartButton product={product} compact={true} />
+            <AddToCartButton product={{ ...product, image: displayImage, category: displayCategory }} compact={true} />
           </>
         ) : (
           <a

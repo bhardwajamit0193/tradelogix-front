@@ -35,31 +35,79 @@ export const cartItemCount = computed(cartItems, (items) => {
 
 // Computed subtotal cost
 export const cartSubtotal = computed(cartItems, (items) => {
-  return items.reduce((total, item) => total + item.price * item.quantity, 0);
+  return items.reduce((total, item) => total + (item.price * item.quantity), 0);
 });
 
-// Add item to cart
+// Helper to resolve the correct unit price for a given quantity based on wholesale tiers
+export const calculateTierUnitPrice = (item, quantity) => {
+  const basePrice = item.basePrice ? parseFloat(item.basePrice) : (item.price || 0);
+  const tiers = item.tiers || item.pricing?.tiers || [];
+  if (Array.isArray(tiers) && tiers.length > 0) {
+    const sorted = [...tiers].sort((a, b) => b.minQuantity - a.minQuantity);
+    const matched = sorted.find((t) => quantity >= t.minQuantity);
+    if (matched) {
+      return parseFloat(matched.price);
+    }
+  }
+  return basePrice;
+};
+
+// Add item to cart (merges identical product + variant, automatically updates quantity & tier price)
 export const addToCart = (product, quantity = 1, selectedVariant = null) => {
+  const variantVal = selectedVariant || product.variant || product.variants?.[0] || 'Default';
   const currentItems = cartItems.get();
+  
   const existingIndex = currentItems.findIndex(
-    (item) => item.id === product.id && item.variant === selectedVariant
+    (item) => String(item.id) === String(product.id) && item.variant === variantVal
   );
+
+  const fallbackImage = 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&auto=format&fit=crop&q=80';
+  const img = product.featuredImage || product.image || (product.images && product.images[0]) || fallbackImage;
+  const basePrice = product.pricing?.basePrice ? parseFloat(product.pricing.basePrice) : (product.price || 0);
+  const tiers = product.pricing?.tiers || product.tiers || [];
 
   if (existingIndex > -1) {
     const updated = [...currentItems];
-    updated[existingIndex].quantity += quantity;
+    const newQty = updated[existingIndex].quantity + quantity;
+    updated[existingIndex].quantity = newQty;
+    
+    const existingTiers = (updated[existingIndex].tiers && updated[existingIndex].tiers.length > 0)
+      ? updated[existingIndex].tiers
+      : tiers;
+    const existingBasePrice = updated[existingIndex].basePrice || basePrice || updated[existingIndex].price;
+
+    updated[existingIndex].tiers = existingTiers;
+    updated[existingIndex].basePrice = existingBasePrice;
+
+    // Auto-recalculate unit price for the merged quantity
+    const newUnitPrice = calculateTierUnitPrice(
+      {
+        basePrice: existingBasePrice,
+        tiers: existingTiers,
+        price: updated[existingIndex].price,
+      },
+      newQty
+    );
+    updated[existingIndex].price = newUnitPrice;
+    if (!updated[existingIndex].image || updated[existingIndex].image === fallbackImage) {
+      updated[existingIndex].image = img;
+    }
     cartItems.set(updated);
   } else {
+    const initialUnitPrice = calculateTierUnitPrice({ basePrice, tiers, price: product.price }, quantity);
     cartItems.set([
       ...currentItems,
       {
         id: product.id,
         name: product.name,
         slug: product.slug,
-        price: product.price,
-        image: product.image,
+        basePrice,
+        price: initialUnitPrice,
+        tiers,
+        image: img,
+        featuredImage: img,
         category: product.category,
-        variant: selectedVariant || product.variants?.[0] || 'Default',
+        variant: variantVal,
         quantity,
       },
     ]);
@@ -83,8 +131,9 @@ export const updateQuantity = (id, variant, newQuantity) => {
   }
   const currentItems = cartItems.get();
   const updated = currentItems.map((item) => {
-    if (item.id === id && item.variant === variant) {
-      return { ...item, quantity: newQuantity };
+    if (String(item.id) === String(id) && item.variant === variant) {
+      const newUnitPrice = calculateTierUnitPrice(item, newQuantity);
+      return { ...item, quantity: newQuantity, price: newUnitPrice };
     }
     return item;
   });
@@ -95,17 +144,17 @@ export const updateQuantity = (id, variant, newQuantity) => {
 export const removeFromCart = (id, variant) => {
   const currentItems = cartItems.get();
   const updated = currentItems.filter(
-    (item) => !(item.id === id && item.variant === variant)
+    (item) => !(String(item.id) === String(id) && item.variant === variant)
   );
   cartItems.set(updated);
 };
 
-// Clear entire cart
+// Clear all items from cart
 export const clearCart = () => {
   cartItems.set([]);
 };
 
-// Toggle cart drawer
+// Toggle cart drawer visibility
 export const toggleCart = (openState) => {
   if (typeof openState === 'boolean') {
     isCartOpen.set(openState);
