@@ -1,0 +1,14 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import AdminOrderDetailView from '../../../components/react/AdminOrderDetailView.jsx';
+
+const { id } = Astro.params;
+---
+
+<AdminLayout
+  title={`Order Details #${id} | TradeLogix Studio`}
+  headerTitle={`Order Overview #${id}`}
+  headerSubtitle="Review itemized line items, consignee delivery address, customer remarks, and payment audit trail"
+>
+  <AdminOrderDetailView orderId={id} client:load />
+</AdminLayout>

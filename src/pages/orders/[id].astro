@@ -1,0 +1,17 @@
+---
+import CustomerDashboardLayout from '../../layouts/CustomerDashboardLayout.astro';
+import CustomerOrderDetailView from '../../components/react/CustomerOrderDetailView.jsx';
+
+export const prerender = false;
+
+const { id } = Astro.params;
+---
+
+<CustomerDashboardLayout
+  title={`Order #${id} | TradeLogix`}
+  activeTab="orders"
+  pageTitle={`Order #${id}`}
+  pageSubtitle="Itemized breakdown, tax invoice details, and dispatch status"
+>
+  <CustomerOrderDetailView client:load orderId={id} />
+</CustomerDashboardLayout>

@@ -1,0 +1,15 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import CouponForm from '../../../components/react/CouponForm.jsx';
+
+const { id } = Astro.params;
+---
+
+<AdminLayout
+  title="Edit Coupon | TradeLogix Studio"
+  headerTitle="Edit Coupon"
+  headerSubtitle="Update promotional rules, spend thresholds, item exclusions, and per-user limits"
+>
+  <!-- React Island: Coupon Form Editor with couponId -->
+  <CouponForm couponId={id} client:load />
+</AdminLayout>

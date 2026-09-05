@@ -1,0 +1,13 @@
+---
+import CustomerDashboardLayout from '../../layouts/CustomerDashboardLayout.astro';
+import CustomerOrdersView from '../../components/react/CustomerOrdersView.jsx';
+---
+
+<CustomerDashboardLayout
+  title="My Orders | TradeLogix"
+  activeTab="orders"
+  pageTitle="My Purchase Orders"
+  pageSubtitle="Track wholesale orders, view payment receipts, and review delivery schedules"
+>
+  <CustomerOrdersView client:load />
+</CustomerDashboardLayout>

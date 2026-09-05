@@ -3,26 +3,22 @@ import {
   Building2, Plus, Trash2, Search, RefreshCw, X, Pencil, 
   MapPin, CheckCircle2, AlertTriangle, Hash, Layers, Package
 } from 'lucide-react';
+import { CountrySelect, StateSelect, CitySelect } from 'react-country-state-city';
 import { getWarehouses, saveWarehouse, deleteWarehouse } from '../../utils/mockDb.js';
 import { userStore } from '../../store/authStore.js';
 
 const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:4000';
 
-const INDIAN_STATES = [
-  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
-  'Delhi', 'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand',
-  'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur',
-  'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab', 'Rajasthan',
-  'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura', 'Uttar Pradesh',
-  'Uttarakhand', 'West Bengal'
-];
-
-const EMPTY_FORM = { name: '', code: '', city: '', state: 'Maharashtra' };
+const EMPTY_FORM = { name: '', code: '', city: '', state: 'Maharashtra', country: 'India' };
 
 export default function WarehouseManager() {
   const [warehouses, setWarehouses] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [formCountryId, setFormCountryId] = useState(101);
+  const [formStateId, setFormStateId] = useState(0);
+  const [editCountryId, setEditCountryId] = useState(101);
+  const [editStateId, setEditStateId] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState([]);
@@ -379,37 +375,51 @@ export default function WarehouseManager() {
               <p className="text-[10px] text-slate-400">Unique alphanumeric identifier (e.g. DEL-01, BLR-01).</p>
             </div>
 
-            {/* City */}
+            {/* Country with react-country-state-city */}
             <div className="space-y-1.5">
               <label className="font-bold text-slate-700 block">
-                City <span className="text-rose-500">*</span>
+                Country <span className="text-rose-500">*</span>
               </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={form.city}
-                  onChange={e => handleInputChange('city', e.target.value)}
-                  placeholder="e.g. Mumbai"
-                  className="w-full pl-8 pr-3 py-2 border border-slate-300 rounded-xl text-xs bg-slate-50 focus:bg-white focus:outline-none focus:border-brand-500 transition-colors shadow-sm"
-                />
-                <MapPin className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-              </div>
+              <CountrySelect
+                defaultValue={{ id: 101, name: form.country || 'India' }}
+                onChange={(val) => {
+                  setFormCountryId(val.id);
+                  handleInputChange('country', val.name);
+                }}
+                placeHolder="Select Country"
+              />
             </div>
 
-            {/* State */}
+            {/* State with react-country-state-city */}
             <div className="space-y-1.5">
               <label className="font-bold text-slate-700 block">
                 State <span className="text-rose-500">*</span>
               </label>
-              <select
-                value={form.state}
-                onChange={e => handleInputChange('state', e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs bg-slate-50 focus:bg-white focus:outline-none focus:border-brand-500 transition-colors shadow-sm cursor-pointer"
-              >
-                {INDIAN_STATES.map(s => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
+              <StateSelect
+                countryid={formCountryId}
+                defaultValue={form.state ? { name: form.state } : undefined}
+                onChange={(val) => {
+                  setFormStateId(val.id);
+                  handleInputChange('state', val.name);
+                }}
+                placeHolder={form.state || 'Select State'}
+              />
+            </div>
+
+            {/* City with react-country-state-city */}
+            <div className="space-y-1.5">
+              <label className="font-bold text-slate-700 block">
+                City <span className="text-rose-500">*</span>
+              </label>
+              <CitySelect
+                countryid={formCountryId}
+                stateid={formStateId}
+                defaultValue={form.city ? { name: form.city } : undefined}
+                onChange={(val) => {
+                  handleInputChange('city', val.name);
+                }}
+                placeHolder={form.city || 'Select City'}
+              />
             </div>
 
             {/* Submit Button */}
@@ -609,26 +619,41 @@ export default function WarehouseManager() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="font-bold text-slate-700 block">City *</label>
-                <input
-                  type="text"
-                  value={editModal.city}
-                  onChange={e => setEditModal({ ...editModal, city: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs bg-slate-50 focus:bg-white focus:outline-none focus:border-brand-500 shadow-sm"
+                <label className="font-bold text-slate-700 block">Country *</label>
+                <CountrySelect
+                  defaultValue={{ id: 101, name: editModal.country || 'India' }}
+                  onChange={(val) => {
+                    setEditCountryId(val.id);
+                    setEditModal({ ...editModal, country: val.name });
+                  }}
+                  placeHolder="Select Country"
                 />
               </div>
 
               <div className="space-y-1.5">
                 <label className="font-bold text-slate-700 block">State *</label>
-                <select
-                  value={editModal.state}
-                  onChange={e => setEditModal({ ...editModal, state: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs bg-slate-50 focus:bg-white focus:outline-none focus:border-brand-500 shadow-sm cursor-pointer"
-                >
-                  {INDIAN_STATES.map(s => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
+                <StateSelect
+                  countryid={editCountryId}
+                  defaultValue={editModal.state ? { name: editModal.state } : undefined}
+                  onChange={(val) => {
+                    setEditStateId(val.id);
+                    setEditModal({ ...editModal, state: val.name });
+                  }}
+                  placeHolder={editModal.state || 'Select State'}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="font-bold text-slate-700 block">City *</label>
+                <CitySelect
+                  countryid={editCountryId}
+                  stateid={editStateId}
+                  defaultValue={editModal.city ? { name: editModal.city } : undefined}
+                  onChange={(val) => {
+                    setEditModal({ ...editModal, city: val.name });
+                  }}
+                  placeHolder={editModal.city || 'Select City'}
+                />
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">

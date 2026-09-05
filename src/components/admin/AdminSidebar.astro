@@ -3,9 +3,11 @@ const { currentPath = '/admin' } = Astro.props;
 
 // Determine active section
 const isProductsPage = currentPath.startsWith('/admin/products');
+const isCouponsPage = currentPath.startsWith('/admin/coupons');
 const isCustomersPage = currentPath.startsWith('/admin/users');
 const isMediaPage = currentPath.startsWith('/admin/media');
 const isWarehousesPage = currentPath.startsWith('/admin/warehouses');
+const isSettingsPage = currentPath.startsWith('/admin/settings');
 
 // Get active status parameter from Astro.url
 const statusQuery = Astro.url.searchParams.get('status') || '';
@@ -20,6 +22,11 @@ const productSubItems = [
   { label: 'Add New',       path: '/admin/products/add' },
   { label: 'Categories',    path: '/admin/products/categories' },
   { label: 'Tags',          path: '/admin/products/tags' },
+];
+
+const couponSubItems = [
+  { label: 'All Coupons',   path: '/admin/coupons' },
+  { label: 'Add New',       path: '/admin/coupons/add' },
 ];
 
 const mediaSubItems = [
@@ -39,31 +46,60 @@ const customerSubItems = [
   { label: 'All Customers', status: 'all', path: '/admin/users?status=all' }
 ];
 
+const settingsSubItems = [
+  { label: 'Payment Settings', path: '/admin/settings/payments' },
+];
+
+const isCustomersListPage = currentPath === '/admin/users' || currentPath === '/admin/users/';
+
 // Helper to determine if a specific child status is active
 const isSubItemActive = (subStatus) => {
-  if (!isCustomersPage) return false;
-  // If no status query is specified, "pending" is active by default in CustomerManager
+  if (!isCustomersListPage) return false;
   const normalizedQuery = statusQuery.toLowerCase();
-  if (normalizedQuery === '' || normalizedQuery === 'pending approval') {
+  if (normalizedQuery === '' || normalizedQuery === 'pending' || normalizedQuery === 'pending approval') {
     return subStatus === 'pending';
   }
-  if (normalizedQuery === 'approve') {
+  if (normalizedQuery === 'approve' || normalizedQuery === 'approved') {
     return subStatus === 'approved';
   }
   return normalizedQuery === subStatus;
 };
 ---
 
-<aside class="w-64 bg-white border-r border-slate-200 flex flex-col justify-between shrink-0 min-h-screen">
-  <div class="p-6 space-y-8">
-    <!-- Brand Header with logo.jpeg -->
-    <a href="/admin" class="flex items-center gap-3">
-       <img
-        src="/logo.jpeg"
-        alt="TradeLogix Logo"
-        class="h-14 w-auto object-contain rounded-lg group-hover:scale-105 transition-transform"
-      />
-    </a>
+<!-- Mobile Drawer Backdrop Overlay -->
+<div
+  id="admin-sidebar-backdrop"
+  class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-40 hidden lg:hidden transition-opacity duration-300 opacity-0"
+  aria-hidden="true"
+></div>
+
+<!-- Sidebar: Off-canvas drawer on mobile, static on desktop -->
+<aside
+  id="admin-sidebar"
+  class="fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200 flex flex-col h-screen transform -translate-x-full lg:translate-x-0 lg:static lg:sticky lg:top-0 shrink-0 transition-transform duration-300 ease-in-out shadow-xl lg:shadow-none"
+>
+  <div class="p-5 sm:p-6 space-y-6 flex-1 overflow-y-auto custom-sidebar-scroll">
+    <!-- Brand Header with Close Button on Mobile -->
+    <div class="flex items-center justify-between">
+      <a href="/admin" class="flex items-center gap-3">
+        <img
+          src="/logo.jpeg"
+          alt="TradeLogix Logo"
+          class="h-12 w-auto object-contain rounded-lg hover:scale-105 transition-transform"
+        />
+      </a>
+
+      <button
+        id="admin-sidebar-close-btn"
+        type="button"
+        class="lg:hidden p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+        aria-label="Close sidebar"
+      >
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
 
     <!-- Navigation Menu -->
     <nav class="space-y-1.5">
@@ -88,7 +124,7 @@ const isSubItemActive = (subStatus) => {
         );
       })}
 
-      {/* Products Catalog Dropdown */}
+      <!-- Products Catalog Dropdown -->
       <details class="group select-none" open={isProductsPage}>
         <summary class={`flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold cursor-pointer list-none transition-all ${
           isProductsPage
@@ -128,7 +164,47 @@ const isSubItemActive = (subStatus) => {
         </div>
       </details>
 
-      {/* Media Dropdown Menu */}
+      <!-- Coupons Dropdown Menu -->
+      <details class="group select-none" open={isCouponsPage}>
+        <summary class={`flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold cursor-pointer list-none transition-all ${
+          isCouponsPage
+            ? 'bg-brand-50 text-brand-600'
+            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+        }`}>
+          <div class="flex items-center gap-3">
+            <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+            </svg>
+            <span>Coupons</span>
+          </div>
+          <svg class="w-3.5 h-3.5 transition-transform duration-200 group-open:rotate-180 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+          </svg>
+        </summary>
+
+        <div class="pl-7 mt-1.5 space-y-1 border-l-2 border-slate-100 ml-5">
+          {couponSubItems.map((subItem) => {
+            const isSubActive = currentPath === subItem.path;
+            return (
+              <a
+                href={subItem.path}
+                class={`flex items-center justify-between px-3 py-2 rounded-lg text-[11px] font-medium transition-all ${
+                  isSubActive
+                    ? 'text-brand-600 bg-brand-50/50 font-semibold'
+                    : 'text-slate-500 hover:text-slate-900 hover:pl-4'
+                }`}
+              >
+                <span>{subItem.label}</span>
+                {isSubActive && (
+                  <span class="w-1.5 h-1.5 rounded-full bg-brand-500 shadow-glow-primary animate-pulse" />
+                )}
+              </a>
+            );
+          })}
+        </div>
+      </details>
+
+      <!-- Media Dropdown Menu -->
       <details class="group select-none" open={isMediaPage}>
         <summary class={`flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold cursor-pointer list-none transition-all ${
           isMediaPage
@@ -168,7 +244,7 @@ const isSubItemActive = (subStatus) => {
         </div>
       </details>
 
-      {/* Warehouses Dropdown Menu */}
+      <!-- Warehouses Dropdown Menu -->
       <details class="group select-none" open={isWarehousesPage}>
         <summary class={`flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold cursor-pointer list-none transition-all ${
           isWarehousesPage
@@ -211,7 +287,7 @@ const isSubItemActive = (subStatus) => {
       <!-- Customers Dropdown Menu -->
       <details class="group select-none" open={isCustomersPage}>
         <summary class={`flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold cursor-pointer list-none transition-all ${
-          isCustomersPage && !statusQuery
+          isCustomersPage
             ? 'bg-brand-50 text-brand-600'
             : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
         }`}>
@@ -247,14 +323,55 @@ const isSubItemActive = (subStatus) => {
           })}
         </div>
       </details>
+
+      <!-- Settings Dropdown Menu -->
+      <details class="group select-none" open={isSettingsPage}>
+        <summary class={`flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold cursor-pointer list-none transition-all ${
+          isSettingsPage
+            ? 'bg-brand-50 text-brand-600'
+            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+        }`}>
+          <div class="flex items-center gap-3">
+            <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span>Settings</span>
+          </div>
+          <svg class="w-3.5 h-3.5 transition-transform duration-200 group-open:rotate-180 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+          </svg>
+        </summary>
+
+        <div class="pl-7 mt-1.5 space-y-1 border-l-2 border-slate-100 ml-5">
+          {settingsSubItems.map((subItem) => {
+            const isSubActive = currentPath === subItem.path;
+            return (
+              <a
+                href={subItem.path}
+                class={`flex items-center justify-between px-3 py-2 rounded-lg text-[11px] font-medium transition-all ${
+                  isSubActive
+                    ? 'text-brand-600 bg-brand-50/50 font-semibold'
+                    : 'text-slate-500 hover:text-slate-900 hover:pl-4'
+                }`}
+              >
+                <span>{subItem.label}</span>
+                {isSubActive && (
+                  <span class="w-1.5 h-1.5 rounded-full bg-brand-500 shadow-glow-primary animate-pulse" />
+                )}
+              </a>
+            );
+          })}
+        </div>
+      </details>
     </nav>
   </div>
 
   <!-- Bottom Return Button -->
-  <div class="p-6 border-t border-slate-200 space-y-3">
+  <div class="p-4 sm:p-5 border-t border-slate-200 bg-white shrink-0 mt-auto">
     <a
       href="/"
-      class="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 hover:text-slate-900 text-xs font-semibold hover:bg-slate-100 transition-all"
+      class="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 hover:text-slate-900 text-xs font-semibold hover:bg-slate-100 transition-all shadow-sm"
     >
       <svg class="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -264,11 +381,64 @@ const isSubItemActive = (subStatus) => {
   </div>
 </aside>
 
+<script is:inline>
+  (function() {
+    function initSidebarToggle() {
+      const menuBtn = document.getElementById('admin-mobile-menu-btn');
+      const closeBtn = document.getElementById('admin-sidebar-close-btn');
+      const sidebar = document.getElementById('admin-sidebar');
+      const backdrop = document.getElementById('admin-sidebar-backdrop');
+
+      function openSidebar() {
+        if (!sidebar || !backdrop) return;
+        sidebar.classList.remove('-translate-x-full');
+        sidebar.classList.add('translate-x-0');
+        backdrop.classList.remove('hidden');
+        setTimeout(() => backdrop.classList.remove('opacity-0'), 10);
+        document.body.classList.add('overflow-hidden', 'lg:overflow-auto');
+      }
+
+      function closeSidebar() {
+        if (!sidebar || !backdrop) return;
+        sidebar.classList.add('-translate-x-full');
+        sidebar.classList.remove('translate-x-0');
+        backdrop.classList.add('opacity-0');
+        setTimeout(() => backdrop.classList.add('hidden'), 300);
+        document.body.classList.remove('overflow-hidden', 'lg:overflow-auto');
+      }
+
+      if (menuBtn) menuBtn.onclick = openSidebar;
+      if (closeBtn) closeBtn.onclick = closeSidebar;
+      if (backdrop) backdrop.onclick = closeSidebar;
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initSidebarToggle);
+    } else {
+      initSidebarToggle();
+    }
+  })();
+</script>
+
 <style>
   summary::-webkit-details-marker {
     display: none;
   }
   summary {
     list-style: none;
+  }
+  .custom-sidebar-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: #e2e8f0 transparent;
+  }
+  .custom-sidebar-scroll::-webkit-scrollbar {
+    width: 4px;
+  }
+  .custom-sidebar-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-sidebar-scroll::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 9999px;
   }
 </style>

@@ -4,6 +4,21 @@ import AdminLoginForm from '../../components/react/AdminLoginForm.jsx';
 ---
 
 <BaseLayout title="Executive Secure Login | TradeLogix Studio" noindex={true}>
+  <script is:inline>
+    (function() {
+      try {
+        const saved = localStorage.getItem('tradelogix_user');
+        if (saved) {
+          const user = JSON.parse(saved);
+          if (user && user.isLoggedIn && user.role && user.role.toLowerCase() === 'admin') {
+            window.location.replace('/admin');
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    })();
+  </script>
   <div class="flex flex-col min-h-screen">
     <!-- Main Center Panel -->
     <main class="flex-grow flex items-center justify-center p-4 py-24 relative overflow-hidden">

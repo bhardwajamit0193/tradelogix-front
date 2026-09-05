@@ -1,0 +1,13 @@
+---
+import CustomerDashboardLayout from '../../layouts/CustomerDashboardLayout.astro';
+import CustomerPhoneChangeManager from '../../components/react/CustomerPhoneChangeManager.jsx';
+---
+
+<CustomerDashboardLayout
+  title="Change Login Mobile Number | TradeLogix"
+  activeTab="change-phone"
+  pageTitle="Change Login Mobile"
+  pageSubtitle="Verify ownership via OTP to update your primary wholesale login mobile number"
+>
+  <CustomerPhoneChangeManager client:load />
+</CustomerDashboardLayout>

@@ -1,0 +1,13 @@
+---
+import CustomerDashboardLayout from '../../layouts/CustomerDashboardLayout.astro';
+import CustomerDashboardHome from '../../components/react/CustomerDashboardHome.jsx';
+---
+
+<CustomerDashboardLayout
+  title="Customer Portal & Dashboard | TradeLogix"
+  activeTab="overview"
+  pageTitle="Customer Dashboard"
+  pageSubtitle="Overview of your wholesale purchase orders, invoices, and logistics consignments"
+>
+  <CustomerDashboardHome client:load />
+</CustomerDashboardLayout>

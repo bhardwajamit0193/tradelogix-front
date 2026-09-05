@@ -24,5 +24,9 @@ export default defineConfig({
       applyBaseStyles: false,
     }),
   ],
+  vite: {
+    optimizeDeps: {
+      include: ['react-country-state-city', 'react-phone-input-2', 'lucide-react', '@nanostores/react'],
+    },
+  },
 });
-

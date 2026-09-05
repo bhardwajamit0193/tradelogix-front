@@ -45,6 +45,21 @@ const {
       href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
       rel="stylesheet"
     />
+
+    <!-- Instant Auth State Detection to Eliminate Pre-Hydration Sign In Button Flash -->
+    <script is:inline>
+      (function() {
+        try {
+          var saved = localStorage.getItem('tradelogix_user');
+          if (saved) {
+            var u = JSON.parse(saved);
+            if (u && u.isLoggedIn) {
+              document.documentElement.classList.add('tradelogix-auth-active');
+            }
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col antialiased selection:bg-brand-500 selection:text-white">
     <!-- Ambient Background Glow Accents (Light Theme Pastels) -->

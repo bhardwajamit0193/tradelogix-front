@@ -176,27 +176,27 @@ export default function CustomerManager() {
   return (
     <div className="space-y-6 text-xs">
       {/* Top Filter & Search Action Bar */}
-      <form onSubmit={handleSearchSubmit} className="glass-panel p-5 rounded-3xl flex flex-col md:flex-row items-center justify-between gap-4 border border-slate-200 bg-white shadow-sm">
+      <form onSubmit={handleSearchSubmit} className="glass-panel p-4 sm:p-5 rounded-2xl sm:rounded-3xl flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 sm:gap-4 border border-slate-200 bg-white shadow-sm">
         {/* Search Input */}
-        <div className="relative w-full md:w-80">
+        <div className="relative w-full lg:w-80">
           <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by firm, owner name, gstin..."
-            className="w-full pl-10 pr-4 py-2.5 glass-input bg-slate-50 border-slate-300 text-slate-900"
+            placeholder="Search by firm, owner, gstin..."
+            className="w-full pl-10 pr-4 py-2.5 glass-input bg-slate-50 border-slate-300 text-slate-900 text-xs rounded-xl"
           />
         </div>
 
         {/* Filter Dropdowns */}
-        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-          <div className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
-            <Filter className="w-3.5 h-3.5 text-slate-400" />
+        <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 w-full lg:w-auto">
+          <div className="flex-1 sm:flex-initial flex items-center gap-1.5 bg-slate-50 px-3 py-2 rounded-xl border border-slate-200 text-xs">
+            <Filter className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="bg-transparent border-none text-slate-700 font-semibold focus:ring-0 cursor-pointer pr-5 py-0"
+              className="bg-transparent border-none text-slate-700 font-semibold focus:ring-0 cursor-pointer pr-4 py-0 text-xs w-full"
             >
               <option value="All">All Statuses</option>
               <option value="Pending Approval">Pending Approval</option>
@@ -207,12 +207,12 @@ export default function CustomerManager() {
             </select>
           </div>
 
-          <div className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
-            <Building2 className="w-3.5 h-3.5 text-slate-400" />
+          <div className="flex-1 sm:flex-initial flex items-center gap-1.5 bg-slate-50 px-3 py-2 rounded-xl border border-slate-200 text-xs">
+            <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             <select
               value={buyerTypeFilter}
               onChange={(e) => setBuyerTypeFilter(e.target.value)}
-              className="bg-transparent border-none text-slate-700 font-semibold focus:ring-0 cursor-pointer pr-5 py-0"
+              className="bg-transparent border-none text-slate-700 font-semibold focus:ring-0 cursor-pointer pr-4 py-0 text-xs w-full"
             >
               <option value="All">All Buyer Types</option>
               <option value="GST">GST Registered</option>
@@ -222,15 +222,15 @@ export default function CustomerManager() {
 
           <button
             type="submit"
-            className="px-4 py-2.5 bg-brand-600 hover:bg-brand-500 text-white rounded-xl font-semibold transition-colors flex items-center gap-1.5 shadow"
+            className="px-4 py-2.5 gradient-brand hover:opacity-95 text-white rounded-xl font-semibold transition-colors flex items-center justify-center gap-1.5 shadow-sm text-xs shrink-0"
           >
-            Apply Query
+            Apply
           </button>
           
           <button
             type="button"
             onClick={fetchCustomers}
-            className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition-colors"
+            className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition-colors shrink-0"
             title="Refresh list"
           >
             <RotateCw className="w-4 h-4" />

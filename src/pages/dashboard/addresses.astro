@@ -1,0 +1,13 @@
+---
+import CustomerDashboardLayout from '../../layouts/CustomerDashboardLayout.astro';
+import CustomerAddressManager from '../../components/react/CustomerAddressManager.jsx';
+---
+
+<CustomerDashboardLayout
+  title="Saved Shipping & Billing Addresses | TradeLogix"
+  activeTab="addresses"
+  pageTitle="Address Management"
+  pageSubtitle="Configure your single primary shipping dock and official tax invoicing address"
+>
+  <CustomerAddressManager client:load />
+</CustomerDashboardLayout>

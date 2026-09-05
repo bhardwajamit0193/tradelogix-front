@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useStore } from '@nanostores/react';
 import {
   cartItems,
@@ -8,33 +8,14 @@ import {
   removeFromCart,
   cartSubtotal,
 } from '../../store/cartStore.js';
-import { X, ShoppingCart, Plus, Minus, Trash2, ArrowRight, Tag } from 'lucide-react';
+import { X, ShoppingCart, Plus, Minus, Trash2, ArrowRight } from 'lucide-react';
 
 export default function CartDrawer() {
   const isOpen = useStore(isCartOpen);
   const items = useStore(cartItems);
   const subtotal = useStore(cartSubtotal);
 
-  const [promoCode, setPromoCode] = useState('');
-  const [discount, setDiscount] = useState(0);
-  const [promoApplied, setPromoApplied] = useState(false);
-
   if (!isOpen) return null;
-
-  const handleApplyPromo = (e) => {
-    e.preventDefault();
-    if (promoCode.trim().toUpperCase() === 'TRADE10') {
-      setDiscount(subtotal * 0.1);
-      setPromoApplied(true);
-    } else if (promoCode.trim().toUpperCase() === 'WELCOME20') {
-      setDiscount(subtotal * 0.2);
-      setPromoApplied(true);
-    } else {
-      alert('Invalid Promo Code! Try "TRADE10" or "WELCOME20"');
-    }
-  };
-
-  const finalTotal = Math.max(0, subtotal - discount);
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
@@ -137,33 +118,6 @@ export default function CartDrawer() {
           {/* Footer Summary */}
           {items.length > 0 && (
             <div className="p-6 border-t border-slate-200 bg-white space-y-4">
-              {/* Promo Code Input */}
-              <form onSubmit={handleApplyPromo} className="flex gap-2">
-                <div className="relative flex-1">
-                  <Tag className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="text"
-                    value={promoCode}
-                    onChange={(e) => setPromoCode(e.target.value)}
-                    placeholder='Promo code (e.g. "TRADE10")'
-                    className="w-full pl-9 pr-3 py-2 text-xs glass-input bg-slate-50 text-slate-900 border-slate-300"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-semibold transition-all border border-slate-700"
-                >
-                  Apply
-                </button>
-              </form>
-
-              {promoApplied && (
-                <div className="flex justify-between items-center text-xs text-emerald-700 font-medium bg-emerald-50 p-2 rounded-lg border border-emerald-200">
-                  <span>Promo Applied</span>
-                  <span>-₹{discount.toFixed(2)}</span>
-                </div>
-              )}
-
               {/* Price Breakdown */}
               <div className="space-y-1.5 text-xs text-slate-500">
                 <div className="flex justify-between">
@@ -176,25 +130,18 @@ export default function CartDrawer() {
                 </div>
                 <div className="flex justify-between pt-2 border-t border-slate-200 text-sm font-bold text-slate-900">
                   <span>Total</span>
-                  <span className="text-brand-600 font-display text-base">₹{finalTotal.toFixed(2)}</span>
+                  <span className="text-brand-600 font-display text-base">₹{subtotal.toFixed(2)}</span>
                 </div>
               </div>
 
               {/* Action CTAs */}
-              <div className="grid grid-cols-2 gap-3 pt-2">
-                <a
-                  href="/cart"
-                  onClick={() => toggleCart(false)}
-                  className="py-3 text-center rounded-xl bg-slate-100 border border-slate-200 text-slate-800 text-xs font-semibold hover:bg-slate-200 transition-all"
-                >
-                  View Full Cart
-                </a>
+              <div className="pt-2">
                 <a
                   href="/checkout"
                   onClick={() => toggleCart(false)}
-                  className="py-3 text-center rounded-xl gradient-brand text-white text-xs font-semibold shadow-md hover:opacity-90 transition-all flex items-center justify-center gap-1.5"
+                  className="w-full py-3.5 text-center rounded-xl gradient-brand text-white text-xs font-bold shadow-md hover:opacity-90 transition-all flex items-center justify-center gap-2"
                 >
-                  Checkout <ArrowRight className="w-3.5 h-3.5" />
+                  Proceed to Checkout <ArrowRight className="w-4 h-4" />
                 </a>
               </div>
             </div>

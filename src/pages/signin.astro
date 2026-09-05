@@ -1,0 +1,4 @@
+---
+// Redirect /signin to /login with any query params preserved
+return Astro.redirect('/login' + (Astro.url.search || ''));
+---

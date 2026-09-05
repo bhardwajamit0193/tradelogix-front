@@ -1,0 +1,13 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import CouponsManager from '../../../components/react/CouponsManager.jsx';
+---
+
+<AdminLayout
+  title="Coupons & Discounts | TradeLogix Studio"
+  headerTitle="Coupons & Discount Rules"
+  headerSubtitle="Manage promotional codes, percentage / fixed discounts, spend restrictions, and customer whitelists"
+>
+  <!-- React Island: Coupons Manager Table -->
+  <CouponsManager client:load />
+</AdminLayout>

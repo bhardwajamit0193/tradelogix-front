@@ -1,0 +1,13 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import CouponForm from '../../../components/react/CouponForm.jsx';
+---
+
+<AdminLayout
+  title="Add New Coupon | TradeLogix Studio"
+  headerTitle="Add New Coupon"
+  headerSubtitle="Configure WooCommerce-style coupon properties, spend rules, relational inclusions, and usage limits"
+>
+  <!-- React Island: Coupon Form Editor -->
+  <CouponForm client:load />
+</AdminLayout>

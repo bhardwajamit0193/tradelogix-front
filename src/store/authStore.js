@@ -1,6 +1,6 @@
 import { atom } from 'nanostores';
 
-const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:4000';
+const API_URL = import.meta.env.PUBLIC_API_URL || (typeof window !== 'undefined' && window.__PUBLIC_API_URL__) || 'http://localhost:6543';
 
 const getInitialUser = () => {
   if (typeof window !== 'undefined') {

@@ -1,32 +1,45 @@
-import React, { useState } from 'react';
-import { sendOtpApi, verifyOtpApi, verifyGstApi, registerB2bCustomerApi, setSession } from '../../store/authStore.js';
-import { ArrowRight, Smartphone, Lock, CheckCircle, ChevronLeft, Building2, User2, AlertCircle, Info } from 'lucide-react';
-import PhoneInput from 'react-phone-input-2';
-import 'react-phone-input-2/lib/style.css';
+import React, { useState, useEffect } from 'react';
+import { sendOtpApi, verifyOtpApi, verifyGstApi, registerB2bCustomerApi, setSession, logoutUser } from '../../store/authStore.js';
+import PhoneInputField from './PhoneInputField.jsx';
 import { CountrySelect, StateSelect, CitySelect } from 'react-country-state-city';
-import 'react-country-state-city/dist/react-country-state-city.css';
-
-const PhoneInputComponent = PhoneInput.default || PhoneInput;
+import { ArrowRight, Smartphone, Lock, CheckCircle, ChevronLeft, Building2, User2, AlertCircle, Info } from 'lucide-react';
 
 export default function UserAuthForm() {
   const [step, setStep] = useState('mobile'); // 'mobile', 'otp', 'buyer_type', 'gst_form', 'nongst_form', 'pending_approval', 'success'
   const [mobileNumber, setMobileNumber] = useState('');
   const [code, setCode] = useState('');
   const [buyerType, setBuyerType] = useState('GST'); // 'GST', 'NON_GST'
+
+  // If user is already logged in, redirect them away from the login screen
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('tradelogix_user');
+      if (saved) {
+        const user = JSON.parse(saved);
+        if (user && user.isLoggedIn) {
+          const params = new URLSearchParams(window.location.search);
+          const redirectUrl = params.get('redirect') || (user.role && user.role.toLowerCase() === 'admin' ? '/admin' : '/dashboard');
+          window.location.replace(redirectUrl);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
   
   // Registration Form Fields
   const [gstin, setGstin] = useState('');
   const [firmName, setFirmName] = useState('');
   const [ownerName, setOwnerName] = useState('');
   const [address, setAddress] = useState('');
+  const [country, setCountry] = useState('India');
+  const [countryId, setCountryId] = useState(101);
+  const [state, setState] = useState('Maharashtra');
+  const [stateId, setStateId] = useState(0);
   const [city, setCity] = useState('');
-  const [state, setState] = useState('');
   const [pincode, setPincode] = useState('');
   const [businessConstitution, setBusinessConstitution] = useState('');
   const [email, setEmail] = useState('');
-  
-  const [countryId, setCountryId] = useState(101); // Default to India (101)
-  const [stateId, setStateId] = useState(0);
   
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -38,12 +51,16 @@ export default function UserAuthForm() {
   // OTP Sending Handlers
   const handleSendOtp = async (e) => {
     e.preventDefault();
-    // Verify phone number has a reasonable length (includes country code now, e.g. 919876543210 is 12 chars)
-    if (!mobileNumber || mobileNumber.length < 10) return;
+    // Clear any previous session so old customer data never leaks
+    logoutUser();
+    
+    // Normalize phone number for API (digits only, minimum 10)
+    const cleanPhone = (mobileNumber || '').replace(/\D/g, '');
+    if (!cleanPhone || cleanPhone.length < 10) return;
     setIsLoading(true);
     setError(null);
     try {
-      const data = await sendOtpApi(mobileNumber);
+      const data = await sendOtpApi(cleanPhone);
       setOtpCodeToShow(data.otpCode); // returned in response for easy testing
       setStep('otp');
     } catch (err) {
@@ -60,7 +77,8 @@ export default function UserAuthForm() {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await verifyOtpApi(mobileNumber, code);
+      const cleanPhone = (mobileNumber || '').replace(/\D/g, '');
+      const data = await verifyOtpApi(cleanPhone, code);
       if (data.isRegistered) {
         if (data.isApproved) {
           // Logged in! Save session and redirect
@@ -76,29 +94,36 @@ export default function UserAuthForm() {
         setStep('buyer_type');
       }
     } catch (err) {
-      setError(err.message || 'Invalid or expired OTP code.');
+      setError(err.message || 'Invalid OTP code.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // GSTIN Validation
+  // GST Verification Handler
   const handleVerifyGstin = async () => {
-    if (!gstin || gstin.length !== 15) return;
+    if (!gstin || gstin.length !== 15) {
+      setError('Please enter a valid 15-digit GSTIN.');
+      return;
+    }
     setIsLoading(true);
     setError(null);
     try {
       const data = await verifyGstApi(gstin);
-      setFirmName(data.firmName || '');
-      setOwnerName(data.ownerName || '');
-      setBusinessConstitution(data.businessConstitution || '');
-      setAddress(data.address || '');
-      setCity(data.city || '');
-      setState(data.state || '');
-      setPincode(data.pincode || '');
-      setGstVerified(true);
+      if (data.valid) {
+        setGstVerified(true);
+        setFirmName(data.tradeName || data.legalName || '');
+        setOwnerName(data.legalName || '');
+        setBusinessConstitution(data.constitutionOfBusiness || 'Proprietorship');
+        setAddress(data.pradr?.addr?.bno ? `${data.pradr.addr.bno}, ${data.pradr.addr.st || ''}, ${data.pradr.addr.loc || ''}` : data.principalPlace || '');
+        setCity(data.pradr?.addr?.dst || data.pradr?.addr?.city || '');
+        setState(data.pradr?.addr?.stcd || data.state || 'Maharashtra');
+        setPincode(data.pradr?.addr?.pncd || '');
+      } else {
+        setError('Invalid GSTIN. Could not verify with tax registry.');
+      }
     } catch (err) {
-      setError(err.message || 'GSTIN verification failed. Please check the number.');
+      setError(err.message || 'GSTIN verification failed. Please enter details manually.');
     } finally {
       setIsLoading(false);
     }
@@ -110,13 +135,15 @@ export default function UserAuthForm() {
     setIsLoading(true);
     setError(null);
     try {
+      const cleanPhone = (mobileNumber || '').replace(/\D/g, '');
       const payload = {
-        mobileNumber,
+        mobileNumber: cleanPhone,
         buyerType: buyerType === 'GST' ? 'GST' : 'NON_GST',
         email,
         ownerName,
         firmName,
         address,
+        country,
         city,
         state,
         pincode,
@@ -125,6 +152,7 @@ export default function UserAuthForm() {
       };
       
       await registerB2bCustomerApi(payload);
+      logoutUser();
       setStep('success');
     } catch (err) {
       setError(err.message || 'Failed to complete registration.');
@@ -136,8 +164,12 @@ export default function UserAuthForm() {
   // Step 1: Mobile number input
   if (step === 'mobile') {
     return (
-      <div className="space-y-6">
-        <h2 className="text-slate-850 font-bold text-3xl font-display text-center mb-6">Welcome</h2>
+      <div className="space-y-6 animate-fadeIn">
+        <div className="text-center space-y-1.5 mb-2">
+          <h2 className="text-slate-900 font-extrabold text-2xl sm:text-3xl font-display tracking-tight">B2B Customer Sign In</h2>
+          <p className="text-xs sm:text-sm text-slate-500 font-normal">Sign in or register your B2B account via Mobile OTP</p>
+        </div>
+
         <form onSubmit={handleSendOtp} className="space-y-5">
           {error && (
             <div className="p-3 bg-rose-50 border border-rose-100 text-rose-600 rounded-xl flex items-start gap-2 text-[11px] font-medium leading-relaxed">
@@ -146,35 +178,32 @@ export default function UserAuthForm() {
             </div>
           )}
           
-          <div className="relative !w-full">
-            <span className="absolute -top-2 left-4 bg-white px-1.5 text-[11px] text-slate-400 font-bold z-10 flex items-center">
-              Mobile <span className="text-rose-500 ml-0.5">*</span>
-            </span>
-            <PhoneInputComponent
+          <div className="space-y-1.5">
+            <label className="text-slate-500 font-bold uppercase tracking-wider text-[10px] flex items-center">
+              Mobile Number <span className="text-rose-500 ml-0.5">*</span>
+            </label>
+            <PhoneInputField
               country={'in'}
               value={mobileNumber}
+              placeholder="98765 43210"
               onChange={(phone) => setMobileNumber(phone)}
-              inputProps={{
-                required: true,
-                name: 'mobile',
-                placeholder: 'Enter mobile number',
-              }}
-              containerClass="!w-full"
-              inputClass="!w-full !p-3.5 !pl-20 !h-14 !rounded-xl !border-slate-200 !bg-white text-slate-850 text-base focus:!border-brand-500 focus:!outline-none transition-all shadow-sm"
-              buttonClass="!bg-transparent !border-r !border-slate-200 !rounded-l-xl hover:!bg-slate-50"
-              dropdownClass="!bg-white !rounded-xl !border-slate-200 !text-slate-800"
+              inputClass="!w-full !h-12 !text-sm !bg-white !rounded-xl !border-slate-300 focus:!border-brand-500 font-bold !text-slate-900 shadow-sm"
+              buttonClass="!bg-white !border-slate-300 !rounded-l-xl"
+              containerClass="!w-full shadow-sm"
             />
           </div>
 
           <button
             type="submit"
-            disabled={isLoading || mobileNumber.length < 10 || !termsAccepted}
-            className="w-full py-4 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold tracking-wider hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 mt-4 text-xs disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-brand-500/10"
+            disabled={isLoading || (mobileNumber || '').replace(/\D/g, '').length < 10 || !termsAccepted}
+            className="w-full py-3.5 rounded-xl gradient-brand text-white font-display font-bold text-xs shadow-md hover:scale-[1.02] active:scale-[0.99] transition-all flex items-center justify-center gap-2 mt-4 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? (
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
             ) : (
-              'GET OTP'
+              <>
+                Get OTP <ArrowRight className="w-4 h-4" />
+              </>
             )}
           </button>
 
@@ -184,10 +213,10 @@ export default function UserAuthForm() {
               id="terms_accept"
               checked={termsAccepted}
               onChange={(e) => setTermsAccepted(e.target.checked)}
-              className="w-4 h-4 rounded text-brand-600 focus:ring-brand-500 border-slate-350 mt-0.5 cursor-pointer"
+              className="w-4 h-4 rounded text-brand-600 focus:ring-brand-500 border-slate-300 mt-0.5 cursor-pointer accent-brand-600"
             />
-            <label htmlFor="terms_accept" className="cursor-pointer select-none">
-              By continuing, I agree to the{' '}
+            <label htmlFor="terms_accept" className="cursor-pointer select-none text-[11px] text-slate-500">
+              By continuing, you agree to our{' '}
               <a href="#" className="underline font-bold text-slate-800 hover:text-brand-600 transition-colors">
                 Terms of Service
               </a>{' '}
@@ -202,167 +231,154 @@ export default function UserAuthForm() {
     );
   }
 
-  // Step 2: Verification of OTP
+  // Step 2: OTP Verification
   if (step === 'otp') {
     return (
-      <div className="space-y-5">
-        <button
-          type="button"
+      <div className="space-y-6 animate-fadeIn">
+        <button 
           onClick={() => setStep('mobile')}
-          className="flex items-center gap-1.5 text-slate-500 hover:text-slate-850 text-[11px] font-bold transition-colors"
+          className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-slate-700 transition-colors"
         >
-          <ChevronLeft className="w-3.5 h-3.5" /> Back to Mobile
+          <ChevronLeft className="w-4 h-4" /> Change Mobile Number
         </button>
-        <div className="space-y-1.5 text-center">
-          <h2 className="text-slate-800 font-extrabold text-lg font-display">Verify Identity</h2>
-          <p className="text-[11px] text-slate-500 leading-normal px-2">We sent a verification code to <strong className="text-slate-700 font-bold">+{mobileNumber}</strong></p>
-        </div>
-        <form onSubmit={handleVerifyOtp} className="space-y-4">
-          {error && (
-            <div className="p-3 bg-rose-50 border border-rose-100 text-rose-600 rounded-xl flex items-start gap-2 text-[11px] font-medium leading-relaxed">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>{error}</span>
-            </div>
-          )}
-          {otpCodeToShow && (
-            <div className="p-3 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-xl flex items-start gap-2.5 text-[11px] leading-relaxed">
-              <Info className="w-4 h-4 shrink-0 text-emerald-600 mt-0.5" />
-              <div>
-                <span className="font-bold">Mock OTP Code:</span> <code className="bg-emerald-100 px-1.5 py-0.5 rounded font-mono font-bold text-emerald-800">{otpCodeToShow}</code> (use this to test)
-              </div>
-            </div>
-          )}
-          <div className="relative !w-full mt-4">
-            <span className="absolute -top-2 left-4 bg-white px-1.5 text-[11px] text-slate-400 font-bold z-10 flex items-center">
-              OTP Code <span className="text-rose-500 ml-0.5">*</span>
-            </span>
-            <div className="relative">
-              <Lock className="absolute left-3.5 top-4.5 w-4 h-4 text-slate-400" />
-              <input
-                type="text"
-                pattern="[0-9]{6}"
-                value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                required
-                placeholder="000000"
-                className="w-full pl-10 pr-3 py-4 rounded-xl border border-slate-200 bg-white text-slate-855 font-mono font-bold text-lg tracking-[0.4em] text-center focus:!border-brand-500 focus:!outline-none transition-all shadow-sm"
-              />
-            </div>
+
+        <div className="text-center space-y-2">
+          <div className="w-12 h-12 rounded-2xl bg-brand-50 border border-brand-100 flex items-center justify-center mx-auto text-brand-600 shadow-sm">
+            <Lock className="w-6 h-6" />
           </div>
+          <h2 className="text-xl font-bold font-display text-slate-900">Verify OTP</h2>
+          <p className="text-xs text-slate-500">
+            Enter 6-digit code sent to <span className="font-semibold text-slate-800 font-mono">+{mobileNumber}</span>
+          </p>
+        </div>
+
+        {otpCodeToShow && (
+          <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-center text-xs font-mono">
+            <strong>Development Mock OTP:</strong> <span className="text-base font-bold text-amber-900 tracking-widest">{otpCodeToShow}</span>
+          </div>
+        )}
+
+        {error && (
+          <div className="p-3 bg-rose-50 border border-rose-100 text-rose-600 rounded-xl flex items-start gap-2 text-[11px] font-medium leading-relaxed">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleVerifyOtp} className="space-y-4">
+          <div>
+            <input
+              type="text"
+              required
+              maxLength={6}
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+              placeholder="000000"
+              className="w-full text-center text-2xl font-bold tracking-[0.5em] font-mono py-3 rounded-xl border border-slate-300 bg-white text-slate-900 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 focus:outline-none transition-all shadow-sm"
+            />
+          </div>
+
           <button
             type="submit"
             disabled={isLoading || code.length !== 6}
-            className="w-full py-4 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold tracking-wider hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 mt-4 text-xs disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-brand-500/10"
+            className="w-full py-3.5 rounded-xl gradient-brand text-white font-display font-bold text-xs shadow-md hover:scale-[1.02] active:scale-[0.99] transition-all flex items-center justify-center gap-2 mt-2 disabled:opacity-50"
           >
             {isLoading ? (
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
             ) : (
-              'VERIFY OTP'
+              'VERIFY & CONTINUE'
             )}
           </button>
         </form>
+
+        <div className="text-center">
+          <button
+            type="button"
+            disabled={isLoading}
+            onClick={handleSendOtp}
+            className="text-xs text-brand-600 hover:text-brand-700 font-semibold transition-colors"
+          >
+            Resend OTP Code
+          </button>
+        </div>
       </div>
     );
   }
 
-  // Step 2.5: Admin Pending Approval Screen
-  if (step === 'pending_approval') {
-    return (
-      <div className="space-y-5 text-center">
-        <div className="mx-auto w-12 h-12 bg-amber-50 border border-amber-100 text-amber-500 rounded-full flex items-center justify-center shadow-sm">
-          <Info className="w-6 h-6 animate-pulse" />
-        </div>
-        <div className="space-y-2">
-          <h2 className="text-slate-800 font-extrabold text-lg font-display">Account Review Required</h2>
-          <p className="text-[11px] text-slate-500 px-4 leading-relaxed font-medium">
-            {pendingStatusMsg || 'Your profile has been created and is awaiting approval by our administration team. Once approved, you will gain full access to wholesale B2B pricing.'}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => {
-            setStep('mobile');
-            setCode('');
-            setError(null);
-          }}
-          className="w-full py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition-colors flex items-center justify-center gap-2 mt-4 shadow-sm"
-        >
-          Go Back
-        </button>
-      </div>
-    );
-  }
-
-  // Step 3: Selection of Buyer Type (GST vs Non-GST)
+  // Step 3: Select Buyer Type (GST vs Non-GST) - Per Doc Section 4
   if (step === 'buyer_type') {
     return (
-      <div className="space-y-5">
-        <div className="space-y-1.5 text-center">
-          <h2 className="text-slate-800 font-extrabold text-lg font-display">Register Business Account</h2>
-          <p className="text-[11px] text-slate-500 leading-relaxed px-4">Choose your business registration category to set up wholesale purchasing.</p>
+      <div className="space-y-6 animate-fadeIn">
+        <div className="text-center space-y-1.5">
+          <h2 className="text-xl font-bold font-display text-slate-900">Are you a GST Registered Buyer?</h2>
+          <p className="text-xs text-slate-500">Select your B2B account category to complete registration</p>
         </div>
-        <div className="space-y-3 pt-1">
-          <div className="flex flex-col gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                setBuyerType('GST');
-                setStep('gst_form');
-                setError(null);
-              }}
-              className="p-4 rounded-2xl border border-slate-200 hover:border-brand-500 hover:bg-brand-50/10 text-left transition-all duration-200 flex items-start gap-4 group shadow-sm bg-white hover:shadow"
-            >
-              <div className="p-3 bg-brand-50 border border-brand-100 text-brand-600 rounded-xl group-hover:scale-105 transition-transform shrink-0">
-                <Building2 className="w-5 h-5 animate-float" />
-              </div>
-              <div className="space-y-1">
-                <div className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
-                  GST Registered Business
-                  <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-100 text-[9px] font-bold">Auto-Fill</span>
-                </div>
-                <p className="text-[10px] text-slate-400 leading-normal">Fastest verification. Auto-fills billing and firm details using your GSTIN lookup.</p>
-              </div>
-            </button>
 
-            <button
-              type="button"
-              onClick={() => {
-                setBuyerType('NON_GST');
-                setStep('nongst_form');
-                setError(null);
-              }}
-              className="p-4 rounded-2xl border border-slate-200 hover:border-brand-500 hover:bg-brand-50/10 text-left transition-all duration-200 flex items-start gap-4 group shadow-sm bg-white hover:shadow"
-            >
-              <div className="p-3 bg-slate-50 border border-slate-100 text-slate-500 group-hover:text-brand-600 rounded-xl group-hover:scale-105 transition-transform shrink-0">
-                <User2 className="w-5 h-5" />
+        <div className="grid grid-cols-1 gap-3.5">
+          <button
+            type="button"
+            onClick={() => {
+              setBuyerType('GST');
+              setStep('gst_form');
+            }}
+            className="p-5 rounded-2xl border-2 border-slate-200 hover:border-brand-500 hover:bg-brand-50/20 text-left transition-all group flex items-start gap-4 shadow-sm"
+          >
+            <div className="p-3 bg-brand-50 border border-brand-100 rounded-xl text-brand-600 group-hover:scale-105 transition-transform shrink-0">
+              <Building2 className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="font-bold text-slate-900 text-sm group-hover:text-brand-600 flex items-center gap-2">
+                Yes – GST Buyer
+                <span className="text-[10px] bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full font-semibold">Auto-Fill & ITC</span>
               </div>
-              <div className="space-y-1">
-                <div className="font-bold text-slate-800 text-xs">Non-GST Business / Proprietor</div>
-                <p className="text-[10px] text-slate-400 leading-normal">Requires manual entry. Verification may take longer without standard tax credentials.</p>
+              <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                Automated validation via GSTIN API. Auto-fills legal business name and registered address.
+              </p>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setBuyerType('NON_GST');
+              setStep('nongst_form');
+            }}
+            className="p-5 rounded-2xl border-2 border-slate-200 hover:border-brand-500 hover:bg-brand-50/20 text-left transition-all group flex items-start gap-4 shadow-sm"
+          >
+            <div className="p-3 bg-slate-100 border border-slate-200 rounded-xl text-slate-600 group-hover:scale-105 transition-transform shrink-0">
+              <User2 className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="font-bold text-slate-900 text-sm group-hover:text-brand-600">
+                No – Non-GST Buyer
               </div>
-            </button>
-          </div>
+              <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                For small retailers, local contractors, and businesses operating under the GST exemption threshold.
+              </p>
+            </div>
+          </button>
         </div>
       </div>
     );
   }
 
-  // Step 4a: GST Form
+  // Step 4a: GST Form (Per Doc Section 5 & 6)
   if (step === 'gst_form') {
     return (
-      <div className="space-y-5 text-xs">
-        <button
-          type="button"
+      <div className="space-y-5 animate-fadeIn">
+        <button 
           onClick={() => setStep('buyer_type')}
-          className="flex items-center gap-1.5 text-slate-500 hover:text-slate-800 text-[11px] font-bold transition-colors"
+          className="flex items-center gap-1 text-xs font-semibold text-slate-400 hover:text-slate-700 transition-colors"
         >
-          <ChevronLeft className="w-3.5 h-3.5" /> Back
+          <ChevronLeft className="w-4 h-4" /> Change Buyer Type
         </button>
-        <div className="space-y-1 text-center">
-          <h2 className="text-slate-800 font-extrabold text-lg font-display">GSTIN Registration</h2>
-          <p className="text-[11px] text-slate-500 leading-normal">Enter your business tax credentials to fetch details.</p>
+
+        <div className="space-y-1">
+          <h2 className="text-lg font-bold font-display text-slate-900">GST Buyer Registration</h2>
+          <p className="text-xs text-slate-500">Enter your 15-digit GSTIN for instant verification & auto-fill</p>
         </div>
-        <form onSubmit={handleRegister} className="space-y-3.5">
+
+        <form onSubmit={handleRegister} className="space-y-4">
           {error && (
             <div className="p-3 bg-rose-50 border border-rose-100 text-rose-600 rounded-xl flex items-start gap-2 text-[11px] font-medium leading-relaxed">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -378,7 +394,7 @@ export default function UserAuthForm() {
                 value={gstin}
                 onChange={(e) => setGstin(e.target.value.toUpperCase().slice(0, 15))}
                 placeholder="e.g. 27AAAAA1111A1Z1"
-                className="flex-1 px-3.5 h-11 rounded-xl border border-slate-200 bg-white text-slate-900 uppercase font-mono tracking-wider text-xs focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 focus:outline-none transition-all shadow-sm"
+                className="flex-1 px-3.5 h-11 rounded-xl border border-slate-200 bg-white text-slate-900 uppercase font-mono tracking-wider text-xs focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 focus:outline-none transition-all shadow-sm font-semibold"
               />
               <button
                 type="button"
@@ -422,7 +438,7 @@ export default function UserAuthForm() {
                   value={businessConstitution}
                   onChange={(e) => setBusinessConstitution(e.target.value)}
                   placeholder="Proprietorship, Partnership, Ltd."
-                  className="w-full px-3.5 h-11 rounded-xl border border-slate-200 bg-white text-slate-900 text-xs focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 focus:outline-none transition-all shadow-sm"
+                  className="w-full px-3.5 h-11 rounded-xl border border-slate-200 bg-white text-slate-900 text-xs focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 focus:outline-none transition-all shadow-sm font-medium"
                 />
               </div>
 
@@ -446,7 +462,7 @@ export default function UserAuthForm() {
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     placeholder="email@example.com"
-                    className="w-full px-3.5 h-11 rounded-xl border border-slate-200 bg-white text-slate-900 text-xs focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 focus:outline-none transition-all shadow-sm"
+                    className="w-full px-3.5 h-11 rounded-xl border border-slate-200 bg-white text-slate-900 text-xs focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 focus:outline-none transition-all shadow-sm font-medium"
                   />
                 </div>
               </div>
@@ -458,50 +474,67 @@ export default function UserAuthForm() {
                   onChange={(e) => setAddress(e.target.value)}
                   required
                   placeholder="Street Address, City, State..."
-                  className="w-full p-3.5 rounded-xl border border-slate-200 bg-white text-slate-900 text-xs focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 focus:outline-none transition-all shadow-sm min-h-[60px] resize-none"
+                  className="w-full p-3.5 rounded-xl border border-slate-200 bg-white text-slate-900 text-xs focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 focus:outline-none transition-all shadow-sm min-h-[50px] resize-none"
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-2">
+              {/* Location Selects */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-slate-500 font-bold uppercase tracking-wider text-[9px]">City</label>
-                  <input
-                    type="text"
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                    required
-                    placeholder="City"
-                    className="w-full px-3.5 h-11 rounded-xl border border-slate-200 bg-white text-slate-900 text-xs focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 focus:outline-none transition-all shadow-sm"
+                  <label className="text-slate-500 font-bold uppercase tracking-wider text-[9px]">Country</label>
+                  <CountrySelect
+                    defaultValue={{ id: 101, name: 'India' }}
+                    onChange={(val) => {
+                      setCountryId(val.id);
+                      setCountry(val.name);
+                    }}
+                    placeHolder="Country"
                   />
                 </div>
+
                 <div className="space-y-1.5">
                   <label className="text-slate-500 font-bold uppercase tracking-wider text-[9px]">State</label>
-                  <input
-                    type="text"
-                    value={state}
-                    onChange={(e) => setState(e.target.value)}
-                    required
-                    placeholder="State"
-                    className="w-full px-3.5 h-11 rounded-xl border border-slate-200 bg-white text-slate-900 text-xs focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 focus:outline-none transition-all shadow-sm"
+                  <StateSelect
+                    countryid={countryId}
+                    defaultValue={state ? { name: state } : undefined}
+                    onChange={(val) => {
+                      setStateId(val.id);
+                      setState(val.name);
+                    }}
+                    placeHolder={state || 'State'}
                   />
                 </div>
+
                 <div className="space-y-1.5">
-                  <label className="text-slate-500 font-bold uppercase tracking-wider text-[9px]">Pincode</label>
-                  <input
-                    type="text"
-                    value={pincode}
-                    onChange={(e) => setPincode(e.target.value)}
-                    required
-                    placeholder="Pincode"
-                    className="w-full px-3 h-11 rounded-xl border border-slate-200 bg-white text-slate-900 font-mono text-center text-xs focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 focus:outline-none transition-all shadow-sm"
+                  <label className="text-slate-500 font-bold uppercase tracking-wider text-[9px]">City</label>
+                  <CitySelect
+                    countryid={countryId}
+                    stateid={stateId}
+                    defaultValue={city ? { name: city } : undefined}
+                    onChange={(val) => {
+                      setCity(val.name);
+                    }}
+                    placeHolder={city || 'City'}
                   />
                 </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-slate-500 font-bold uppercase tracking-wider text-[9px]">Pincode</label>
+                <input
+                  type="text"
+                  value={pincode}
+                  onChange={(e) => setPincode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  required
+                  placeholder="Pincode"
+                  className="w-full px-3 h-11 rounded-xl border border-slate-200 bg-white text-slate-900 font-mono text-center text-xs focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 focus:outline-none transition-all shadow-sm font-semibold"
+                />
               </div>
 
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-3 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 mt-4 text-xs disabled:opacity-50 animate-float"
+                className="w-full py-3.5 rounded-xl gradient-brand text-white font-display font-bold text-xs shadow-md hover:scale-[1.02] active:scale-[0.99] transition-all flex items-center justify-center gap-2 mt-4 disabled:opacity-50"
               >
                 {isLoading ? (
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -518,21 +551,22 @@ export default function UserAuthForm() {
     );
   }
 
-  // Step 4b: Non-GST Form
+  // Step 4b: Non-GST Form (Per Doc Section 7)
   if (step === 'nongst_form') {
     return (
-      <div className="space-y-5 text-xs">
-        <button
-          type="button"
+      <div className="space-y-5 animate-fadeIn">
+        <button 
           onClick={() => setStep('buyer_type')}
-          className="flex items-center gap-1.5 text-slate-500 hover:text-slate-800 text-[11px] font-bold transition-colors"
+          className="flex items-center gap-1 text-xs font-semibold text-slate-400 hover:text-slate-700 transition-colors"
         >
-          <ChevronLeft className="w-3.5 h-3.5" /> Back
+          <ChevronLeft className="w-4 h-4" /> Change Buyer Type
         </button>
-        <div className="space-y-1 text-center">
-          <h2 className="text-slate-800 font-extrabold text-lg font-display">Business Details</h2>
-          <p className="text-[11px] text-slate-500 leading-normal">Enter details manually for verification.</p>
+
+        <div className="space-y-1">
+          <h2 className="text-lg font-bold font-display text-slate-900">Non-GST Buyer Registration</h2>
+          <p className="text-xs text-slate-500">Provide business and owner details to request TradeLogix B2B approval</p>
         </div>
+
         <form onSubmit={handleRegister} className="space-y-3.5">
           {error && (
             <div className="p-3 bg-rose-50 border border-rose-100 text-rose-600 rounded-xl flex items-start gap-2 text-[11px] font-medium leading-relaxed">
@@ -542,26 +576,26 @@ export default function UserAuthForm() {
           )}
 
           <div className="space-y-1.5">
-            <label className="text-slate-500 font-bold uppercase tracking-wider text-[9px]">Business / Firm Name</label>
+            <label className="text-slate-500 font-bold uppercase tracking-wider text-[9px]">Business / Trade Name *</label>
             <input
               type="text"
               value={firmName}
               onChange={(e) => setFirmName(e.target.value)}
               required
-              placeholder="Firm legal or trade name"
+              placeholder="e.g. Ramesh Hardware & Tools"
               className="w-full px-3.5 h-11 rounded-xl border border-slate-200 bg-white text-slate-900 text-xs focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 focus:outline-none transition-all shadow-sm font-semibold"
             />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div className="space-y-1.5">
-              <label className="text-slate-500 font-bold uppercase tracking-wider text-[9px]">Owner / Full Name</label>
+              <label className="text-slate-500 font-bold uppercase tracking-wider text-[9px]">Owner / Proprietor Name *</label>
               <input
                 type="text"
                 value={ownerName}
                 onChange={(e) => setOwnerName(e.target.value)}
                 required
-                placeholder="Owner's Name"
+                placeholder="Full Name"
                 className="w-full px-3.5 h-11 rounded-xl border border-slate-200 bg-white text-slate-900 text-xs focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 focus:outline-none transition-all shadow-sm font-semibold"
               />
             </div>
@@ -589,42 +623,30 @@ export default function UserAuthForm() {
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          {/* Location Selects */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="space-y-1.5">
               <label className="text-slate-500 font-bold uppercase tracking-wider text-[9px]">Country</label>
               <CountrySelect
+                defaultValue={{ id: 101, name: 'India' }}
                 onChange={(val) => {
                   setCountryId(val.id);
+                  setCountry(val.name);
                 }}
-                defaultValue={{ id: 101, name: 'India' }}
-                placeHolder="Select Country"
-                inputClassName="!w-full !p-3.5 !h-11 !rounded-xl !border-slate-200 !bg-white text-slate-900 text-xs focus:!border-brand-500 focus:!ring-4 focus:!ring-brand-500/10 focus:!outline-none !shadow-sm"
+                placeHolder="Country"
               />
             </div>
-            <div className="space-y-1.5">
-              <label className="text-slate-500 font-bold uppercase tracking-wider text-[9px]">Pincode</label>
-              <input
-                type="text"
-                value={pincode}
-                onChange={(e) => setPincode(e.target.value)}
-                required
-                placeholder="Pincode"
-                className="w-full px-3 h-11 rounded-xl border border-slate-200 bg-white text-slate-900 font-mono text-center text-xs focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 focus:outline-none transition-all shadow-sm"
-              />
-            </div>
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div className="space-y-1.5">
               <label className="text-slate-500 font-bold uppercase tracking-wider text-[9px]">State</label>
               <StateSelect
                 countryid={countryId}
+                defaultValue={state ? { name: state } : undefined}
                 onChange={(val) => {
                   setStateId(val.id);
                   setState(val.name);
                 }}
-                placeHolder="Select State"
-                inputClassName="!w-full !p-3.5 !h-11 !rounded-xl !border-slate-200 !bg-white text-slate-900 text-xs focus:!border-brand-500 focus:!ring-4 focus:!ring-brand-500/10 focus:!outline-none !shadow-sm"
+                placeHolder={state || 'State'}
               />
             </div>
 
@@ -633,19 +655,31 @@ export default function UserAuthForm() {
               <CitySelect
                 countryid={countryId}
                 stateid={stateId}
+                defaultValue={city ? { name: city } : undefined}
                 onChange={(val) => {
                   setCity(val.name);
                 }}
-                placeHolder="Select City"
-                inputClassName="!w-full !p-3.5 !h-11 !rounded-xl !border-slate-200 !bg-white text-slate-900 text-xs focus:!border-brand-500 focus:!ring-4 focus:!ring-brand-500/10 focus:!outline-none !shadow-sm"
+                placeHolder={city || 'City'}
               />
             </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-slate-500 font-bold uppercase tracking-wider text-[9px]">Pincode *</label>
+            <input
+              type="text"
+              value={pincode}
+              onChange={(e) => setPincode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              required
+              placeholder="Pincode"
+              className="w-full px-3 h-11 rounded-xl border border-slate-200 bg-white text-slate-900 font-mono text-center text-xs focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 focus:outline-none transition-all shadow-sm font-semibold"
+            />
           </div>
 
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-3 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 mt-4 text-xs disabled:opacity-50"
+            className="w-full py-3.5 rounded-xl gradient-brand text-white font-display font-bold text-xs shadow-md hover:scale-[1.02] active:scale-[0.99] transition-all flex items-center justify-center gap-2 mt-4 disabled:opacity-50"
           >
             {isLoading ? (
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -660,45 +694,64 @@ export default function UserAuthForm() {
     );
   }
 
-  // Step 5: Onboarding Completed / Success
-  if (step === 'success') {
+  // Step 5: Pending Approval Notice (Per Doc Section 8)
+  if (step === 'pending_approval') {
     return (
-      <div className="space-y-5 text-center animate-fadeIn">
-        <div className="mx-auto w-12 h-12 bg-emerald-50 border border-emerald-100 text-emerald-500 rounded-full flex items-center justify-center shadow-sm animate-bounce">
-          <CheckCircle className="w-6 h-6 text-emerald-600" />
+      <div className="space-y-6 text-center animate-fadeIn">
+        <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center mx-auto text-amber-600 shadow-sm">
+          <Info className="w-7 h-7" />
         </div>
         <div className="space-y-2">
-          <h2 className="text-slate-800 font-extrabold text-lg font-display">Registration Submitted</h2>
-          <p className="text-[11px] text-slate-500 px-4 leading-relaxed font-medium">
-            Thank you for registering with TradeLogix. Your details have been submitted. Our admin team will verify and approve your account shortly.
+          <h2 className="text-xl font-bold font-display text-slate-900">Account Under Review</h2>
+          <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+            {pendingStatusMsg || 'Your B2B customer account has been submitted and is currently pending administrator approval.'}
+          </p>
+        </div>
+        <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl text-left space-y-2 text-xs">
+          <div className="font-bold text-slate-800 flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+            Approval & Pricing Access:
+          </div>
+          <p className="text-slate-500 text-[11px] leading-relaxed">
+            TradeLogix verifies business credentials to assign your customer price group and warehouse depot. Once approved, you will gain full access to wholesale slab pricing and purchase orders.
           </p>
         </div>
         <button
           type="button"
           onClick={() => {
+            logoutUser();
             setStep('mobile');
-            setCode('');
-            setMobileNumber('');
-            setGstin('');
-            setFirmName('');
-            setOwnerName('');
-            setAddress('');
-            setCity('');
-            setState('');
-            setPincode('');
-            setBusinessConstitution('');
-            setEmail('');
-            setGstVerified(false);
-            setError(null);
           }}
-          className="w-full py-3 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2 mt-4 hover:scale-[1.01]"
+          className="w-full py-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors"
         >
-          Return to Login
+          Sign in with another mobile number
         </button>
+      </div>
+    );
+  }
+
+  // Step 6: Registration Success
+  if (step === 'success') {
+    return (
+      <div className="space-y-6 text-center animate-fadeIn">
+        <div className="w-14 h-14 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center mx-auto text-emerald-600">
+          <CheckCircle className="w-7 h-7" />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-xl font-bold font-display text-slate-900">Registration Received!</h2>
+          <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+            Thank you for applying for a TradeLogix B2B wholesale account. Your submission is under review.
+          </p>
+        </div>
+        <a
+          href="/"
+          className="inline-flex w-full py-3.5 rounded-xl gradient-brand text-white font-display font-bold text-xs shadow-md hover:scale-[1.02] active:scale-[0.99] items-center justify-center gap-2 transition-all"
+        >
+          Return to Storefront
+        </a>
       </div>
     );
   }
 
   return null;
 }
-

@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { getMockProducts, saveMockProduct, deleteMockProduct } from '../../utils/mockDb.js';
 
-const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:4000';
+const API_URL = import.meta.env.PUBLIC_API_URL || (typeof window !== 'undefined' && window.__PUBLIC_API_URL__) || 'http://localhost:6543';
 
 export default function ProductManager() {
   const [productList, setProductList] = useState([]);
@@ -171,14 +171,44 @@ export default function ProductManager() {
     return sum + (p.variants?.reduce((vSum, v) => vSum + (v.stock || 0), 0) || 0);
   }, 0);
 
-  // Default fallback image
-  const getProductPlaceholder = (name) => {
-    const n = name.toLowerCase();
-    if (n.includes('headphone') || n.includes('audio')) {
+  // Extract accurate product image with fallback
+  const getProductImage = (product) => {
+    if (!product) return 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=150&auto=format&fit=crop&q=80';
+
+    // 1. Array of images
+    if (Array.isArray(product.images) && product.images.length > 0) {
+      const first = product.images[0];
+      if (typeof first === 'string' && first.trim()) return first;
+      if (first && typeof first === 'object' && (first.url || first.src)) return first.url || first.src;
+    }
+
+    // 2. JSON stringified images
+    if (typeof product.images === 'string' && product.images.trim()) {
+      try {
+        const parsed = JSON.parse(product.images);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const item = parsed[0];
+          const found = typeof item === 'string' ? item : item.url || item.src;
+          if (found) return found;
+        }
+      } catch {}
+      if (product.images.startsWith('http') || product.images.startsWith('/')) return product.images;
+    }
+
+    // 3. Single image fields
+    if (product.image && typeof product.image === 'string' && product.image.trim()) return product.image;
+    if (product.thumbnail && typeof product.thumbnail === 'string' && product.thumbnail.trim()) return product.thumbnail;
+
+    // 4. Default fallback by category/name
+    const n = (product.name || '').toLowerCase();
+    if (n.includes('headphone') || n.includes('audio') || n.includes('aeropulse')) {
       return 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=150&auto=format&fit=crop&q=80';
     }
-    if (n.includes('monitor') || n.includes('display')) {
+    if (n.includes('monitor') || n.includes('display') || n.includes('ultrasharp')) {
       return 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=150&auto=format&fit=crop&q=80';
+    }
+    if (n.includes('mouse') || n.includes('master') || n.includes('logitech')) {
+      return 'https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?w=150&auto=format&fit=crop&q=80';
     }
     if (n.includes('key') || n.includes('board')) {
       return 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=150&auto=format&fit=crop&q=80';
@@ -289,9 +319,13 @@ export default function ProductManager() {
                       <tr className="hover:bg-slate-50 transition-colors">
                         <td className="p-4 pl-6 flex items-center gap-3">
                           <img
-                            src={getProductPlaceholder(product.name)}
+                            src={getProductImage(product)}
                             alt={product.name}
                             className="w-12 h-12 rounded-xl object-cover border border-slate-200 bg-slate-50 shrink-0"
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=150&auto=format&fit=crop&q=80';
+                            }}
                           />
                           <div className="min-w-0">
                             <div className="font-semibold text-slate-900 truncate max-w-xs">{product.name}</div>

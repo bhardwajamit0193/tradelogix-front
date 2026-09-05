@@ -1,0 +1,13 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import PaymentSettingsManager from '../../components/react/PaymentSettingsManager.jsx';
+---
+
+<AdminLayout
+  title="System Settings | TradeLogix Studio"
+  headerTitle="Payment Gateways & Options Engine"
+  headerSubtitle="Enable or disable customer payment methods, configure Razorpay API credentials, and manage bank transfer parameters"
+>
+  <!-- React Island: Payment Settings Manager -->
+  <PaymentSettingsManager client:load />
+</AdminLayout>

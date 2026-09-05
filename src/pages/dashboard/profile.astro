@@ -1,0 +1,13 @@
+---
+import CustomerDashboardLayout from '../../layouts/CustomerDashboardLayout.astro';
+import CustomerProfileManager from '../../components/react/CustomerProfileManager.jsx';
+---
+
+<CustomerDashboardLayout
+  title="Business & Company Profile | TradeLogix"
+  activeTab="profile"
+  pageTitle="Business Profile"
+  pageSubtitle="Manage legal entity credentials, GSTIN, PAN, and authorized contact information"
+>
+  <CustomerProfileManager client:load />
+</CustomerDashboardLayout>
