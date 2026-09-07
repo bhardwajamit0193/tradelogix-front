@@ -26,7 +26,15 @@ export default defineConfig({
   ],
   vite: {
     optimizeDeps: {
-      include: ['react-country-state-city', 'react-phone-input-2', 'lucide-react', '@nanostores/react'],
+      include: [
+        'react-country-state-city',
+        'react-phone-input-2',
+        'lucide-react',
+        '@nanostores/react',
+        '@uppy/core',
+        '@uppy/react/dashboard',
+        '@uppy/xhr-upload',
+      ],
     },
   },
 });

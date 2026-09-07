@@ -19,7 +19,9 @@ import {
   Send,
   ExternalLink,
   Tag,
+  Download,
 } from 'lucide-react';
+import { generateAndDownloadInvoicePdf } from './InvoicePdfDocument.jsx';
 
 export default function AdminOrderDetailModal({ order, isOpen, onClose, onUpdateStatus, onVerifyOffline, onCollectPartialBalance }) {
   if (!isOpen || !order) return null;
@@ -209,6 +211,29 @@ export default function AdminOrderDetailModal({ order, isOpen, onClose, onUpdate
               </div>
             </div>
           </div>
+
+          {/* ================= ORDER CANCELLED BANNER (IF CANCELLED) ================= */}
+          {(order.fulfillmentStatus === 'Cancelled' || order.status === 'Cancelled') && (
+            <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-950 space-y-2 animate-fadeIn">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-xs text-rose-900 flex items-center gap-1.5 uppercase tracking-wider">
+                  <span className="w-2 h-2 rounded-full bg-rose-600" />
+                  Order Cancelled & Invoice Voided
+                </span>
+                <span className="px-2 py-0.5 rounded bg-rose-100 text-rose-800 text-[10px] font-bold">
+                  Recorded in DB
+                </span>
+              </div>
+              <div className="p-3 bg-white rounded-xl border border-rose-200 text-xs text-slate-800">
+                <span className="text-[11px] font-bold text-rose-900 uppercase tracking-wider block mb-1">
+                  Reason for Cancellation:
+                </span>
+                <p className="font-semibold text-slate-900">
+                  {order.cancelReason || 'No custom reason specified (using default desk cancellation notification).'}
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* ================= PAYMENT META BOX (KEY REQUIREMENT) ================= */}
           <div className="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
@@ -496,12 +521,23 @@ export default function AdminOrderDetailModal({ order, isOpen, onClose, onUpdate
             Close Details
           </button>
 
-          <button
-            onClick={handlePrint}
-            className="px-5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold transition-colors flex items-center gap-2"
-          >
-            <Printer className="w-4 h-4" /> Print Commercial Invoice
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => generateAndDownloadInvoicePdf(order)}
+              className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold transition-colors flex items-center gap-2 shadow-sm"
+            >
+              <Download className="w-4 h-4" /> Download PDF
+            </button>
+
+            <a
+              href={`/admin/orders/${order.id}/invoice`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold transition-colors flex items-center gap-2"
+            >
+              <FileText className="w-4 h-4" /> View Invoice
+            </a>
+          </div>
         </div>
       </div>
     </div>

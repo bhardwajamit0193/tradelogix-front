@@ -1,0 +1,28 @@
+---
+import BaseLayout from '../../../../layouts/BaseLayout.astro';
+import EcommerceInvoice from '../../../../components/react/EcommerceInvoice.jsx';
+
+export const prerender = false;
+const { id } = Astro.params;
+---
+
+<BaseLayout title={`Tax Invoice #${id} | TradeLogix Admin`} noindex={true}>
+  <!-- Strict Client-side Admin Authentication Guard -->
+  <script is:inline>
+    (function() {
+      try {
+        const saved = localStorage.getItem('tradelogix_user');
+        if (saved) {
+          const user = JSON.parse(saved);
+          if (user.isLoggedIn && user.role?.toLowerCase() === 'admin') {
+            return; // Authorized Admin
+          }
+        }
+      } catch (e) {
+        console.error('Admin auth check error', e);
+      }
+      window.location.replace('/admin/login?redirect=' + encodeURIComponent(window.location.pathname));
+    })();
+  </script>
+  <EcommerceInvoice client:load orderId={id} />
+</BaseLayout>

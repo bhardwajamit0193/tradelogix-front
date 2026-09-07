@@ -8,8 +8,6 @@ import {
   Users,
   TrendingUp,
   ArrowUpRight,
-  ArrowDownRight,
-  Award,
   Package,
   ArrowRight,
   Clock,
@@ -22,7 +20,6 @@ const API_URL = import.meta.env.PUBLIC_API_URL || (typeof window !== 'undefined'
 export default function AnalyticsOverview() {
   const [orders, setOrders] = useState([]);
   const [customersCount, setCustomersCount] = useState(0);
-  const [categoriesList, setCategoriesList] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const loadDashboardData = async () => {
@@ -43,16 +40,6 @@ export default function AnalyticsOverview() {
           setCustomersCount(custRes.length);
         }
       } catch (e) {}
-
-      // 3. Fetch Categories
-      try {
-        const res = await fetch(`${API_URL}/api/categories`);
-        if (res.ok) {
-          const catData = await res.json();
-          const cats = Array.isArray(catData) ? catData : (catData.data || []);
-          setCategoriesList(cats);
-        }
-      } catch (e) {}
     } catch (err) {
       console.warn('Dashboard data fetch error:', err);
     } finally {
@@ -65,7 +52,7 @@ export default function AnalyticsOverview() {
   }, []);
 
   // Compute live metrics from real orders
-  const { totalRevenue, totalOrdersCount, avgOrderValue, monthlySales, recentOrders, categoryStats } = useMemo(() => {
+  const { totalRevenue, totalOrdersCount, avgOrderValue, monthlySales, recentOrders } = useMemo(() => {
     const totalOrdersCount = orders.length;
     const totalRevenue = orders.reduce((sum, ord) => sum + (parseFloat(ord.totalAmount || ord.total || 0)), 0);
     const avgOrderValue = totalOrdersCount > 0 ? totalRevenue / totalOrdersCount : 0;
@@ -103,42 +90,14 @@ export default function AnalyticsOverview() {
       .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
       .slice(0, 4);
 
-    // Categories Breakdown
-    const catMap = {};
-    orders.forEach((ord) => {
-      (ord.items || []).forEach((item) => {
-        const cat = item.category || item.categoryName || 'General Wholesale';
-        catMap[cat] = (catMap[cat] || 0) + (item.qty || 1);
-      });
-    });
-
-    let categoryStats = Object.entries(catMap).map(([name, count]) => ({
-      name,
-      count,
-    }));
-
-    if (categoryStats.length === 0 && categoriesList.length > 0) {
-      categoryStats = categoriesList.slice(0, 4).map((c) => ({
-        name: c.name,
-        count: 1,
-      }));
-    }
-
-    const totalCatUnits = categoryStats.reduce((sum, c) => sum + c.count, 0) || 1;
-    categoryStats = categoryStats.map((c) => ({
-      ...c,
-      percent: Math.round((c.count / totalCatUnits) * 100),
-    }));
-
     return {
       totalRevenue,
       totalOrdersCount,
       avgOrderValue,
       monthlySales: last6Months,
       recentOrders,
-      categoryStats,
     };
-  }, [orders, categoriesList]);
+  }, [orders]);
 
   const maxMonthlySales = Math.max(...monthlySales.map((m) => m.sales), 1000);
 
@@ -225,70 +184,37 @@ export default function AnalyticsOverview() {
         })}
       </div>
 
-      {/* Sales Trend & Categories Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Revenue Performance Chart (Dynamic Monthly Trajectory) */}
-        <div className="lg:col-span-2 glass-panel p-6 sm:p-8 rounded-3xl border border-slate-200 bg-white shadow-sm space-y-6 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-display font-bold text-xl text-slate-900">Revenue Performance</h3>
-              <p className="text-xs text-slate-500">Real-time monthly sales trajectory from processed orders</p>
-            </div>
-            <button
-              onClick={loadDashboardData}
-              className="px-3 py-1 rounded-full bg-brand-50 hover:bg-brand-100 text-brand-600 text-xs font-bold border border-brand-200 transition-colors flex items-center gap-1.5"
-            >
-              <RotateCcw className="w-3 h-3" /> Live Data
-            </button>
+      {/* Revenue Performance Chart (Dynamic Monthly Trajectory) */}
+      <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-slate-200 bg-white shadow-sm space-y-6 flex flex-col justify-between">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-display font-bold text-xl text-slate-900">Revenue Performance</h3>
+            <p className="text-xs text-slate-500">Real-time monthly sales trajectory from processed orders</p>
           </div>
-
-          <div className="h-64 flex items-end justify-between gap-4 pt-8 pb-2">
-            {monthlySales.map((item, idx) => {
-              const heightPercent = maxMonthlySales > 0 ? Math.max(8, (item.sales / maxMonthlySales) * 100) : 8;
-              return (
-                <div key={idx} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group">
-                  <div className="text-[10px] font-bold text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {formatPrice(item.sales)}
-                  </div>
-                  <div
-                    style={{ height: `${heightPercent}%` }}
-                    className="w-full rounded-t-xl gradient-brand group-hover:brightness-110 transition-all shadow-sm min-h-[12px]"
-                  />
-                  <span className="text-[11px] font-semibold text-slate-500">{item.label}</span>
-                </div>
-              );
-            })}
-          </div>
+          <button
+            onClick={loadDashboardData}
+            className="px-3 py-1 rounded-full bg-brand-50 hover:bg-brand-100 text-brand-600 text-xs font-bold border border-brand-200 transition-colors flex items-center gap-1.5 cursor-pointer"
+          >
+            <RotateCcw className="w-3 h-3" /> Live Data
+          </button>
         </div>
 
-        {/* Top Product Categories Distribution */}
-        <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-slate-200 bg-white shadow-sm space-y-6">
-          <div className="flex items-center gap-2">
-            <Award className="w-5 h-5 text-amber-500" />
-            <h3 className="font-display font-bold text-lg text-slate-900">Top Categories</h3>
-          </div>
-
-          <div className="space-y-4 text-xs">
-            {categoryStats.length > 0 ? (
-              categoryStats.map((cat, idx) => {
-                const colors = ['bg-brand-500', 'bg-cyan-500', 'bg-violet-500', 'bg-emerald-500'];
-                const barColor = colors[idx % colors.length];
-                return (
-                  <div key={idx}>
-                    <div className="flex justify-between font-semibold text-slate-700 mb-1">
-                      <span>{cat.name}</span>
-                      <span className="text-slate-900 font-bold">{cat.percent}%</span>
-                    </div>
-                    <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
-                      <div style={{ width: `${cat.percent}%` }} className={`h-full ${barColor} rounded-full transition-all duration-500`} />
-                    </div>
-                  </div>
-                );
-              })
-            ) : (
-              <div className="text-slate-400 text-center py-8">No category order data recorded yet.</div>
-            )}
-          </div>
+        <div className="h-64 flex items-end justify-between gap-4 pt-8 pb-2">
+          {monthlySales.map((item, idx) => {
+            const heightPercent = maxMonthlySales > 0 ? Math.max(8, (item.sales / maxMonthlySales) * 100) : 8;
+            return (
+              <div key={idx} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group">
+                <div className="text-[10px] font-bold text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {formatPrice(item.sales)}
+                </div>
+                <div
+                  style={{ height: `${heightPercent}%` }}
+                  className="w-full rounded-t-xl gradient-brand group-hover:brightness-110 transition-all shadow-sm min-h-[12px]"
+                />
+                <span className="text-[11px] font-semibold text-slate-500">{item.label}</span>
+              </div>
+            );
+          })}
         </div>
       </div>
 

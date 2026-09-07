@@ -1,0 +1,316 @@
+---
+import ShopLayout from '../layouts/ShopLayout.astro';
+import { fetchPageBySlugApi, parseAboutSections } from '../services/pagesService.js';
+import { fetchPlatformSettingsApi } from '../services/platformSettingsService.js';
+
+let aboutPage = null;
+let platformSettings = null;
+
+try {
+  const [pageRes, settingsRes] = await Promise.all([
+    fetchPageBySlugApi('about'),
+    fetchPlatformSettingsApi(),
+  ]);
+  aboutPage = pageRes;
+  platformSettings = settingsRes;
+} catch (e) {
+  // Fallback to defaults
+}
+
+const sections = parseAboutSections(aboutPage?.content);
+const hero = sections.hero || {};
+const metrics = sections.metrics || {};
+const pillars = sections.pillars || {};
+const accreditation = sections.accreditation || {};
+const ctaBanner = sections.ctaBanner || {};
+
+const pageTitle = aboutPage?.metaTitle || "About Us | TradeLogix Wholesale - India's Premier B2B Tech Distribution Platform";
+const pageDescription = aboutPage?.metaDescription || "Learn about TradeLogix Wholesale, our verified OEM hardware supply chain, multi-warehouse fulfillment network, and GST-compliant B2B commerce platform.";
+
+const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:6543';
+const resolveMediaUrl = (url) => {
+  if (!url) return '';
+  if (url.startsWith('/uploads/')) return `${API_URL}${url}`;
+  return url;
+};
+
+const companyName = platformSettings?.companyName || 'TradeLogix Solutions Private Limited';
+const companyAddress = platformSettings?.companyAddress || '804, Prime Corporate Park, Marol, Andheri East, Mumbai, MH - 400059';
+const gstin = platformSettings?.gstin || '27AAACT9921M1ZT';
+const panNumber = platformSettings?.panNumber || 'AAACT9921M';
+const cinNumber = platformSettings?.cinNumber || 'U72900MH2024PTC123456';
+const warehouseLocation = platformSettings?.warehouseLocation || 'Mumbai Central Fulfillment Hub (WH-01), Maharashtra';
+---
+
+<ShopLayout 
+  title={pageTitle}
+  description={pageDescription}
+  image={aboutPage?.metaImage ? resolveMediaUrl(aboutPage.metaImage) : undefined}
+>
+  <div class="space-y-16 py-10 sm:py-16">
+    <!-- Hero Section with Sleek Glassmorphism & Mesh Background -->
+    {hero.enabled !== false && (
+      <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class={`relative rounded-3xl overflow-hidden shadow-2xl border border-slate-200/80 bg-gradient-to-br ${hero.bgGradient || 'from-slate-900 via-brand-950 to-slate-900'} text-white p-8 sm:p-14 lg:p-16`}>
+          <!-- Subtle Glow Effects -->
+          <div class="absolute -top-24 -right-24 w-96 h-96 bg-brand-500/20 rounded-full blur-3xl pointer-events-none"></div>
+          <div class="absolute -bottom-24 -left-24 w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none"></div>
+
+          <div class="relative z-10 max-w-3xl space-y-6">
+            {hero.badge && (
+              <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-brand-500/10 border border-brand-400/30 text-brand-300 text-xs font-bold uppercase tracking-wider backdrop-blur-md">
+                <span class="w-2 h-2 rounded-full bg-brand-400 animate-pulse"></span>
+                {hero.badge}
+              </div>
+            )}
+
+            <h1 class="font-display font-extrabold text-3xl sm:text-5xl lg:text-6xl text-white tracking-tight leading-tight whitespace-pre-line">
+              {hero.title || 'Powering Next-Gen Wholesale Tech Commerce'}
+            </h1>
+
+            <p class="text-slate-300 text-sm sm:text-base leading-relaxed max-w-2xl font-normal whitespace-pre-line">
+              {hero.subtitle || "TradeLogix is India's premier B2B wholesale distribution ecosystem. We connect certified electronics retailers, corporate procurement desks, IT system integrators, and regional dealers directly with verified OEM hardware manufacturers."}
+            </p>
+
+            <div class="flex flex-wrap items-center gap-4 pt-2">
+              {hero.primaryCtaText && (
+                <a
+                  href={hero.primaryCtaLink || '/shop'}
+                  class="px-6 py-3.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-display font-bold text-xs shadow-lg shadow-brand-500/25 transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
+                >
+                  <span>{hero.primaryCtaText}</span>
+                  <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+                </a>
+              )}
+
+              {hero.secondaryCtaText && (
+                <a
+                  href={hero.secondaryCtaLink || '/login'}
+                  class="px-6 py-3.5 rounded-xl bg-white/10 hover:bg-white/15 text-white border border-white/20 font-display font-bold text-xs backdrop-blur-md transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
+                >
+                  <span class="material-symbols-outlined text-[18px]">verified_user</span>
+                  <span>{hero.secondaryCtaText}</span>
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+    )}
+
+    <!-- Key Numerical Highlights / Metrics -->
+    {metrics.enabled !== false && (
+      <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+          {metrics.metric1 && (
+            <div class="p-6 sm:p-8 rounded-2xl bg-white border border-slate-200/80 shadow-sm text-center space-y-1 hover:border-brand-300 transition-all group">
+              <div class="text-3xl sm:text-4xl font-black font-display text-slate-900 group-hover:text-brand-600 transition-colors">
+                {metrics.metric1.value}
+              </div>
+              <div class="text-xs font-bold uppercase tracking-wider text-slate-400">
+                {metrics.metric1.label}
+              </div>
+              {metrics.metric1.subtext && (
+                <p class="text-[11px] text-slate-500 pt-1">{metrics.metric1.subtext}</p>
+              )}
+            </div>
+          )}
+
+          {metrics.metric2 && (
+            <div class="p-6 sm:p-8 rounded-2xl bg-white border border-slate-200/80 shadow-sm text-center space-y-1 hover:border-brand-300 transition-all group">
+              <div class="text-3xl sm:text-4xl font-black font-display text-slate-900 group-hover:text-brand-600 transition-colors">
+                {metrics.metric2.value}
+              </div>
+              <div class="text-xs font-bold uppercase tracking-wider text-slate-400">
+                {metrics.metric2.label}
+              </div>
+              {metrics.metric2.subtext && (
+                <p class="text-[11px] text-slate-500 pt-1">{metrics.metric2.subtext}</p>
+              )}
+            </div>
+          )}
+
+          {metrics.metric3 && (
+            <div class="p-6 sm:p-8 rounded-2xl bg-white border border-slate-200/80 shadow-sm text-center space-y-1 hover:border-brand-300 transition-all group">
+              <div class="text-3xl sm:text-4xl font-black font-display text-slate-900 group-hover:text-brand-600 transition-colors">
+                {metrics.metric3.value}
+              </div>
+              <div class="text-xs font-bold uppercase tracking-wider text-slate-400">
+                {metrics.metric3.label}
+              </div>
+              {metrics.metric3.subtext && (
+                <p class="text-[11px] text-slate-500 pt-1">{metrics.metric3.subtext}</p>
+              )}
+            </div>
+          )}
+
+          {metrics.metric4 && (
+            <div class="p-6 sm:p-8 rounded-2xl bg-white border border-slate-200/80 shadow-sm text-center space-y-1 hover:border-brand-300 transition-all group">
+              <div class="text-3xl sm:text-4xl font-black font-display text-slate-900 group-hover:text-brand-600 transition-colors">
+                {metrics.metric4.value}
+              </div>
+              <div class="text-xs font-bold uppercase tracking-wider text-slate-400">
+                {metrics.metric4.label}
+              </div>
+              {metrics.metric4.subtext && (
+                <p class="text-[11px] text-slate-500 pt-1">{metrics.metric4.subtext}</p>
+              )}
+            </div>
+          )}
+        </div>
+      </section>
+    )}
+
+    <!-- Core Pillars / Why TradeLogix -->
+    {pillars.enabled !== false && (
+      <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
+        <div class="text-center max-w-2xl mx-auto space-y-2">
+          {pillars.badge && (
+            <span class="px-3.5 py-1 rounded-full bg-brand-50 text-brand-700 text-xs font-bold uppercase tracking-wider border border-brand-200">
+              {pillars.badge}
+            </span>
+          )}
+          <h2 class="text-2xl sm:text-4xl font-display font-extrabold text-slate-900">
+            {pillars.title || 'Engineered Specifically for Wholesale Buyers'}
+          </h2>
+          <p class="text-xs sm:text-sm text-slate-500">
+            {pillars.subtitle || 'Unlike retail marketplaces, TradeLogix delivers dedicated B2B commercial parameters, multi-tier quantity pricing, and automated compliance.'}
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
+          <!-- Pillar 1 -->
+          {pillars.pillar1 && (
+            <div class="p-8 rounded-3xl bg-gradient-to-br from-white to-slate-50 border border-slate-200 shadow-sm space-y-4 hover:shadow-md transition-all">
+              <div class="w-12 h-12 rounded-2xl bg-brand-100 text-brand-700 flex items-center justify-center font-bold">
+                <span class="material-symbols-outlined text-[26px]">{pillars.pillar1.icon || 'verified'}</span>
+              </div>
+              <h3 class="text-lg font-bold font-display text-slate-900">{pillars.pillar1.title}</h3>
+              <p class="text-xs text-slate-600 leading-relaxed whitespace-pre-line">
+                {pillars.pillar1.description}
+              </p>
+            </div>
+          )}
+
+          <!-- Pillar 2 -->
+          {pillars.pillar2 && (
+            <div class="p-8 rounded-3xl bg-gradient-to-br from-white to-slate-50 border border-slate-200 shadow-sm space-y-4 hover:shadow-md transition-all">
+              <div class="w-12 h-12 rounded-2xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">
+                <span class="material-symbols-outlined text-[26px]">{pillars.pillar2.icon || 'warehouse'}</span>
+              </div>
+              <h3 class="text-lg font-bold font-display text-slate-900">{pillars.pillar2.title}</h3>
+              <p class="text-xs text-slate-600 leading-relaxed whitespace-pre-line">
+                {pillars.pillar2.description}
+              </p>
+            </div>
+          )}
+
+          <!-- Pillar 3 -->
+          {pillars.pillar3 && (
+            <div class="p-8 rounded-3xl bg-gradient-to-br from-white to-slate-50 border border-slate-200 shadow-sm space-y-4 hover:shadow-md transition-all">
+              <div class="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+                <span class="material-symbols-outlined text-[26px]">{pillars.pillar3.icon || 'receipt_long'}</span>
+              </div>
+              <h3 class="text-lg font-bold font-display text-slate-900">{pillars.pillar3.title}</h3>
+              <p class="text-xs text-slate-600 leading-relaxed whitespace-pre-line">
+                {pillars.pillar3.description}
+              </p>
+            </div>
+          )}
+        </div>
+      </section>
+    )}
+
+    <!-- Corporate Information & Accreditation -->
+    {accreditation.enabled !== false && (
+      <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="p-8 sm:p-12 rounded-3xl bg-slate-900 text-white border border-slate-800 space-y-8">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-slate-800 pb-8">
+            <div>
+              <span class="text-xs font-bold text-brand-400 uppercase tracking-wider">
+                {accreditation.title || 'Corporate Identification'}
+              </span>
+              <h3 class="text-2xl font-bold font-display text-white mt-1">{companyName}</h3>
+              <p class="text-xs text-slate-400 mt-1 max-w-xl">
+                {accreditation.subtitle || 'Operating under the Ministry of Corporate Affairs, Government of India. In full compliance with IT Act & GST Act regulations.'}
+              </p>
+            </div>
+
+            {cinNumber && (
+              <div class="flex items-center gap-3">
+                <span class="px-3.5 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-slate-300 text-xs font-mono font-bold">
+                  CIN: {cinNumber}
+                </span>
+              </div>
+            )}
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 text-xs">
+            <div class="space-y-1">
+              <div class="text-slate-400 uppercase text-[10px] font-bold tracking-wider">GSTIN Identifier</div>
+              <div class="font-mono font-bold text-white text-sm">{gstin}</div>
+              <div class="text-[11px] text-emerald-400 flex items-center gap-1">
+                <span class="material-symbols-outlined text-[14px]">check_circle</span> Active & Verified
+              </div>
+            </div>
+
+            <div class="space-y-1">
+              <div class="text-slate-400 uppercase text-[10px] font-bold tracking-wider">Corporate PAN</div>
+              <div class="font-mono font-bold text-white text-sm">{panNumber}</div>
+              <div class="text-[11px] text-slate-400">Income Tax Department</div>
+            </div>
+
+            <div class="space-y-1">
+              <div class="text-slate-400 uppercase text-[10px] font-bold tracking-wider">Registered Dock Office</div>
+              <div class="font-medium text-slate-300 leading-relaxed">
+                {companyAddress}
+              </div>
+            </div>
+
+            <div class="space-y-1">
+              <div class="text-slate-400 uppercase text-[10px] font-bold tracking-wider">Central Fulfillment Node</div>
+              <div class="font-medium text-slate-300 leading-relaxed">
+                {warehouseLocation}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    )}
+
+    <!-- Bottom CTA Banner -->
+    {ctaBanner.enabled !== false && (
+      <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="rounded-3xl p-8 sm:p-12 bg-gradient-to-r from-brand-600 to-indigo-700 text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl">
+          <div class="space-y-2 text-center md:text-left">
+            <h3 class="font-display font-extrabold text-2xl sm:text-3xl">
+              {ctaBanner.title || 'Ready to scale your wholesale inventory?'}
+            </h3>
+            <p class="text-xs sm:text-sm text-brand-100 max-w-xl">
+              {ctaBanner.subtitle || 'Get instant access to wholesale tier pricing, live stock availability, and expedited dispatch terms.'}
+            </p>
+          </div>
+
+          <div class="flex items-center gap-3 shrink-0">
+            {ctaBanner.primaryBtnText && (
+              <a
+                href={ctaBanner.primaryBtnLink || '/login'}
+                class="px-6 py-3.5 rounded-xl bg-white text-brand-900 font-display font-bold text-xs shadow-lg hover:bg-slate-100 transition-all hover:scale-105 active:scale-95"
+              >
+                {ctaBanner.primaryBtnText}
+              </a>
+            )}
+            {ctaBanner.secondaryBtnText && (
+              <a
+                href={ctaBanner.secondaryBtnLink || '/contact'}
+                class="px-6 py-3.5 rounded-xl bg-brand-700/60 hover:bg-brand-700 text-white border border-white/20 font-display font-bold text-xs transition-all hover:scale-105 active:scale-95"
+              >
+                {ctaBanner.secondaryBtnText}
+              </a>
+            )}
+          </div>
+        </div>
+      </section>
+    )}
+  </div>
+</ShopLayout>

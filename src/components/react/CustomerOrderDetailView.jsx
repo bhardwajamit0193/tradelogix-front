@@ -18,7 +18,13 @@ import {
   FileText,
   ShoppingBag,
   Tag,
+  Download,
+  Ban,
+  AlertTriangle,
+  Info,
+  XCircle,
 } from 'lucide-react';
+import { generateAndDownloadInvoicePdf } from './InvoicePdfDocument.jsx';
 
 export default function CustomerOrderDetailView({ orderId }) {
   const user = useStore(userStore);
@@ -46,11 +52,17 @@ export default function CustomerOrderDetailView({ orderId }) {
 
   const getStatusBadge = (status) => {
     const s = (status || 'Pending').toLowerCase();
+    if (s.includes('cancel')) {
+      return 'bg-rose-100 text-rose-800 border-rose-200';
+    }
     if (s.includes('delivered') || s.includes('completed') || s.includes('paid')) {
       return 'bg-emerald-100 text-emerald-800 border-emerald-200';
     }
-    if (s.includes('shipped') || s.includes('dispatched') || s.includes('processing')) {
+    if (s.includes('shipped') || s.includes('dispatched')) {
       return 'bg-blue-100 text-blue-800 border-blue-200';
+    }
+    if (s.includes('processing')) {
+      return 'bg-indigo-100 text-indigo-800 border-indigo-200';
     }
     if (s.includes('pending') || s.includes('verification')) {
       return 'bg-amber-100 text-amber-800 border-amber-200';
@@ -107,13 +119,23 @@ export default function CustomerOrderDetailView({ orderId }) {
           <ArrowLeft className="w-4 h-4" /> Back to My Orders
         </a>
 
-        <button
-          type="button"
-          onClick={() => window.print()}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-slate-200 hover:border-slate-300 shadow-sm text-slate-700 text-xs font-bold transition-all"
-        >
-          <Printer className="w-4 h-4 text-slate-500" /> Print Tax Receipt
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => generateAndDownloadInvoicePdf(order)}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl gradient-brand text-white shadow-sm text-xs font-bold hover:opacity-95 transition-all"
+          >
+            <Download className="w-4 h-4" /> Download Invoice (PDF)
+          </button>
+
+          <a
+            href={`/dashboard/orders/${order.id}/invoice`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-slate-200 hover:border-slate-300 shadow-sm text-slate-700 hover:text-slate-900 text-xs font-bold transition-all"
+          >
+            <FileText className="w-3.5 h-3.5 text-slate-500" /> View Invoice
+          </a>
+        </div>
       </div>
 
       {/* Order Main Banner */}
@@ -142,6 +164,72 @@ export default function CustomerOrderDetailView({ orderId }) {
             </div>
           </div>
         </div>
+
+        {/* ================= ORDER CANCELLED BANNER WITH REASON ================= */}
+        {(order.status === 'Cancelled' || order.fulfillmentStatus === 'Cancelled') && (
+          <div className="p-5 sm:p-6 rounded-2xl bg-rose-50 border border-rose-200 text-rose-950 space-y-3 shadow-2xs">
+            <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-rose-200/80">
+              <div className="flex items-center gap-2 font-bold text-sm text-rose-900">
+                <Ban className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>Order Cancelled</span>
+              </div>
+              <span className="px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-300 font-bold text-[10px]">
+                Tax Invoice: VOID
+              </span>
+            </div>
+
+            <div className="p-4 bg-white rounded-xl border border-rose-200 space-y-2 text-xs">
+              <div className="space-y-1">
+                <span className="text-[11px] font-bold text-rose-900 uppercase tracking-wider block">
+                  Reason for Cancellation:
+                </span>
+                <p className="text-slate-800 font-semibold bg-rose-50/60 p-3 rounded-lg border border-rose-100 leading-relaxed">
+                  {order.cancelReason || 'This order was cancelled by the order administration desk.'}
+                </p>
+              </div>
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-between flex-wrap gap-2 text-[11px] text-slate-500">
+                <span>Any prepaid amounts are credited back or refunded to the original payment instrument within 3-5 business days.</span>
+                <a href="mailto:support@tradelogix.in" className="text-brand-600 font-bold hover:underline">
+                  Contact Support Desk
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ================= LOGISTICS DISPATCH TRACKING BANNER ================= */}
+        {(order.status === 'Dispatched' ||
+          order.status === 'Delivered' ||
+          order.fulfillmentStatus === 'Dispatched' ||
+          order.fulfillmentStatus === 'Delivered' ||
+          order.carrierName ||
+          order.trackingNumber) && (
+          <div className="p-4 sm:p-5 rounded-2xl bg-blue-50 border border-blue-200 text-blue-950 space-y-2 shadow-2xs">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2 font-bold text-xs text-blue-900">
+                <Truck className="w-4 h-4 text-blue-600 shrink-0" />
+                <span>Consignment Logistics & Tracking</span>
+              </div>
+              <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
+                (order.status === 'Delivered' || order.fulfillmentStatus === 'Delivered')
+                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                  : 'bg-blue-100 text-blue-800 border-blue-300'
+              }`}>
+                {order.status === 'Delivered' || order.fulfillmentStatus === 'Delivered' ? 'Delivered' : 'En Route'}
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
+              <div>
+                <span className="text-slate-500 text-[11px]">Logistics Carrier:</span>
+                <div className="font-bold text-slate-900">{order.carrierName || 'TradeLogix Express Air Cargo'}</div>
+              </div>
+              <div>
+                <span className="text-slate-500 text-[11px]">Tracking AWB No:</span>
+                <div className="font-mono font-bold text-blue-700">{order.trackingNumber || 'Available Upon Dispatch'}</div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* 3-Column Addresses & Payment Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

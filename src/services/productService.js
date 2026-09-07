@@ -228,7 +228,152 @@ export const CATEGORIES = [
   'Storage',
 ];
 
-export function getProducts({ category = 'All', search = '', sortBy = 'featured', maxPrice = 2000 } = {}) {
+const API_URL = import.meta.env.PUBLIC_API_URL || (typeof window !== 'undefined' && window.__PUBLIC_API_URL__) || 'http://localhost:6543';
+
+// ─── Live Database API Fetchers ──────────────────────────────────────────────
+
+export async function fetchShopProductsApi({
+  category = 'All',
+  search = '',
+  sortBy = 'featured',
+  page = 1,
+  limit = 50,
+} = {}) {
+  try {
+    const params = new URLSearchParams();
+    if (category && category !== 'All') params.append('category', category);
+    if (search) params.append('search', search);
+    if (sortBy) params.append('sortBy', sortBy);
+    if (page) params.append('page', String(page));
+    if (limit) params.append('limit', String(limit));
+
+    const res = await fetch(`${API_URL}/api/shop/products?${params.toString()}`, {
+      headers: { 'Content-Type': 'application/json' },
+      cache: 'no-store',
+    });
+
+    if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+    const json = await res.json();
+    const items = json.data || json.items || [];
+    if (Array.isArray(items) && items.length > 0) {
+      return items.map((p) => ({
+        id: p.id,
+        name: p.name,
+        slug: p.slug,
+        sku: p.sku || '',
+        category: p.category || (p.categories && p.categories[0]?.name) || 'Hardware',
+        categories: p.categories || [],
+        price: parseFloat(p.price) || 0,
+        originalPrice: p.originalPrice ? parseFloat(p.originalPrice) : null,
+        rating: p.rating || 4.8,
+        reviewCount: p.reviewCount || 42,
+        inStock: p.inStock !== false && (p.stockCount === undefined || p.stockCount > 0),
+        stockCount: p.stockCount || 50,
+        isFeatured: p.isFeatured || false,
+        isNew: p.isNew !== undefined ? p.isNew : true,
+        badge: p.badge || (p.isNew ? 'New Arrival' : 'Verified OEM'),
+        image: p.image || p.featuredImage || (p.images && p.images[0]) || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&auto=format&fit=crop&q=80',
+        gallery: p.gallery || p.images || [],
+        description: p.description || '',
+      }));
+    }
+  } catch (err) {
+    console.warn('[ProductService] Live DB fetch fallback:', err.message);
+  }
+  return getProducts({ category, search, sortBy, limit });
+}
+
+export async function fetchShopCategoriesApi() {
+  try {
+    const res = await fetch(`${API_URL}/api/all-categories`, {
+      headers: { 'Content-Type': 'application/json' },
+      cache: 'no-store',
+    });
+    if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+    const json = await res.json();
+    const items = json.data || json || [];
+    if (Array.isArray(items) && items.length > 0) {
+      return items;
+    }
+  } catch (err) {
+    console.warn('[ProductService] Live category fetch fallback:', err.message);
+  }
+  return CATEGORIES.filter((c) => c !== 'All').map((name, i) => ({
+    id: String(i + 1),
+    name,
+    slug: name.toLowerCase().replace(/\s+/g, '-'),
+  }));
+}
+
+export async function fetchSectionProducts(sectionConfig = {}, fallbackType = 'latest') {
+  const {
+    mode = 'automatic',
+    selectedCategoryIds = [],
+    selectedProductIds = [],
+    limit = 4,
+    autoCriteria = 'sales',
+  } = sectionConfig;
+
+  // Fetch all available products from Database
+  const dbProducts = await fetchShopProductsApi({ limit: 50 });
+
+  // 1. Manual Product Selection Mode
+  if (mode === 'manual' && Array.isArray(selectedProductIds) && selectedProductIds.length > 0) {
+    const matched = dbProducts.filter(
+      (p) => selectedProductIds.includes(p.id) || selectedProductIds.includes(p.slug)
+    );
+    if (matched.length > 0) {
+      return matched.slice(0, limit || 4);
+    }
+  }
+
+  // 2. Category Filter Mode
+  if (
+    (mode === 'category' || (Array.isArray(selectedCategoryIds) && selectedCategoryIds.length > 0)) &&
+    Array.isArray(selectedCategoryIds) &&
+    selectedCategoryIds.length > 0
+  ) {
+    const matched = dbProducts.filter((p) =>
+      selectedCategoryIds.some((cVal) => {
+        const cValStr = String(cVal).toLowerCase();
+        return (
+          (p.category && p.category.toLowerCase() === cValStr) ||
+          (p.categories && p.categories.some((c) => c.id === cVal || c.name.toLowerCase() === cValStr || c.slug === cValStr)) ||
+          p.id === cVal ||
+          p.slug === cVal
+        );
+      })
+    );
+    if (matched.length > 0) {
+      return matched.slice(0, limit || 4);
+    }
+  }
+
+  // 3. Automatic Mode / Database Sorting
+  if (fallbackType === 'top-selling' || autoCriteria === 'sales') {
+    const sorted = [...dbProducts].sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    return sorted.slice(0, limit || 4);
+  }
+  if (
+    fallbackType === 'trending' ||
+    autoCriteria === 'search_velocity' ||
+    autoCriteria === 'trending'
+  ) {
+    const sorted = [...dbProducts].sort((a, b) => (b.reviewCount || 0) - (a.reviewCount || 0));
+    return sorted.slice(0, limit || 4);
+  }
+  if (fallbackType === 'featured') {
+    const featured = dbProducts.filter((p) => p.isFeatured);
+    return (featured.length > 0 ? featured : dbProducts).slice(0, limit || 4);
+  }
+
+  // Default latest
+  return dbProducts.slice(0, limit || 4);
+}
+
+// ─── Synchronous Fallback Methods ─────────────────────────────────────────────
+
+export function getProducts({ category = 'All', search = '', sortBy = 'featured', maxPrice = 2000, limit = 50 } = {}) {
   let list = [...PRODUCTS];
 
   if (category && category !== 'All') {
@@ -259,7 +404,7 @@ export function getProducts({ category = 'All', search = '', sortBy = 'featured'
     list.sort((a, b) => (b.isNew ? 1 : 0) - (a.isNew ? 1 : 0));
   }
 
-  return list;
+  return list.slice(0, limit);
 }
 
 export function getProductBySlug(slug) {
@@ -269,3 +414,75 @@ export function getProductBySlug(slug) {
 export function getFeaturedProducts() {
   return PRODUCTS.filter((p) => p.isFeatured);
 }
+
+export function getLatestProducts() {
+  return PRODUCTS.filter((p) => p.isNew).slice(0, 4);
+}
+
+export function getTopSellingProducts() {
+  return PRODUCTS.filter((p) => p.badge?.includes('Seller') || p.rating >= 4.8).slice(0, 4);
+}
+
+export function getTrendingProducts() {
+  return PRODUCTS.filter((p) => p.badge?.includes('Hot') || p.badge?.includes('Pro') || p.badge?.includes('Esports') || p.rating >= 4.7).slice(0, 4);
+}
+
+export function getSectionProducts(sectionConfig = {}, fallbackType = 'latest') {
+  const {
+    mode = 'automatic',
+    selectedCategoryIds = [],
+    selectedProductIds = [],
+    limit = 4,
+    autoCriteria = 'sales',
+  } = sectionConfig;
+
+  // 1. Manual Product Selection Mode
+  if (mode === 'manual' && Array.isArray(selectedProductIds) && selectedProductIds.length > 0) {
+    const matched = PRODUCTS.filter(
+      (p) => selectedProductIds.includes(p.id) || selectedProductIds.includes(p.slug)
+    );
+    if (matched.length > 0) {
+      return matched.slice(0, limit || 4);
+    }
+  }
+
+  // 2. Category Filter Mode
+  if (
+    (mode === 'category' || (Array.isArray(selectedCategoryIds) && selectedCategoryIds.length > 0)) &&
+    Array.isArray(selectedCategoryIds) &&
+    selectedCategoryIds.length > 0
+  ) {
+    const matched = PRODUCTS.filter((p) =>
+      selectedCategoryIds.some((cVal) => {
+        const cValStr = String(cVal).toLowerCase();
+        return (
+          (p.category && p.category.toLowerCase() === cValStr) ||
+          (p.categoryIds && p.categoryIds.includes(cVal)) ||
+          p.id === cVal ||
+          p.slug === cVal
+        );
+      })
+    );
+    if (matched.length > 0) {
+      return matched.slice(0, limit || 4);
+    }
+  }
+
+  // 3. Automatic Mode / Algorithms
+  if (fallbackType === 'top-selling' || autoCriteria === 'sales') {
+    return getTopSellingProducts().slice(0, limit || 4);
+  }
+  if (
+    fallbackType === 'trending' ||
+    autoCriteria === 'search_velocity' ||
+    autoCriteria === 'trending'
+  ) {
+    return getTrendingProducts().slice(0, limit || 4);
+  }
+  if (fallbackType === 'featured') {
+    return getFeaturedProducts().slice(0, limit || 4);
+  }
+  return getLatestProducts().slice(0, limit || 4);
+}
+
+

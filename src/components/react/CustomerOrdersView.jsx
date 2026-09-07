@@ -11,7 +11,11 @@ import {
   Clock,
   CheckCircle2,
   Filter,
+  Download,
+  FileText,
+  Loader2,
 } from 'lucide-react';
+import { generateAndDownloadInvoicePdf } from './InvoicePdfDocument.jsx';
 
 export default function CustomerOrdersView() {
   const user = useStore(userStore);
@@ -66,6 +70,21 @@ export default function CustomerOrdersView() {
   });
 
   const statuses = ['All', 'Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
+
+  const [downloadingOrderId, setDownloadingOrderId] = useState(null);
+
+  const handleDownloadInvoice = async (e, order) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDownloadingOrderId(order.id);
+    try {
+      await generateAndDownloadInvoicePdf(order);
+    } catch (err) {
+      console.error('Failed to download invoice PDF', err);
+    } finally {
+      setDownloadingOrderId(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -207,16 +226,37 @@ export default function CustomerOrdersView() {
               </div>
 
               {/* Action Bottom Row */}
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+              <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
                 <span className="text-[11px] text-slate-400 font-medium">
-                  {order.offlineUtrNumber ? `UTR: ${order.offlineUtrNumber}` : 'Tax Invoice Available'}
+                  {order.offlineUtrNumber ? `UTR: ${order.offlineUtrNumber}` : 'Tax Invoice Ready'}
                 </span>
-                <a
-                  href={`/dashboard/orders/${order.id}`}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-100 hover:bg-brand-600 hover:text-white text-slate-800 text-xs font-bold transition-all shadow-sm"
-                >
-                  View Order Details <ExternalLink className="w-3.5 h-3.5" />
-                </a>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={(e) => handleDownloadInvoice(e, order)}
+                    disabled={downloadingOrderId === order.id}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-brand-50 hover:bg-brand-600 text-brand-700 hover:text-white border border-brand-200 hover:border-brand-600 text-xs font-bold transition-all shadow-sm disabled:opacity-60"
+                    title="Download Official Tax Invoice PDF"
+                  >
+                    {downloadingOrderId === order.id ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Downloading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-3.5 h-3.5" />
+                        <span>Invoice PDF</span>
+                      </>
+                    )}
+                  </button>
+                  <a
+                    href={`/dashboard/orders/${order.id}`}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-800 hover:text-white text-slate-800 text-xs font-bold transition-all shadow-sm"
+                  >
+                    View Details <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                </div>
               </div>
             </div>
           ))}

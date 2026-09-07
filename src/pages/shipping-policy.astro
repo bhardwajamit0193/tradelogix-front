@@ -1,0 +1,162 @@
+---
+import ShopLayout from '../layouts/ShopLayout.astro';
+import { fetchPageBySlugApi } from '../services/pagesService.js';
+import { fetchPlatformSettingsApi } from '../services/platformSettingsService.js';
+
+let page = null;
+let settings = null;
+
+try {
+  const [pageRes, settingsRes] = await Promise.all([
+    fetchPageBySlugApi('shipping-policy'),
+    fetchPlatformSettingsApi(),
+  ]);
+  page = pageRes;
+  settings = settingsRes;
+} catch (e) {
+  // fallback
+}
+
+const pageTitle = page?.metaTitle || page?.title || 'Shipping & Freight Logistics Policy | TradeLogix Wholesale';
+const pageDesc = page?.metaDescription || 'B2B shipping guidelines, freight cargo partners, dispatch SLAs, AWB tracking, and warehouse dock pickup protocols for TradeLogix Wholesale.';
+
+const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:6543';
+const resolveMediaUrl = (url) => {
+  if (!url) return '';
+  if (url.startsWith('/uploads/')) return `${API_URL}${url}`;
+  return url;
+};
+
+const companyName = settings?.companyName || 'TradeLogix Solutions Private Limited';
+const supportEmail = settings?.supportEmail || 'support@tradelogix.in';
+const companyPhone = settings?.companyPhone || '+91 22 6912 3456';
+const gstin = settings?.gstin || '27AAACT9921M1ZT';
+const cin = settings?.cinNumber || 'U72900MH2024PTC123456';
+---
+
+<ShopLayout 
+  title={pageTitle} 
+  description={pageDesc}
+  image={page?.metaImage ? resolveMediaUrl(page.metaImage) : undefined}
+>
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14 space-y-8">
+    <!-- Hero Header Banner with Glassmorphism -->
+    <div class="relative rounded-3xl overflow-hidden shadow-xl border border-slate-200/80 bg-gradient-to-br from-slate-900 via-brand-950 to-slate-900 text-white p-8 sm:p-12">
+      <!-- Glow effect -->
+      <div class="absolute -top-24 -right-24 w-80 h-80 bg-brand-500/20 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="absolute -bottom-24 -left-24 w-80 h-80 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none"></div>
+
+      <div class="relative z-10 max-w-3xl space-y-4">
+        <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-brand-500/10 border border-brand-400/30 text-brand-300 text-xs font-bold uppercase tracking-wider backdrop-blur-md">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span>B2B Logistics, Freight & Dock Dispatches</span>
+        </div>
+
+        <h1 class="font-display font-black text-3xl sm:text-5xl text-white tracking-tight leading-tight">
+          {page?.title || 'Shipping & Freight Logistics Policy'}
+        </h1>
+
+        <p class="text-xs sm:text-sm text-slate-300 flex flex-wrap items-center gap-x-4 gap-y-1">
+          <span>Effective Date: September 2026</span>
+          <span>•</span>
+          <span>National Commercial Freight SLA & Dispatch Protocols</span>
+        </p>
+      </div>
+    </div>
+
+    <!-- 2-Column Layout -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <!-- Main Content Column -->
+      <div class="lg:col-span-8 bg-white rounded-3xl border border-slate-200/90 shadow-xs p-6 sm:p-10 lg:p-12">
+        <div 
+          class="policy-prose" 
+          set:html={page?.content || '<p class="text-slate-400 italic">No shipping policy published yet.</p>'} 
+        />
+      </div>
+
+      <!-- Sticky Sidebar -->
+      <div class="lg:col-span-4 space-y-6 lg:sticky lg:top-24">
+        <!-- Quick Policies Navigation -->
+        <div class="p-6 rounded-3xl bg-white border border-slate-200/90 shadow-xs space-y-4">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-[20px] text-brand-600">policy</span>
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-800">Corporate Legal Policies</h3>
+          </div>
+
+          <nav class="space-y-1 text-xs font-bold">
+            <a 
+              href="/privacy-policy" 
+              class="flex items-center justify-between p-3 rounded-2xl text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-all"
+            >
+              <span>Privacy & Data Protection</span>
+              <span class="material-symbols-outlined text-[16px] text-slate-400">chevron_right</span>
+            </a>
+
+            <a 
+              href="/terms-of-sale" 
+              class="flex items-center justify-between p-3 rounded-2xl text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-all"
+            >
+              <span>Terms & Conditions of Sale</span>
+              <span class="material-symbols-outlined text-[16px] text-slate-400">chevron_right</span>
+            </a>
+
+            <a 
+              href="/refund-policy" 
+              class="flex items-center justify-between p-3 rounded-2xl text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-all"
+            >
+              <span>Refund, Return & RMA Policy</span>
+              <span class="material-symbols-outlined text-[16px] text-slate-400">chevron_right</span>
+            </a>
+
+            <a 
+              href="/shipping-policy" 
+              class="flex items-center justify-between p-3 rounded-2xl bg-brand-50 text-brand-700 border border-brand-200 transition-all"
+            >
+              <span>Shipping & Freight Logistics</span>
+              <span class="material-symbols-outlined text-[16px]">chevron_right</span>
+            </a>
+          </nav>
+        </div>
+
+        <!-- Compliance Support Desk Card -->
+        <div class="p-6 rounded-3xl bg-slate-900 text-white border border-slate-800 shadow-sm space-y-4 text-xs">
+          <div class="space-y-1">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-brand-400">Logistics & Dispatch Desk</span>
+            <h4 class="font-bold text-sm text-white">{companyName}</h4>
+          </div>
+
+          <div class="space-y-2 pt-2 border-t border-slate-800 text-[11px] text-slate-300">
+            {cin && (
+              <div class="flex items-center justify-between font-mono">
+                <span class="text-slate-400">CIN:</span>
+                <span>{cin}</span>
+              </div>
+            )}
+            {gstin && (
+              <div class="flex items-center justify-between font-mono">
+                <span class="text-slate-400">GSTIN:</span>
+                <span class="text-emerald-400 font-bold">{gstin}</span>
+              </div>
+            )}
+            <div class="flex items-center justify-between">
+              <span class="text-slate-400">Email:</span>
+              <a href={`mailto:${supportEmail}`} class="text-brand-300 hover:underline">{supportEmail}</a>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-slate-400">Dispatch Desk:</span>
+              <span>{companyPhone}</span>
+            </div>
+          </div>
+
+          <a
+            href="/contact"
+            class="w-full py-2.5 px-4 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-display font-bold text-xs transition-all flex items-center justify-center gap-2 mt-2"
+          >
+            <span>Track Consignment / Inquire</span>
+            <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</ShopLayout>

@@ -1,0 +1,12 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import AdminSettingsView from '../../../components/react/AdminSettingsView.jsx';
+---
+
+<AdminLayout
+  title="Footer & Navigation Settings | TradeLogix Studio"
+  headerTitle="Footer & Navigation Configuration"
+  headerSubtitle="Customize storefront footer branding, dynamic navigation columns, helpdesk channels, and compliance notices"
+>
+  <AdminSettingsView client:load initialSection="footer" />
+</AdminLayout>

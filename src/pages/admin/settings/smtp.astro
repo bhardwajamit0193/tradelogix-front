@@ -1,0 +1,12 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import AdminSettingsView from '../../../components/react/AdminSettingsView.jsx';
+---
+
+<AdminLayout
+  title="SMTP Mail Settings | TradeLogix Studio"
+  headerTitle="SMTP Mail Server Configuration"
+  headerSubtitle="Configure transactional email host, credentials, SSL/TLS encryption, and outbound sender identity"
+>
+  <AdminSettingsView client:load initialSection="smtp" />
+</AdminLayout>

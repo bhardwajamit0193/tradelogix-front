@@ -1,0 +1,14 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import AdminPageEditor from '../../../components/react/AdminPageEditor.jsx';
+
+const { id } = Astro.params;
+---
+
+<AdminLayout
+  title="Edit Page | TradeLogix Admin Studio"
+  headerTitle="Page Editor Studio"
+  headerSubtitle="Edit rich content, layout options, and SEO metadata saved to database"
+>
+  <AdminPageEditor client:load pageId={id} isNew={false} />
+</AdminLayout>

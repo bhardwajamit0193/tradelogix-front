@@ -10,7 +10,7 @@ import '@uppy/core/css/style.min.css';
 import '@uppy/dashboard/css/style.min.css';
 import '../../styles/uppy-overrides.css';
 
-const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:4000';
+const API_URL = import.meta.env.PUBLIC_API_URL || (typeof window !== 'undefined' && window.__PUBLIC_API_URL__) || 'http://localhost:6543';
 
 /**
  * MediaLibraryModal — WordPress-style media upload & selection modal.
@@ -22,7 +22,8 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:4000';
  * - multiple (boolean): allow multi-select (default: false)
  * - authToken (string): JWT for admin API calls
  */
-export default function MediaLibraryModal({ isOpen, onClose, onSelect, multiple = false, authToken = '' }) {
+export default function MediaLibraryModal({ isOpen, onClose, onSelect, onSelectMedia, multiple = false, authToken = '' }) {
+  const selectHandler = onSelect || onSelectMedia;
   const effectiveToken = authToken || userStore.get()?.accessToken || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('tradelogix_user') || '{}')?.accessToken : '') || '';
   const [activeTab, setActiveTab] = useState('upload'); // 'upload' | 'library'
   const [library, setLibrary]     = useState([]);
@@ -136,12 +137,16 @@ export default function MediaLibraryModal({ isOpen, onClose, onSelect, multiple 
 
   const handleInsert = () => {
     if (selected.length === 0) return;
-    if (multiple) {
-      onSelect(selected);
-    } else {
-      onSelect(selected[0]);
+    if (typeof selectHandler === 'function') {
+      if (multiple) {
+        selectHandler(selected);
+      } else {
+        selectHandler(selected[0]);
+      }
     }
-    onClose();
+    if (typeof onClose === 'function') {
+      onClose();
+    }
   };
 
   // ── Filtered library ─────────────────────────────────────────────────────

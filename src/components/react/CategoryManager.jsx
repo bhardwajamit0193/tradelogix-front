@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Trash2, Search, RefreshCw, FolderTree, ChevronRight, X, Pencil } from 'lucide-react';
+import { Trash2, Search, RefreshCw, FolderTree, ChevronRight, X, Pencil, Sparkles } from 'lucide-react';
 import { getCategories, saveCategory, deleteCategory, getMockProducts } from '../../utils/mockDb.js';
 import { userStore } from '../../store/authStore.js';
+import CategoryIconPicker from './CategoryIconPicker.jsx';
+import { resolveCategoryIcon } from '../../utils/categoryIcons.js';
 
-const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:4000';
+const API_URL = import.meta.env.PUBLIC_API_URL || (typeof window !== 'undefined' && window.__PUBLIC_API_URL__) || 'http://localhost:6543';
 
 const slugify = (text) =>
   text.toString().toLowerCase().trim()
@@ -12,7 +14,7 @@ const slugify = (text) =>
     .replace(/\-\-+/g, '-')
     .replace(/^-+/, '').replace(/-+$/, '');
 
-const EMPTY_FORM = { id: null, name: '', slug: '', parentId: '', description: '' };
+const EMPTY_FORM = { id: null, name: '', slug: '', parentId: '', description: '', icon: '' };
 
 export default function CategoryManager() {
   const [categories, setCategories] = useState([]);
@@ -21,7 +23,7 @@ export default function CategoryManager() {
   const [form, setForm]             = useState(EMPTY_FORM);
   const [isSlugManual, setIsSlugManual] = useState(false);
   // Edit modal
-  const [editModal, setEditModal]   = useState(null);   // null | { id, name, slug, parentId, description }
+  const [editModal, setEditModal]   = useState(null);   // null | { id, name, slug, parentId, description, icon }
   const [editSlugManual, setEditSlugManual] = useState(false);
   const [search, setSearch]         = useState('');
   const [selected, setSelected]     = useState([]);
@@ -89,11 +91,12 @@ export default function CategoryManager() {
       slug: form.slug || slugify(form.name),
       parentId: form.parentId || null,
       description: form.description.trim(),
+      icon: form.icon || null,
     };
 
     try {
       const token = getAuthToken();
-      await fetch(`${API_URL}/api/admin/categories`, {
+      const res = await fetch(`${API_URL}/api/admin/categories`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -101,20 +104,31 @@ export default function CategoryManager() {
         },
         body: JSON.stringify(payload),
       });
-    } catch {
-      // local fallback
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        console.error('Category create API error:', errJson);
+      }
+    } catch (err) {
+      console.warn('Category create network error:', err);
     }
     saveCategory(payload);
-    load();
+    await load();
     setForm(EMPTY_FORM);
     setIsSlugManual(false);
-    setSaveMsg('Category added.');
+    setSaveMsg('Category added successfully with selected icon.');
     setTimeout(() => setSaveMsg(null), 3000);
   };
 
   // Edit modal open
   const handleEdit = (cat) => {
-    setEditModal({ id: cat.id, name: cat.name, slug: cat.slug, parentId: cat.parentId || '', description: cat.description || '' });
+    setEditModal({
+      id: cat.id,
+      name: cat.name,
+      slug: cat.slug,
+      parentId: cat.parentId || '',
+      description: cat.description || '',
+      icon: cat.icon || '',
+    });
     setEditSlugManual(true);
   };
 
@@ -138,11 +152,12 @@ export default function CategoryManager() {
       slug: editModal.slug || slugify(editModal.name),
       parentId: editModal.parentId || null,
       description: editModal.description.trim(),
+      icon: editModal.icon || null,
     };
 
     try {
       const token = getAuthToken();
-      await fetch(`${API_URL}/api/admin/categories/${editModal.id}`, {
+      const res = await fetch(`${API_URL}/api/admin/categories/${editModal.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -150,13 +165,17 @@ export default function CategoryManager() {
         },
         body: JSON.stringify(payload),
       });
-    } catch {
-      // local fallback
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        console.error('Category update API error:', errJson);
+      }
+    } catch (err) {
+      console.warn('Category update network error:', err);
     }
     saveCategory({ id: editModal.id, ...payload });
-    load();
+    await load();
     closeEditModal();
-    setSaveMsg('Category updated.');
+    setSaveMsg('Category updated with icon.');
     setTimeout(() => setSaveMsg(null), 3000);
   };
 
@@ -216,7 +235,7 @@ export default function CategoryManager() {
             <FolderTree className="w-5 h-5 text-brand-600" /> Product Categories
           </h2>
           <p className="text-[11px] text-slate-400 mt-0.5">
-            Manage categories for your product catalog. Drag-and-drop ordering coming soon.
+            Manage catalog categories with custom storefront icons for navigation and home page category bar.
           </p>
         </div>
         <button onClick={load} className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-all" title="Refresh">
@@ -245,11 +264,11 @@ export default function CategoryManager() {
                 type="text"
                 value={form.name}
                 onChange={(e) => handleNameChange(e.target.value)}
-                placeholder="e.g. Electronics"
+                placeholder="e.g. Displays & Monitors"
                 required
                 className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-200 transition-all"
               />
-              <p className="text-[10px] text-slate-400">The name is how it appears on your site.</p>
+              <p className="text-[10px] text-slate-400">The name is how it appears on your storefront.</p>
             </div>
 
             <div className="space-y-1.5">
@@ -263,6 +282,14 @@ export default function CategoryManager() {
               />
               <p className="text-[10px] text-slate-400">URL-friendly name — lowercase, numbers, hyphens only.</p>
             </div>
+
+            {/* Icon Picker Component */}
+            <CategoryIconPicker
+              value={form.icon}
+              onChange={(icon) => setForm(f => ({ ...f, icon }))}
+              categoryName={form.name}
+              label="Storefront Icon"
+            />
 
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-700">Parent Category</label>
@@ -338,7 +365,7 @@ export default function CategoryManager() {
                       className="rounded border-slate-300 accent-brand-600"
                     />
                   </th>
-                  <th className="px-4 py-3 text-left font-bold text-slate-600 uppercase tracking-wider text-[10px]">Name</th>
+                  <th className="px-4 py-3 text-left font-bold text-slate-600 uppercase tracking-wider text-[10px]">Icon & Name</th>
                   <th className="px-4 py-3 text-left font-bold text-slate-600 uppercase tracking-wider text-[10px]">Description</th>
                   <th className="px-4 py-3 text-left font-bold text-slate-600 uppercase tracking-wider text-[10px]">Slug</th>
                   <th className="px-4 py-3 text-center font-bold text-slate-600 uppercase tracking-wider text-[10px]">Count</th>
@@ -355,6 +382,8 @@ export default function CategoryManager() {
                     const parentName = getParentName(cat.parentId);
                     const count = countForCat(cat);
                     const isChecked = selected.includes(cat.id);
+                    const CatIcon = resolveCategoryIcon(cat.icon, cat.name);
+
                     return (
                       <tr key={cat.id} className={`group transition-colors ${isChecked ? 'bg-brand-50/40' : 'hover:bg-slate-50/60'}`}>
                         <td className="px-4 py-3">
@@ -362,20 +391,34 @@ export default function CategoryManager() {
                             className="rounded border-slate-300 accent-brand-600" />
                         </td>
 
-                        <td className="px-4 py-3 min-w-[140px]">
-                          <button onClick={() => handleEdit(cat)}
-                            className="font-semibold text-brand-600 hover:text-brand-800 hover:underline text-left transition-colors">
-                            {cat.name}
-                          </button>
-                          {parentName && (
-                            <div className="flex items-center gap-0.5 text-[10px] text-slate-400 mt-0.5">
-                              <ChevronRight className="w-3 h-3" />{parentName}
+                        <td className="px-4 py-3 min-w-[180px]">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-xl bg-slate-100 group-hover:bg-brand-50 border border-slate-200/80 group-hover:border-brand-200 flex items-center justify-center text-slate-600 group-hover:text-brand-600 transition-colors shrink-0 shadow-2xs">
+                              <CatIcon className="w-4 h-4" />
                             </div>
-                          )}
-                          <div className="flex items-center gap-2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onClick={() => handleEdit(cat)} className="text-[10px] text-brand-600 font-semibold hover:underline">Edit</button>
-                            <span className="text-slate-300">|</span>
-                            <button onClick={() => handleDelete(cat.id, cat.name)} className="text-[10px] text-rose-500 font-semibold hover:underline">Delete</button>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <button onClick={() => handleEdit(cat)}
+                                  className="font-bold text-slate-900 group-hover:text-brand-600 hover:underline text-left transition-colors truncate">
+                                  {cat.name}
+                                </button>
+                                {cat.icon && (
+                                  <span className="text-[9px] font-semibold bg-brand-50 text-brand-700 px-1.5 py-0.2 rounded border border-brand-100 shrink-0">
+                                    {cat.icon}
+                                  </span>
+                                )}
+                              </div>
+                              {parentName && (
+                                <div className="flex items-center gap-0.5 text-[10px] text-slate-400 mt-0.5">
+                                  <ChevronRight className="w-3 h-3" />{parentName}
+                                </div>
+                              )}
+                              <div className="flex items-center gap-2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onClick={() => handleEdit(cat)} className="text-[10px] text-brand-600 font-semibold hover:underline">Edit</button>
+                                <span className="text-slate-300">|</span>
+                                <button onClick={() => handleDelete(cat.id, cat.name)} className="text-[10px] text-rose-500 font-semibold hover:underline">Delete</button>
+                              </div>
+                            </div>
                           </div>
                         </td>
 
@@ -462,6 +505,14 @@ export default function CategoryManager() {
                   className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-mono focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-200 transition-all"
                 />
               </div>
+
+              {/* Edit Modal Icon Picker */}
+              <CategoryIconPicker
+                value={editModal.icon}
+                onChange={(icon) => setEditModal(m => ({ ...m, icon }))}
+                categoryName={editModal.name}
+                label="Storefront Icon"
+              />
 
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-700">Parent Category</label>

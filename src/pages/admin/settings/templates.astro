@@ -1,0 +1,12 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import AdminSettingsView from '../../../components/react/AdminSettingsView.jsx';
+---
+
+<AdminLayout
+  title="Email Notification Templates | TradeLogix Studio"
+  headerTitle="Email Notification Templates"
+  headerSubtitle="Customize transactional email subjects, customer dispatch templates, and admin alert routing"
+>
+  <AdminSettingsView client:load initialSection="templates" />
+</AdminLayout>

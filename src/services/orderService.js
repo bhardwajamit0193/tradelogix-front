@@ -268,24 +268,36 @@ export async function createOrder({
   return localOrder;
 }
 
-export async function updateOrderStatus(orderId, newStatus) {
+export async function updateOrderStatus(orderId, newStatus, extraData = {}) {
   const token = getStoredToken();
   const currentOrders = getOrders();
   const updated = currentOrders.map((ord) =>
-    ord.id === orderId ? { ...ord, status: newStatus, fulfillmentStatus: newStatus, updatedAt: new Date().toISOString() } : ord
+    ord.id === orderId
+      ? {
+          ...ord,
+          status: newStatus,
+          fulfillmentStatus: newStatus,
+          ...extraData,
+          updatedAt: new Date().toISOString(),
+        }
+      : ord
   );
   ordersState = updated;
   saveOrdersToStorage(updated);
 
   try {
-    await fetch(`${API_URL}/orders/${orderId}/status`, {
+    const res = await fetch(`${API_URL}/orders/${orderId}/status`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({ status: newStatus }),
+      body: JSON.stringify({ status: newStatus, ...extraData }),
     });
+    if (res.ok) {
+      const data = await res.json();
+      return updated.map((o) => (o.id === orderId ? { ...o, ...(data.data || data) } : o));
+    }
   } catch (e) {
     console.warn('Status API update failed', e);
   }

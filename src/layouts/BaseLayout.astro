@@ -1,11 +1,13 @@
 ---
 import '../styles/global.css';
 import ToastNotification from '../components/react/ToastNotification.jsx';
+import { fetchPlatformSettingsApi } from '../services/platformSettingsService.js';
 
 export interface Props {
   title?: string;
   description?: string;
   image?: string;
+  favicon?: string;
   noindex?: boolean;
 }
 
@@ -13,8 +15,37 @@ const {
   title = 'TradeLogix | Next-Gen Tech & Electronics Storefront',
   description = 'Discover premium audio gear, OLED monitors, mechanical keyboards, and modern lifestyle tech accessories.',
   image = '/og-image.jpg',
+  favicon: propFavicon,
   noindex = false,
 } = Astro.props;
+
+let resolvedFavicon = propFavicon;
+if (!resolvedFavicon) {
+  try {
+    const platform = await fetchPlatformSettingsApi();
+    if (platform && platform.favicon) {
+      resolvedFavicon = platform.favicon;
+    }
+  } catch (e) {
+    // fallback
+  }
+}
+
+const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:6543';
+const formatIconUrl = (url: string | undefined) => {
+  if (!url) return '/favicon.svg';
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url;
+  if (url.startsWith('/uploads/')) return `${API_URL}${url}`;
+  return url;
+};
+
+const finalFavicon = formatIconUrl(resolvedFavicon || '/favicon.svg');
+
+let iconType = 'image/svg+xml';
+if (finalFavicon.toLowerCase().endsWith('.png')) iconType = 'image/png';
+else if (finalFavicon.toLowerCase().endsWith('.ico')) iconType = 'image/x-icon';
+else if (finalFavicon.toLowerCase().endsWith('.jpg') || finalFavicon.toLowerCase().endsWith('.jpeg')) iconType = 'image/jpeg';
+else if (finalFavicon.toLowerCase().endsWith('.webp')) iconType = 'image/webp';
 ---
 
 <!DOCTYPE html>
@@ -22,7 +53,9 @@ const {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type={iconType} href={finalFavicon} />
+    <link rel="shortcut icon" href={finalFavicon} />
+    <link rel="apple-touch-icon" href={finalFavicon} />
     <meta name="generator" content={Astro.generator} />
 
     <!-- SEO Meta Tags -->

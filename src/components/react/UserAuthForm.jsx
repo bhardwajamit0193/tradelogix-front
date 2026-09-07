@@ -46,7 +46,7 @@ export default function UserAuthForm() {
   const [otpCodeToShow, setOtpCodeToShow] = useState(null);
   const [gstVerified, setGstVerified] = useState(false);
   const [pendingStatusMsg, setPendingStatusMsg] = useState('');
-  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(true);
 
   // OTP Sending Handlers
   const handleSendOtp = async (e) => {

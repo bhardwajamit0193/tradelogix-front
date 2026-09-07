@@ -1,0 +1,12 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import AdminPagesView from '../../../components/react/AdminPagesView.jsx';
+---
+
+<AdminLayout
+  title="Pages Management | TradeLogix Admin Studio"
+  headerTitle="Pages Studio"
+  headerSubtitle="Manage dynamic storefront pages, rich content, legal policies, and SEO metadata saved to database"
+>
+  <AdminPagesView client:load />
+</AdminLayout>

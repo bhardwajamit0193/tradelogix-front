@@ -1,0 +1,12 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import AdminSettingsView from '../../../components/react/AdminSettingsView.jsx';
+---
+
+<AdminLayout
+  title="Platform & System Settings | TradeLogix Studio"
+  headerTitle="Platform & System Configuration"
+  headerSubtitle="Manage company identity, registered address, GSTIN, SMTP mail relay, and platform parameters"
+>
+  <AdminSettingsView client:load initialSection="platform" />
+</AdminLayout>

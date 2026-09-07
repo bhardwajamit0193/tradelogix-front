@@ -1,0 +1,12 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import AdminPageEditor from '../../../components/react/AdminPageEditor.jsx';
+---
+
+<AdminLayout
+  title="Create New Page | TradeLogix Admin Studio"
+  headerTitle="Create New Page"
+  headerSubtitle="Publish a new dynamic storefront page with customizable content and SEO tags"
+>
+  <AdminPageEditor client:load isNew={true} />
+</AdminLayout>

@@ -21,7 +21,10 @@ import {
   ChevronsLeft,
   ChevronsRight,
   ExternalLink,
+  Download,
+  Loader2,
 } from 'lucide-react';
+import { generateAndDownloadInvoicePdf } from './InvoicePdfDocument.jsx';
 
 export default function OrderTable() {
   const [orders, setOrders] = useState([]);
@@ -33,6 +36,20 @@ export default function OrderTable() {
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [downloadingOrderId, setDownloadingOrderId] = useState(null);
+
+  const handleDownloadInvoice = async (e, order) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDownloadingOrderId(order.id);
+    try {
+      await generateAndDownloadInvoicePdf(order);
+    } catch (err) {
+      console.error('Failed to download invoice PDF', err);
+    } finally {
+      setDownloadingOrderId(null);
+    }
+  };
 
   const loadOrders = async () => {
     setLoading(true);
@@ -292,14 +309,30 @@ export default function OrderTable() {
                         </span>
                       </td>
 
-                      {/* Actions: Direct Link to Full Order Details Page */}
+                      {/* Actions: Direct PDF Download and Link to Full Order Details Page */}
                       <td className="p-4 pr-6 text-right">
-                        <a
-                          href={orderDetailUrl}
-                          className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-brand-50 text-slate-700 hover:text-brand-700 border border-slate-200 hover:border-brand-300 text-xs font-bold transition-all inline-flex items-center gap-1.5 shadow-sm"
-                        >
-                          <Eye className="w-3.5 h-3.5" /> Full Details
-                        </a>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={(e) => handleDownloadInvoice(e, order)}
+                            disabled={downloadingOrderId === order.id}
+                            className="px-2.5 py-1.5 rounded-xl bg-brand-50 hover:bg-brand-600 text-brand-700 hover:text-white border border-brand-200 hover:border-brand-600 text-xs font-bold transition-all inline-flex items-center gap-1 shadow-sm disabled:opacity-50"
+                            title="Download Tax Invoice PDF"
+                          >
+                            {downloadingOrderId === order.id ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Download className="w-3.5 h-3.5" />
+                            )}
+                            <span className="hidden xl:inline">PDF</span>
+                          </button>
+                          <a
+                            href={orderDetailUrl}
+                            className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-800 text-slate-700 hover:text-white border border-slate-200 hover:border-slate-800 text-xs font-bold transition-all inline-flex items-center gap-1.5 shadow-sm"
+                          >
+                            <Eye className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Details</span>
+                          </a>
+                        </div>
                       </td>
                     </tr>
                   );

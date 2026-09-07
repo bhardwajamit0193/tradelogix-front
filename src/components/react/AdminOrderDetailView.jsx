@@ -26,7 +26,15 @@ import {
   Tag,
   Percent,
   ShieldCheck,
+  Download,
+  XCircle,
+  AlertTriangle,
+  Save,
+  Send,
+  Info,
+  Ban,
 } from 'lucide-react';
+import { generateAndDownloadInvoicePdf } from './InvoicePdfDocument.jsx';
 
 export default function AdminOrderDetailView({ orderId: initialOrderId }) {
   const getOrderId = () => {
@@ -43,6 +51,12 @@ export default function AdminOrderDetailView({ orderId: initialOrderId }) {
   const [isUpdating, setIsUpdating] = useState(false);
   const [successNotice, setSuccessNotice] = useState('');
   const [adminNotesInput, setAdminNotesInput] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('');
+
+  // Cancellation & Logistics Inputs
+  const [cancelReasonInput, setCancelReasonInput] = useState('');
+  const [carrierNameInput, setCarrierNameInput] = useState('');
+  const [trackingNumberInput, setTrackingNumberInput] = useState('');
 
   const loadData = async () => {
     const idToFetch = getOrderId();
@@ -54,6 +68,10 @@ export default function AdminOrderDetailView({ orderId: initialOrderId }) {
     const data = await fetchOrderByIdApi(idToFetch);
     if (data && data.id) {
       setOrder(data);
+      setSelectedStatus(data.fulfillmentStatus || data.status || 'Pending');
+      setCancelReasonInput(data.cancelReason || '');
+      setCarrierNameInput(data.carrierName || '');
+      setTrackingNumberInput(data.trackingNumber || '');
     }
     setLoading(false);
   };
@@ -64,21 +82,90 @@ export default function AdminOrderDetailView({ orderId: initialOrderId }) {
 
   const showNotification = (msg) => {
     setSuccessNotice(msg);
-    setTimeout(() => setSuccessNotice(''), 4000);
+    setTimeout(() => setSuccessNotice(''), 4500);
   };
 
-  const handleStatusChange = async (newStatus) => {
+  const handleApplyStatusUpdate = async () => {
     if (!order) return;
+
+    if (selectedStatus === 'Cancelled') {
+      if (!cancelReasonInput || cancelReasonInput.trim() === '') {
+        showNotification('⚠️ Please enter or select a cancellation reason below, then click "Confirm Reason & Cancel Order".');
+        return;
+      }
+      return handleSaveCancellationReason();
+    }
+
+    if (selectedStatus === 'Dispatched') {
+      if (!trackingNumberInput || trackingNumberInput.trim() === '') {
+        showNotification('⚠️ Please enter the Airway Bill (AWB) Tracking No. below, then click "Save & Send Dispatch Tracking".');
+        return;
+      }
+      return handleSaveLogisticsTracking();
+    }
+
     setIsUpdating(true);
-    const updatedList = await updateOrderStatus(order.id, newStatus);
+    const updatedList = await updateOrderStatus(order.id, selectedStatus, {});
     const matched = updatedList.find((o) => o.id === order.id);
     if (matched) {
       setOrder(matched);
+      setSelectedStatus(matched.fulfillmentStatus || matched.status || selectedStatus);
     } else {
-      setOrder({ ...order, status: newStatus, fulfillmentStatus: newStatus });
+      setOrder({ ...order, status: selectedStatus, fulfillmentStatus: selectedStatus });
     }
     setIsUpdating(false);
-    showNotification(`Fulfillment status updated to "${newStatus}"`);
+    showNotification(`Fulfillment status updated to "${selectedStatus}" and email notified!`);
+  };
+
+  const handleSaveCancellationReason = async () => {
+    if (!order) return;
+    if (!cancelReasonInput || cancelReasonInput.trim() === '') {
+      showNotification('⚠️ Please select or type a cancellation reason before saving.');
+      return;
+    }
+    setIsUpdating(true);
+    const updatedList = await updateOrderStatus(order.id, 'Cancelled', {
+      cancelReason: cancelReasonInput.trim(),
+    });
+    const matched = updatedList.find((o) => o.id === order.id);
+    if (matched) {
+      setOrder(matched);
+      setSelectedStatus('Cancelled');
+    } else {
+      setOrder({ ...order, status: 'Cancelled', fulfillmentStatus: 'Cancelled', cancelReason: cancelReasonInput.trim() });
+      setSelectedStatus('Cancelled');
+    }
+    setIsUpdating(false);
+    showNotification('Order marked as Cancelled & cancellation email sent with your reason!');
+  };
+
+  const handleSaveLogisticsTracking = async () => {
+    if (!order) return;
+    if (!trackingNumberInput || trackingNumberInput.trim() === '') {
+      showNotification('⚠️ Please enter Airway Bill (AWB) Tracking No. before saving.');
+      return;
+    }
+    setIsUpdating(true);
+    const updatedList = await updateOrderStatus(order.id, 'Dispatched', {
+      carrierName: carrierNameInput.trim() || 'TradeLogix Express Air Cargo',
+      trackingNumber: trackingNumberInput.trim(),
+    });
+    const matched = updatedList.find((o) => o.id === order.id);
+    if (matched) {
+      setOrder(matched);
+      setSelectedStatus('Dispatched');
+    } else {
+      setOrder({
+        ...order,
+        status: 'Dispatched',
+        fulfillmentStatus: 'Dispatched',
+        carrierName: carrierNameInput.trim() || 'TradeLogix Express Air Cargo',
+        trackingNumber: trackingNumberInput.trim(),
+      });
+      setSelectedStatus('Dispatched');
+    }
+    setIsUpdating(false);
+    showNotification('Consignment marked as Dispatched & live tracking email sent to customer!');
   };
 
   const handleVerifyOffline = async () => {
@@ -239,11 +326,20 @@ export default function AdminOrderDetailView({ orderId: initialOrderId }) {
           </button>
 
           <button
-            onClick={() => window.print()}
+            onClick={() => generateAndDownloadInvoicePdf(order)}
             className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold transition-all inline-flex items-center gap-1.5 shadow-md shadow-brand-500/20"
           >
-            <Printer className="w-3.5 h-3.5" /> Print Invoice
+            <Download className="w-3.5 h-3.5" /> Download Invoice (PDF)
           </button>
+
+          <a
+            href={`/admin/orders/${order.id}/invoice`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold transition-all inline-flex items-center gap-1.5 shadow-sm"
+          >
+            <FileText className="w-3.5 h-3.5 text-slate-500" /> View Invoice
+          </a>
         </div>
       </div>
 
@@ -273,14 +369,14 @@ export default function AdminOrderDetailView({ orderId: initialOrderId }) {
             </p>
           </div>
 
-          {/* Quick Fulfillment Dropdown Selector */}
-          <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 flex items-center gap-3 shrink-0">
+          {/* Quick Fulfillment Dropdown Selector & Update Button */}
+          <div className="bg-slate-50 p-2.5 sm:p-3 rounded-2xl border border-slate-200 flex items-center gap-2.5 shrink-0 flex-wrap">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider pl-1">
               Fulfillment Status:
             </span>
             <select
-              value={order.fulfillmentStatus || order.status || 'Pending'}
-              onChange={(e) => handleStatusChange(e.target.value)}
+              value={selectedStatus || order.fulfillmentStatus || order.status || 'Pending'}
+              onChange={(e) => setSelectedStatus(e.target.value)}
               disabled={isUpdating}
               className="px-3.5 py-2 rounded-xl bg-white border border-slate-300 font-bold text-xs text-slate-900 focus:ring-2 focus:ring-brand-500 outline-none cursor-pointer shadow-sm disabled:opacity-50"
             >
@@ -290,6 +386,19 @@ export default function AdminOrderDetailView({ orderId: initialOrderId }) {
               <option value="Delivered">Delivered</option>
               <option value="Cancelled">Cancelled</option>
             </select>
+            <button
+              type="button"
+              onClick={handleApplyStatusUpdate}
+              disabled={isUpdating}
+              className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            >
+              {isUpdating ? (
+                <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Check className="w-3.5 h-3.5 text-emerald-400" />
+              )}
+              <span>Update Status</span>
+            </button>
           </div>
         </div>
 
@@ -303,6 +412,167 @@ export default function AdminOrderDetailView({ orderId: initialOrderId }) {
             <p className="text-xs sm:text-sm font-medium leading-relaxed pl-6 italic text-amber-900/90">
               "{order.orderRemarks}"
             </p>
+          </div>
+        )}
+
+        {/* ================= ORDER CANCELLATION DETAILS (IF CANCELLED OR SELECTED AS CANCELLED) ================= */}
+        {(selectedStatus === 'Cancelled' || order.fulfillmentStatus === 'Cancelled' || order.status === 'Cancelled') && (
+          <div className="p-5 sm:p-6 rounded-2xl bg-rose-50 border border-rose-200 text-rose-950 space-y-4 shadow-sm animate-fadeIn">
+            <div className="flex items-center justify-between pb-3 border-b border-rose-200/80 flex-wrap gap-2">
+              <div className="flex items-center gap-2.5 font-bold text-sm text-rose-900">
+                <Ban className="w-5 h-5 text-rose-600 shrink-0" />
+                <span>Order Cancellation — Reason Required & Email Notification</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-300">
+                  Status: Cancelled
+                </span>
+                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-slate-900 text-white border border-slate-700">
+                  Invoice: VOID
+                </span>
+              </div>
+            </div>
+
+            {/* Currently Saved Reason in Database */}
+            {order.cancelReason ? (
+              <div className="p-4 bg-white rounded-xl border border-rose-200 shadow-2xs space-y-2">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-rose-900 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    Currently Saved Reason (Active on Customer Dashboard, Invoice & Emails):
+                  </span>
+                  <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Saved in DB
+                  </span>
+                </div>
+                <div className="p-3 bg-rose-50/60 rounded-lg border border-rose-100 font-semibold text-slate-800 text-xs sm:text-sm leading-relaxed">
+                  "{order.cancelReason}"
+                </div>
+              </div>
+            ) : (
+              <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-900 text-xs flex items-center gap-2">
+                <Info className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>Please select or type a cancellation reason below, then click <strong>"Confirm Reason & Cancel Order"</strong> to apply status and dispatch the email.</span>
+              </div>
+            )}
+
+            {/* Input Form to Add or Update Reason */}
+            <div className="space-y-3 pt-1">
+              <label className="text-xs font-bold text-rose-900 uppercase tracking-wider block">
+                {order.cancelReason ? 'Update / Edit Cancellation Reason:' : 'Enter Cancellation Reason (Required):'}
+              </label>
+
+              {/* Quick Reason Chips */}
+              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                <span className="text-[11px] font-bold text-rose-800 mr-1">Quick Select:</span>
+                {[
+                  'Buyer requested cancellation due to project delay',
+                  'Item out of stock / factory replenishment delayed',
+                  'Offline NEFT/RTGS payment verification failed / expired',
+                  'Duplicate wholesale order placed by client',
+                  'Price quotation or GST address discrepancy',
+                ].map((reasonChip, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setCancelReasonInput(reasonChip)}
+                    className="text-[11px] font-medium px-2.5 py-1 rounded-lg bg-white hover:bg-rose-100/70 text-rose-900 border border-rose-200 hover:border-rose-300 transition-all text-left cursor-pointer shadow-2xs active:scale-95"
+                  >
+                    {reasonChip}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-1">
+                <input
+                  type="text"
+                  value={cancelReasonInput}
+                  onChange={(e) => setCancelReasonInput(e.target.value)}
+                  placeholder="Enter official wholesale cancellation reason..."
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-rose-300 bg-white text-slate-900 text-xs font-medium focus:ring-2 focus:ring-rose-500 outline-none shadow-2xs"
+                />
+                <button
+                  type="button"
+                  onClick={handleSaveCancellationReason}
+                  disabled={isUpdating || !cancelReasonInput}
+                  className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 shrink-0 disabled:opacity-50 cursor-pointer"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  <span>{order.cancelReason ? 'Update Reason & Resend Email' : 'Confirm Reason & Cancel Order'}</span>
+                </button>
+              </div>
+
+              <div className="flex items-center gap-1.5 text-[11px] text-rose-700 pt-0.5">
+                <Info className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                <span>This cancellation reason is recorded in the database and sent to the buyer in their cancellation email as <code className="font-mono text-rose-800 bg-rose-100 px-1 py-0.5 rounded text-[10px] font-bold">{`{cancelReason}`}</code>.</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ================= LOGISTICS & AWB TRACKING (IF DISPATCHED, DELIVERED, OR HAS LOGISTICS DATA) ================= */}
+        {(selectedStatus === 'Dispatched' ||
+          selectedStatus === 'Delivered' ||
+          order.fulfillmentStatus === 'Dispatched' ||
+          order.fulfillmentStatus === 'Delivered' ||
+          order.status === 'Dispatched' ||
+          order.status === 'Delivered' ||
+          order.carrierName ||
+          order.trackingNumber) && (
+          <div className="p-5 sm:p-6 rounded-2xl bg-blue-50 border border-blue-200 text-blue-950 space-y-4 shadow-sm animate-fadeIn">
+            <div className="flex items-center justify-between pb-3 border-b border-blue-200/80 flex-wrap gap-2">
+              <div className="flex items-center gap-2.5 font-bold text-sm text-blue-900">
+                <Truck className="w-5 h-5 text-blue-600 shrink-0" />
+                <span>Logistics & Airway Bill (AWB) Tracking Details</span>
+              </div>
+              <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${
+                (order.fulfillmentStatus === 'Delivered' || selectedStatus === 'Delivered')
+                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                  : 'bg-blue-100 text-blue-800 border-blue-300'
+              }`}>
+                Status: {order.fulfillmentStatus || order.status || selectedStatus || 'Dispatched'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-blue-900 uppercase tracking-wider block">
+                  Carrier / Logistics Partner ({`{carrierName}`})
+                </label>
+                <input
+                  type="text"
+                  value={carrierNameInput}
+                  onChange={(e) => setCarrierNameInput(e.target.value)}
+                  placeholder="TradeLogix Express / Blue Dart / Delhivery"
+                  className="w-full px-4 py-2.5 rounded-xl border border-blue-300 bg-white text-slate-900 text-xs font-semibold focus:ring-2 focus:ring-blue-500 outline-none shadow-2xs"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-blue-900 uppercase tracking-wider block">
+                  Airway Bill / Tracking AWB No ({`{trackingNumber}`})
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={trackingNumberInput}
+                    onChange={(e) => setTrackingNumberInput(e.target.value)}
+                    placeholder="AWB-98201948201"
+                    className="w-full px-4 py-2.5 rounded-xl border border-blue-300 bg-white text-slate-900 text-xs font-mono font-bold focus:ring-2 focus:ring-blue-500 outline-none shadow-2xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSaveLogisticsTracking}
+                    disabled={isUpdating || !trackingNumberInput}
+                    className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center gap-1.5 shrink-0 disabled:opacity-50 cursor-pointer whitespace-nowrap"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    <span>{order.trackingNumber ? 'Update Tracking & Notify' : 'Save & Send Dispatch Tracking'}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

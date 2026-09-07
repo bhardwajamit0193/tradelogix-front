@@ -3,11 +3,28 @@ import ShopLayout from '../../layouts/ShopLayout.astro';
 import ProductDetailView from '../../components/react/ProductDetailView.jsx';
 
 const { slug } = Astro.params;
-const formattedTitle = slug 
-  ? `${slug.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')} | TradeLogix`
-  : 'Product Details | TradeLogix';
+const formattedFallbackTitle = slug 
+  ? `${slug.split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')} | TradeLogix Wholesale`
+  : 'Product Details | TradeLogix Wholesale';
+
+const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:6543';
+
+let product: any = null;
+try {
+  const res = await fetch(`${API_URL}/api/shop/products/${slug}`);
+  if (res.ok) {
+    const json = await res.json();
+    product = json.data || null;
+  }
+} catch (e) {
+  // Graceful fallback for SSR
+}
+
+const pageTitle = product?.metaTitle || (product?.name ? `${product.name} | TradeLogix Wholesale` : formattedFallbackTitle);
+const pageDesc = product?.metaDescription || (product?.description ? product.description.replace(/<[^>]*>/g, '').substring(0, 160) : 'Explore high-performance electronics and wholesale hardware with tier discount pricing, instant GST invoicing, and pan-India dispatch.');
+const pageImage = product?.metaImage || product?.featuredImage || (product?.images && product.images[0]) || '/og-image.jpg';
 ---
 
-<ShopLayout title={formattedTitle}>
+<ShopLayout title={pageTitle} description={pageDesc} image={pageImage}>
   <ProductDetailView client:load initialSlug={slug} />
 </ShopLayout>

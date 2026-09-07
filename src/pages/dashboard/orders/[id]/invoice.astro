@@ -1,0 +1,28 @@
+---
+import BaseLayout from '../../../../layouts/BaseLayout.astro';
+import EcommerceInvoice from '../../../../components/react/EcommerceInvoice.jsx';
+
+export const prerender = false;
+const { id } = Astro.params;
+---
+
+<BaseLayout title={`Tax Invoice #${id} | TradeLogix`} noindex={true}>
+  <!-- Client-side Customer Authentication Guard -->
+  <script is:inline>
+    (function() {
+      try {
+        const raw = localStorage.getItem('tradelogix_user');
+        if (raw) {
+          const u = JSON.parse(raw);
+          if (u?.accessToken) {
+            return; // Authorized
+          }
+        }
+      } catch (e) {
+        console.error('Customer auth check error', e);
+      }
+      window.location.replace('/login?redirect=' + encodeURIComponent(window.location.pathname));
+    })();
+  </script>
+  <EcommerceInvoice client:load orderId={id} />
+</BaseLayout>
