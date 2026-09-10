@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner';
+import { confirmDialog } from '../../utils/dialogs.js';
 import { userStore } from '../../store/authStore.js';
 import {
   Upload, Search, PackageCheck, AlertTriangle, RefreshCw,
@@ -90,7 +92,7 @@ export default function ProductManager() {
   // Perform Bulk Ingest locally
   const handleBulkIngest = async () => {
     if (!jsonInput.trim()) {
-      alert('Please paste a catalog JSON or upload a file first.');
+      toast.warning('Please paste a catalog JSON or upload a file first.');
       return;
     }
 
@@ -103,7 +105,7 @@ export default function ProductManager() {
         parsedPayload = { products: [parsedPayload] };
       }
     } catch (err) {
-      alert('Invalid JSON format. Please verify your catalog payload syntax.');
+      toast.error('Invalid JSON format. Please verify your catalog payload syntax.');
       return;
     }
 
@@ -145,9 +147,11 @@ export default function ProductManager() {
       setJsonInput('');
       setFileInput(null);
 
+      toast.success(`Catalog ingested: ${inserted} products created, ${updated} updated!`);
       await fetchCatalog();
     } catch (err) {
       console.error(err);
+      toast.error(err.message || 'Failed to ingest products catalog');
       setIngestStatus({
         success: false,
         message: err.message || 'Failed to ingest products catalog'
@@ -358,19 +362,27 @@ export default function ProductManager() {
 
                           <button
                             onClick={async () => {
-                              if (window.confirm(`Delete "${product.name}"? This cannot be undone.`)) {
-                                try {
-                                  const token = getAuthToken();
-                                  await fetch(`${API_URL}/api/admin/products/${product.id}`, {
-                                    method: 'DELETE',
-                                    headers: token ? { Authorization: `Bearer ${token}` } : {},
-                                  });
-                                } catch {
-                                  // fallback
-                                }
-                                deleteMockProduct(product.id);
-                                setProductList(prev => prev.filter(p => p.id !== product.id));
+                              const ok = await confirmDialog({
+                                title: 'Delete Product?',
+                                text: `Are you sure you want to permanently delete "${product.name}"? This cannot be undone.`,
+                                confirmButtonText: 'Yes, Delete Product',
+                                confirmButtonColor: '#e11d48',
+                                icon: 'warning',
+                              });
+                              if (!ok) return;
+
+                              try {
+                                const token = getAuthToken();
+                                await fetch(`${API_URL}/api/admin/products/${product.id}`, {
+                                  method: 'DELETE',
+                                  headers: token ? { Authorization: `Bearer ${token}` } : {},
+                                });
+                              } catch {
+                                // fallback
                               }
+                              deleteMockProduct(product.id);
+                              setProductList(prev => prev.filter(p => p.id !== product.id));
+                              toast.success(`Product "${product.name}" deleted.`);
                             }}
                             className="p-1.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-600 hover:bg-rose-100 hover:border-rose-400 transition-all flex items-center gap-1 text-[10px] font-bold"
                             title="Delete Product"

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { getCustomersApi, updateCustomerStatusApi, deleteCustomerApi, userStore } from '../../store/authStore.js';
 import { Search, Building2, User2, CheckCircle2, XCircle, AlertCircle, Calendar, MapPin, Filter, RotateCw, Edit2, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { confirmDialog } from '../../utils/dialogs.js';
 
 export default function CustomerManager() {
   const [customers, setCustomers] = useState([]);
@@ -138,20 +140,27 @@ export default function CustomerManager() {
     if (!token) return;
     try {
       await updateCustomerStatusApi(token, customerId, { status: newStatus });
+      toast.success(`Customer status updated to ${newStatus}`);
       fetchCustomers();
     } catch (err) {
-      alert(err.message || 'Failed to update status.');
+      toast.error(err.message || 'Failed to update status.');
     }
   };
 
   const handleDeleteCustomer = async (id) => {
-    if (window.confirm('Are you sure you want to permanently delete this customer registration profile and associated user login?')) {
-      try {
-        await deleteCustomerApi(token, id);
-        fetchCustomers();
-      } catch (err) {
-        alert(err.message || 'Failed to delete customer.');
-      }
+    const ok = await confirmDialog({
+      title: 'Delete Customer?',
+      text: 'Are you sure you want to permanently delete this customer registration profile and associated user login?',
+      confirmButtonText: 'Yes, delete customer',
+      icon: 'warning',
+    });
+    if (!ok) return;
+    try {
+      await deleteCustomerApi(token, id);
+      toast.success('Customer profile deleted successfully');
+      fetchCustomers();
+    } catch (err) {
+      toast.error(err.message || 'Failed to delete customer.');
     }
   };
 
@@ -271,7 +280,7 @@ export default function CustomerManager() {
                     <th className="p-4 pl-6">Company / Buyer Details</th>
                     <th className="p-4">Contact Profile</th>
                     <th className="p-4">Registered Date</th>
-                    <th className="p-4">Classification</th>
+                    <th className="p-4">Price Group</th>
                     {statusFilter === 'All' && <th className="p-4">Approval Status</th>}
                     <th className="p-4 pr-6 text-right">Administrative Actions</th>
                   </tr>
@@ -318,10 +327,12 @@ export default function CustomerManager() {
                         </div>
                       </td>
 
-                      {/* Classification */}
+                      {/* Price Group */}
                       <td className="p-4">
-                        <div className="text-slate-800 font-semibold">{cust.category}</div>
-                        <div className="text-[10px] text-slate-400 mt-0.5">Price: <span className="font-semibold text-brand-600">{cust.priceGroup}</span></div>
+                        <div className="text-slate-800 font-semibold">{cust.priceGroup || 'Default'}</div>
+                        {cust.assignedWarehouse && (
+                          <div className="text-[10px] text-slate-400 mt-0.5">WH: <span className="text-slate-600 font-medium">{cust.assignedWarehouse}</span></div>
+                        )}
                       </td>
 
                       {/* Status */}

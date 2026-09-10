@@ -1,14 +1,34 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { sendOtpApi, verifyOtpApi, verifyGstApi, registerB2bCustomerApi, setSession, logoutUser } from '../../store/authStore.js';
 import PhoneInputField from './PhoneInputField.jsx';
-import { CountrySelect, StateSelect, CitySelect } from 'react-country-state-city';
-import { ArrowRight, Smartphone, Lock, CheckCircle, ChevronLeft, Building2, User2, AlertCircle, Info } from 'lucide-react';
+import { lookupPincode, INDIAN_STATES } from '../../services/pincodeService.js';
+import { ArrowRight, Smartphone, Lock, CheckCircle, ChevronLeft, Building2, User2, AlertCircle, Info, Clock } from 'lucide-react';
 
 export default function UserAuthForm() {
   const [step, setStep] = useState('mobile'); // 'mobile', 'otp', 'buyer_type', 'gst_form', 'nongst_form', 'pending_approval', 'success'
   const [mobileNumber, setMobileNumber] = useState('');
   const [code, setCode] = useState('');
   const [buyerType, setBuyerType] = useState('GST'); // 'GST', 'NON_GST'
+
+  // 15-Minute OTP Expiration Countdown
+  const [otpSecondsLeft, setOtpSecondsLeft] = useState(15 * 60);
+
+  useEffect(() => {
+    let interval = null;
+    if (step === 'otp' && otpSecondsLeft > 0) {
+      interval = setInterval(() => {
+        setOtpSecondsLeft((prev) => Math.max(0, prev - 1));
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [step, otpSecondsLeft]);
+
+  const formatOtpTime = (seconds) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
 
   // If user is already logged in, redirect them away from the login screen
   useEffect(() => {
@@ -33,13 +53,35 @@ export default function UserAuthForm() {
   const [ownerName, setOwnerName] = useState('');
   const [address, setAddress] = useState('');
   const [country, setCountry] = useState('India');
-  const [countryId, setCountryId] = useState(101);
   const [state, setState] = useState('Maharashtra');
-  const [stateId, setStateId] = useState(0);
   const [city, setCity] = useState('');
   const [pincode, setPincode] = useState('');
+  const [pincodeLoading, setPincodeLoading] = useState(false);
+  const [pincodeMsg, setPincodeMsg] = useState(null);
   const [businessConstitution, setBusinessConstitution] = useState('');
   const [email, setEmail] = useState('');
+
+  const handlePincodeChange = async (val) => {
+    const clean = val.replace(/\D/g, '').slice(0, 6);
+    setPincode(clean);
+    setCountry('India');
+    if (clean.length === 6) {
+      setPincodeLoading(true);
+      setPincodeMsg(null);
+      const res = await lookupPincode(clean);
+      setPincodeLoading(false);
+      if (res && res.success) {
+        if (res.city) setCity(res.city);
+        if (res.state) setState(res.state);
+        setCountry('India');
+        setPincodeMsg({ success: true, text: `${res.city}, ${res.state}` });
+      } else {
+        setPincodeMsg({ success: false, text: res?.message || 'PIN code not found' });
+      }
+    } else {
+      setPincodeMsg(null);
+    }
+  };
   
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -62,9 +104,13 @@ export default function UserAuthForm() {
     try {
       const data = await sendOtpApi(cleanPhone);
       setOtpCodeToShow(data.otpCode); // returned in response for easy testing
+      setOtpSecondsLeft(15 * 60);
       setStep('otp');
+      toast.info('OTP verification code sent (valid for 15 minutes)');
     } catch (err) {
-      setError(err.message || 'Failed to send OTP. Please try again.');
+      const msg = err.message || 'Failed to send OTP. Please try again.';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setIsLoading(false);
     }
@@ -83,18 +129,26 @@ export default function UserAuthForm() {
         if (data.isApproved) {
           // Logged in! Save session and redirect
           setSession(data);
-          window.location.href = '/shop';
+          toast.success('Signed in successfully');
+          const params = new URLSearchParams(window.location.search);
+          const redirectUrl = params.get('redirect') || (data.role && data.role.toLowerCase() === 'admin' ? '/admin' : '/dashboard');
+          window.location.replace(redirectUrl);
         } else {
           // Account exists but is not approved
-          setPendingStatusMsg(`Your B2B account status is "${data.status}". Access to wholesale pricing is granted only after admin approval.`);
+          const msg = `Your B2B account status is "${data.status}". Access to wholesale pricing is granted only after admin approval.`;
+          setPendingStatusMsg(msg);
+          toast.warning('Account pending admin approval');
           setStep('pending_approval');
         }
       } else {
         // New user! Go to selection
+        toast.info('Mobile verified. Complete your registration.');
         setStep('buyer_type');
       }
     } catch (err) {
-      setError(err.message || 'Invalid OTP code.');
+      const msg = err.message || 'Invalid OTP code.';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setIsLoading(false);
     }
@@ -104,6 +158,7 @@ export default function UserAuthForm() {
   const handleVerifyGstin = async () => {
     if (!gstin || gstin.length !== 15) {
       setError('Please enter a valid 15-digit GSTIN.');
+      toast.error('Please enter a valid 15-digit GSTIN.');
       return;
     }
     setIsLoading(true);
@@ -119,11 +174,16 @@ export default function UserAuthForm() {
         setCity(data.pradr?.addr?.dst || data.pradr?.addr?.city || '');
         setState(data.pradr?.addr?.stcd || data.state || 'Maharashtra');
         setPincode(data.pradr?.addr?.pncd || '');
+        toast.success('GSTIN verified successfully');
       } else {
-        setError('Invalid GSTIN. Could not verify with tax registry.');
+        const msg = 'Invalid GSTIN. Could not verify with tax registry.';
+        setError(msg);
+        toast.error(msg);
       }
     } catch (err) {
-      setError(err.message || 'GSTIN verification failed. Please enter details manually.');
+      const msg = err.message || 'GSTIN verification failed. Please enter details manually.';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setIsLoading(false);
     }
@@ -132,6 +192,12 @@ export default function UserAuthForm() {
   // Onboarding Registration Handlers
   const handleRegister = async (e) => {
     e.preventDefault();
+    if (!city || !state) {
+      const msg = 'Please enter a valid 6-digit Indian PIN code to auto-detect City and State.';
+      setError(msg);
+      toast.error(msg);
+      return;
+    }
     setIsLoading(true);
     setError(null);
     try {
@@ -153,9 +219,12 @@ export default function UserAuthForm() {
       
       await registerB2bCustomerApi(payload);
       logoutUser();
+      toast.success('Registration submitted successfully! Pending approval.');
       setStep('success');
     } catch (err) {
-      setError(err.message || 'Failed to complete registration.');
+      const msg = err.message || 'Failed to complete registration.';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setIsLoading(false);
     }
@@ -252,9 +321,28 @@ export default function UserAuthForm() {
           </p>
         </div>
 
+        {/* 15-Minute Expiry Countdown Badge */}
+        <div className="flex items-center justify-center gap-2 py-2 px-3.5 bg-slate-50 border border-slate-200 rounded-2xl w-fit mx-auto text-xs font-mono">
+          <Clock className="w-4 h-4 text-brand-600 shrink-0" />
+          {otpSecondsLeft > 0 ? (
+            <span className="text-slate-700">
+              Valid for: <strong className="text-brand-700 font-bold">{formatOtpTime(otpSecondsLeft)}</strong>
+            </span>
+          ) : (
+            <span className="text-rose-600 font-bold">Code Expired (15 min limit)</span>
+          )}
+        </div>
+
         {otpCodeToShow && (
           <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-center text-xs font-mono">
             <strong>Development Mock OTP:</strong> <span className="text-base font-bold text-amber-900 tracking-widest">{otpCodeToShow}</span>
+          </div>
+        )}
+
+        {otpSecondsLeft <= 0 && (
+          <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl flex items-start gap-2 text-xs font-medium">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600" />
+            <span>This OTP code has expired. Please click <strong>Resend OTP Code</strong> below to receive a fresh verification code.</span>
           </div>
         )}
 
@@ -271,17 +359,18 @@ export default function UserAuthForm() {
               type="text"
               required
               maxLength={6}
+              disabled={otpSecondsLeft <= 0}
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
               placeholder="000000"
-              className="w-full text-center text-2xl font-bold tracking-[0.5em] font-mono py-3 rounded-xl border border-slate-300 bg-white text-slate-900 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 focus:outline-none transition-all shadow-sm"
+              className="w-full text-center text-2xl font-bold tracking-[0.5em] font-mono py-3 rounded-xl border border-slate-300 bg-white text-slate-900 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 focus:outline-none transition-all shadow-sm disabled:bg-slate-100 disabled:opacity-60"
             />
           </div>
 
           <button
             type="submit"
-            disabled={isLoading || code.length !== 6}
-            className="w-full py-3.5 rounded-xl gradient-brand text-white font-display font-bold text-xs shadow-md hover:scale-[1.02] active:scale-[0.99] transition-all flex items-center justify-center gap-2 mt-2 disabled:opacity-50"
+            disabled={isLoading || code.length !== 6 || otpSecondsLeft <= 0}
+            className="w-full py-3.5 rounded-xl gradient-brand text-white font-display font-bold text-xs shadow-md hover:scale-[1.02] active:scale-[0.99] transition-all flex items-center justify-center gap-2 mt-2 disabled:opacity-50 cursor-pointer"
           >
             {isLoading ? (
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -291,15 +380,18 @@ export default function UserAuthForm() {
           </button>
         </form>
 
-        <div className="text-center">
+        <div className="space-y-2 text-center">
           <button
             type="button"
             disabled={isLoading}
             onClick={handleSendOtp}
-            className="text-xs text-brand-600 hover:text-brand-700 font-semibold transition-colors"
+            className="text-xs text-brand-600 hover:text-brand-700 font-semibold transition-colors cursor-pointer"
           >
             Resend OTP Code
           </button>
+          <p className="text-[10px] text-slate-400 leading-relaxed max-w-xs mx-auto">
+            OTP is strictly valid for 15 minutes. For privacy and security, expired codes are permanently deleted after 16 minutes.
+          </p>
         </div>
       </div>
     );
@@ -478,57 +570,72 @@ export default function UserAuthForm() {
                 />
               </div>
 
-              {/* Location Selects */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="space-y-1.5">
-                  <label className="text-slate-500 font-bold uppercase tracking-wider text-[9px]">Country</label>
-                  <CountrySelect
-                    defaultValue={{ id: 101, name: 'India' }}
-                    onChange={(val) => {
-                      setCountryId(val.id);
-                      setCountry(val.name);
-                    }}
-                    placeHolder="Country"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-slate-500 font-bold uppercase tracking-wider text-[9px]">State</label>
-                  <StateSelect
-                    countryid={countryId}
-                    defaultValue={state ? { name: state } : undefined}
-                    onChange={(val) => {
-                      setStateId(val.id);
-                      setState(val.name);
-                    }}
-                    placeHolder={state || 'State'}
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-slate-500 font-bold uppercase tracking-wider text-[9px]">City</label>
-                  <CitySelect
-                    countryid={countryId}
-                    stateid={stateId}
-                    defaultValue={city ? { name: city } : undefined}
-                    onChange={(val) => {
-                      setCity(val.name);
-                    }}
-                    placeHolder={city || 'City'}
-                  />
-                </div>
-              </div>
-
+              {/* Postal PIN Code with Autofill */}
               <div className="space-y-1.5">
-                <label className="text-slate-500 font-bold uppercase tracking-wider text-[9px]">Pincode</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-slate-500 font-bold uppercase tracking-wider text-[9px]">Pincode *</label>
+                  {pincodeLoading && (
+                    <span className="text-[10px] text-brand-600 flex items-center gap-1 font-medium">
+                      <span className="w-2.5 h-2.5 border-2 border-brand-600 border-t-transparent rounded-full animate-spin"></span>
+                      Looking up...
+                    </span>
+                  )}
+                  {pincodeMsg && (
+                    <span className={`text-[10px] font-medium ${pincodeMsg.success ? 'text-emerald-600 font-semibold' : 'text-amber-600'}`}>
+                      {pincodeMsg.success ? `✓ ${pincodeMsg.text}` : pincodeMsg.text}
+                    </span>
+                  )}
+                </div>
                 <input
                   type="text"
                   value={pincode}
-                  onChange={(e) => setPincode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  onChange={(e) => handlePincodeChange(e.target.value)}
                   required
-                  placeholder="Pincode"
-                  className="w-full px-3 h-11 rounded-xl border border-slate-200 bg-white text-slate-900 font-mono text-center text-xs focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 focus:outline-none transition-all shadow-sm font-semibold"
+                  placeholder="e.g. 400059"
+                  maxLength={6}
+                  className="w-full px-3 h-11 rounded-xl border border-slate-200 bg-white text-slate-900 font-mono text-center text-xs focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 focus:outline-none transition-all shadow-sm font-semibold tracking-wider"
                 />
+              </div>
+
+              {/* City, State & Country (Autofilled & Disabled) */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-slate-500 font-bold uppercase tracking-wider text-[9px] flex items-center justify-between">
+                    <span>City / District *</span>
+                    <span className="text-[8px] text-slate-400 font-normal lowercase">auto-filled</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={city}
+                    readOnly
+                    disabled
+                    placeholder="Auto-filled from PIN"
+                    className="w-full px-3 h-11 rounded-xl border border-slate-200 bg-slate-100 text-slate-700 text-xs cursor-not-allowed outline-none shadow-sm font-medium"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-slate-500 font-bold uppercase tracking-wider text-[9px] flex items-center justify-between">
+                    <span>State *</span>
+                    <span className="text-[8px] text-slate-400 font-normal lowercase">auto-filled</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={state}
+                    readOnly
+                    disabled
+                    placeholder="Auto-filled from PIN"
+                    className="w-full px-3 h-11 rounded-xl border border-slate-200 bg-slate-100 text-slate-700 text-xs cursor-not-allowed outline-none shadow-sm font-medium"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-slate-500 font-bold uppercase tracking-wider text-[9px]">Country</label>
+                  <div className="w-full px-3 h-11 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 text-xs flex items-center gap-1.5 font-medium select-none">
+                    <span>🇮🇳</span>
+                    <span>India</span>
+                  </div>
+                </div>
               </div>
 
               <button
@@ -623,57 +730,72 @@ export default function UserAuthForm() {
             />
           </div>
 
-          {/* Location Selects */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="space-y-1.5">
-              <label className="text-slate-500 font-bold uppercase tracking-wider text-[9px]">Country</label>
-              <CountrySelect
-                defaultValue={{ id: 101, name: 'India' }}
-                onChange={(val) => {
-                  setCountryId(val.id);
-                  setCountry(val.name);
-                }}
-                placeHolder="Country"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-slate-500 font-bold uppercase tracking-wider text-[9px]">State</label>
-              <StateSelect
-                countryid={countryId}
-                defaultValue={state ? { name: state } : undefined}
-                onChange={(val) => {
-                  setStateId(val.id);
-                  setState(val.name);
-                }}
-                placeHolder={state || 'State'}
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-slate-500 font-bold uppercase tracking-wider text-[9px]">City</label>
-              <CitySelect
-                countryid={countryId}
-                stateid={stateId}
-                defaultValue={city ? { name: city } : undefined}
-                onChange={(val) => {
-                  setCity(val.name);
-                }}
-                placeHolder={city || 'City'}
-              />
-            </div>
-          </div>
-
+          {/* Postal PIN Code with Autofill */}
           <div className="space-y-1.5">
-            <label className="text-slate-500 font-bold uppercase tracking-wider text-[9px]">Pincode *</label>
+            <div className="flex items-center justify-between">
+              <label className="text-slate-500 font-bold uppercase tracking-wider text-[9px]">Pincode *</label>
+              {pincodeLoading && (
+                <span className="text-[10px] text-brand-600 flex items-center gap-1 font-medium">
+                  <span className="w-2.5 h-2.5 border-2 border-brand-600 border-t-transparent rounded-full animate-spin"></span>
+                  Looking up...
+                </span>
+              )}
+              {pincodeMsg && (
+                <span className={`text-[10px] font-medium ${pincodeMsg.success ? 'text-emerald-600 font-semibold' : 'text-amber-600'}`}>
+                  {pincodeMsg.success ? `✓ ${pincodeMsg.text}` : pincodeMsg.text}
+                </span>
+              )}
+            </div>
             <input
               type="text"
               value={pincode}
-              onChange={(e) => setPincode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              onChange={(e) => handlePincodeChange(e.target.value)}
               required
-              placeholder="Pincode"
-              className="w-full px-3 h-11 rounded-xl border border-slate-200 bg-white text-slate-900 font-mono text-center text-xs focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 focus:outline-none transition-all shadow-sm font-semibold"
+              placeholder="e.g. 400059"
+              maxLength={6}
+              className="w-full px-3 h-11 rounded-xl border border-slate-200 bg-white text-slate-900 font-mono text-center text-xs focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 focus:outline-none transition-all shadow-sm font-semibold tracking-wider"
             />
+          </div>
+
+          {/* City, State & Country (Autofilled & Disabled) */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="space-y-1.5">
+              <label className="text-slate-500 font-bold uppercase tracking-wider text-[9px] flex items-center justify-between">
+                <span>City / District *</span>
+                <span className="text-[8px] text-slate-400 font-normal lowercase">auto-filled</span>
+              </label>
+              <input
+                type="text"
+                value={city}
+                readOnly
+                disabled
+                placeholder="Auto-filled from PIN"
+                className="w-full px-3 h-11 rounded-xl border border-slate-200 bg-slate-100 text-slate-700 text-xs cursor-not-allowed outline-none shadow-sm font-medium"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-slate-500 font-bold uppercase tracking-wider text-[9px] flex items-center justify-between">
+                <span>State *</span>
+                <span className="text-[8px] text-slate-400 font-normal lowercase">auto-filled</span>
+              </label>
+              <input
+                type="text"
+                value={state}
+                readOnly
+                disabled
+                placeholder="Auto-filled from PIN"
+                className="w-full px-3 h-11 rounded-xl border border-slate-200 bg-slate-100 text-slate-700 text-xs cursor-not-allowed outline-none shadow-sm font-medium"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-slate-500 font-bold uppercase tracking-wider text-[9px]">Country</label>
+              <div className="w-full px-3 h-11 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 text-xs flex items-center gap-1.5 font-medium select-none">
+                <span>🇮🇳</span>
+                <span>India</span>
+              </div>
+            </div>
           </div>
 
           <button

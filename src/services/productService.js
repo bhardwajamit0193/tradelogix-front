@@ -268,7 +268,7 @@ export async function fetchShopProductsApi({
         rating: p.rating || 4.8,
         reviewCount: p.reviewCount || 42,
         inStock: p.inStock !== false && (p.stockCount === undefined || p.stockCount > 0),
-        stockCount: p.stockCount || 50,
+        stockCount: typeof p.stockCount === 'number' ? p.stockCount : (p.stock !== undefined ? parseInt(p.stock, 10) : 50),
         isFeatured: p.isFeatured || false,
         isNew: p.isNew !== undefined ? p.isNew : true,
         badge: p.badge || (p.isNew ? 'New Arrival' : 'Verified OEM'),

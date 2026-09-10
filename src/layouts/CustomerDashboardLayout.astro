@@ -24,7 +24,7 @@ const currentPath = Astro.url.pathname;
 <BaseLayout title={title}>
   <!-- Instant client-side redirect if not authenticated or if Admin role -->
   <script is:inline>
-    (function() {
+    function checkCustomerAuth() {
       try {
         var raw = localStorage.getItem('tradelogix_user');
         if (!raw) {
@@ -42,7 +42,9 @@ const currentPath = Astro.url.pathname;
       } catch (e) {
         window.location.replace('/login');
       }
-    })();
+    }
+    checkCustomerAuth();
+    document.addEventListener('astro:page-load', checkCustomerAuth);
   </script>
 
   <div class="flex min-h-screen bg-slate-50">

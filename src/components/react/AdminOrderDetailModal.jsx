@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { toast } from 'sonner';
 import { formatPrice } from '../../utils/formatters.js';
 import {
   X,
@@ -21,7 +22,13 @@ import {
   Tag,
   Download,
 } from 'lucide-react';
-import { generateAndDownloadInvoicePdf } from './InvoicePdfDocument.jsx';
+
+const getFullInvoiceUrl = (url) => {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  const baseUrl = (typeof window !== 'undefined' && window.__PUBLIC_API_URL__) || 'http://localhost:6543';
+  return `${baseUrl.replace(/\/$/, '')}${url.startsWith('/') ? url : `/${url}`}`;
+};
 
 export default function AdminOrderDetailModal({ order, isOpen, onClose, onUpdateStatus, onVerifyOffline, onCollectPartialBalance }) {
   if (!isOpen || !order) return null;
@@ -30,14 +37,12 @@ export default function AdminOrderDetailModal({ order, isOpen, onClose, onUpdate
   const [adminNote, setAdminNote] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
   const [isCollecting, setIsCollecting] = useState(false);
-  const [actionSuccess, setActionSuccess] = useState(null);
 
   const handleStatusChange = (newStatus) => {
     setSelectedFulfillment(newStatus);
     if (onUpdateStatus) {
       onUpdateStatus(order.id, newStatus);
-      setActionSuccess(`Fulfillment status updated to "${newStatus}"`);
-      setTimeout(() => setActionSuccess(null), 3000);
+      toast.success(`Fulfillment status updated to "${newStatus}"`);
     }
   };
 
@@ -48,8 +53,7 @@ export default function AdminOrderDetailModal({ order, isOpen, onClose, onUpdate
         onVerifyOffline(order.id, adminNote);
       }
       setIsVerifying(false);
-      setActionSuccess('Offline Bank Receipt successfully verified and marked as Paid!');
-      setTimeout(() => setActionSuccess(null), 3500);
+      toast.success('Offline Bank Receipt successfully verified and marked as Paid!');
     }, 400);
   };
 
@@ -60,8 +64,7 @@ export default function AdminOrderDetailModal({ order, isOpen, onClose, onUpdate
         onCollectPartialBalance(order.id, adminNote);
       }
       setIsCollecting(false);
-      setActionSuccess('90% COD Balance recorded as collected. Order is now Fully Paid!');
-      setTimeout(() => setActionSuccess(null), 3500);
+      toast.success('90% COD Balance recorded as collected. Order is now Fully Paid!');
     }, 400);
   };
 
@@ -143,19 +146,6 @@ export default function AdminOrderDetailModal({ order, isOpen, onClose, onUpdate
             </button>
           </div>
         </div>
-
-        {/* Action Success Toast Banner */}
-        {actionSuccess && (
-          <div className="bg-emerald-600 text-white px-6 py-2.5 text-xs font-bold flex items-center justify-between shrink-0 animate-fadeIn">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4" />
-              <span>{actionSuccess}</span>
-            </div>
-            <button onClick={() => setActionSuccess(null)} className="text-emerald-200 hover:text-white">
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
 
         {/* Modal Scrollable Content */}
         <div className="p-6 sm:p-8 space-y-6 overflow-y-auto flex-1 text-xs">
@@ -523,20 +513,36 @@ export default function AdminOrderDetailModal({ order, isOpen, onClose, onUpdate
 
           <div className="flex items-center gap-2">
             <button
-              onClick={() => generateAndDownloadInvoicePdf(order)}
-              className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold transition-colors flex items-center gap-2 shadow-sm"
+              type="button"
+              onClick={() => {
+                if (!order.invoicePdfUrl) {
+                  toast.info(`Official invoice PDF has not been uploaded yet for order #${order.id}.`);
+                  return;
+                }
+                window.open(getFullInvoiceUrl(order.invoicePdfUrl), '_blank');
+              }}
+              className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold transition-colors flex items-center gap-2 shadow-sm cursor-pointer"
             >
               <Download className="w-4 h-4" /> Download PDF
             </button>
 
-            <a
-              href={`/admin/orders/${order.id}/invoice`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold transition-colors flex items-center gap-2"
-            >
-              <FileText className="w-4 h-4" /> View Invoice
-            </a>
+            {order.invoicePdfUrl ? (
+              <a
+                href={getFullInvoiceUrl(order.invoicePdfUrl)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold transition-colors flex items-center gap-2"
+              >
+                <FileText className="w-4 h-4" /> View Invoice
+              </a>
+            ) : (
+              <a
+                href={`/admin/orders/${order.id}`}
+                className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold transition-colors flex items-center gap-2"
+              >
+                <FileText className="w-4 h-4" /> Go to Order Details
+              </a>
+            )}
           </div>
         </div>
       </div>

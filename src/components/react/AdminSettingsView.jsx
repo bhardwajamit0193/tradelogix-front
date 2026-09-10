@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner';
+import { confirmDialog } from '../../utils/dialogs.js';
 import {
   Building2,
   Mail,
@@ -183,12 +185,17 @@ export default function AdminSettingsView({ initialSection = 'platform' }) {
     }
   }, [selectedTemplateKey, templates]);
 
-  // Toast notification trigger
+  // Toast notification trigger using Sonner (top-center)
   const showToast = (type, message) => {
-    setToast({ type, message });
-    setTimeout(() => {
-      setToast(null);
-    }, 4500);
+    if (type === 'error') {
+      toast.error(message);
+    } else if (type === 'warning') {
+      toast.warning(message);
+    } else if (type === 'info') {
+      toast.info(message);
+    } else {
+      toast.success(message);
+    }
   };
 
   // Handle Platform Form Submit
@@ -270,8 +277,15 @@ export default function AdminSettingsView({ initialSection = 'platform' }) {
     });
   };
 
-  const handleResetFooterDefaults = () => {
-    if (window.confirm('Reset footer settings and navigation columns back to initial defaults?')) {
+  const handleResetFooterDefaults = async () => {
+    const ok = await confirmDialog({
+      title: 'Reset Footer Settings?',
+      text: 'Reset footer settings and navigation columns back to initial defaults?',
+      confirmButtonText: 'Yes, Reset Defaults',
+      confirmButtonColor: '#4f46e5',
+      icon: 'question',
+    });
+    if (ok) {
       setFooterData({ ...DEFAULT_FOOTER_SETTINGS });
       showToast('success', 'Reset footer settings to defaults. Click "Save Footer Settings" to apply.');
     }
@@ -310,7 +324,14 @@ export default function AdminSettingsView({ initialSection = 'platform' }) {
 
   // Handle Template Reset to Default
   const handleResetTemplate = async (templateKey) => {
-    if (!confirm('Are you sure you want to revert this template to default factory settings?')) return;
+    const ok = await confirmDialog({
+      title: 'Revert Template to Default?',
+      text: 'Are you sure you want to revert this template to default factory settings?',
+      confirmButtonText: 'Yes, Revert Template',
+      confirmButtonColor: '#e11d48',
+      icon: 'warning',
+    });
+    if (!ok) return;
     try {
       await resetEmailTemplateApi(templateKey);
       const defaultTpl = DEFAULT_EMAIL_TEMPLATES.find((t) => t.templateKey === templateKey);

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { useStore } from '@nanostores/react';
 import { userStore } from '../../store/authStore.js';
 import PhoneInputField from './PhoneInputField.jsx';
@@ -18,6 +19,7 @@ import {
   Lock,
   Smartphone,
   LogIn,
+  Clock,
 } from 'lucide-react';
 
 export default function CustomerPhoneChangeManager() {
@@ -43,6 +45,25 @@ export default function CustomerPhoneChangeManager() {
   const [successMessage, setSuccessMessage] = useState(null);
   const [resendTimer, setResendTimer] = useState(30);
   const [mockCode, setMockCode] = useState(null);
+
+  // 15-Minute Expiry Countdown
+  const [otpExpirySeconds, setOtpExpirySeconds] = useState(15 * 60);
+
+  useEffect(() => {
+    let interval = null;
+    if (step === 2 && otpExpirySeconds > 0) {
+      interval = setInterval(() => {
+        setOtpExpirySeconds((prev) => Math.max(0, prev - 1));
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [step, otpExpirySeconds]);
+
+  const formatOtpTime = (seconds) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
 
   useEffect(() => {
     async function loadCurrent() {
@@ -76,12 +97,14 @@ export default function CustomerPhoneChangeManager() {
     const clean = (newPhone || '').replace(/\D/g, '').slice(-10);
     if (clean.length < 10) {
       setError('Please enter a valid 10-digit mobile number');
+      toast.error('Please enter a valid 10-digit mobile number');
       return;
     }
 
     const cleanCurrent = (currentPhone || '').replace(/\D/g, '').slice(-10);
     if (clean === cleanCurrent) {
       setError('New mobile number cannot be the same as your current active number');
+      toast.error('New mobile number cannot be the same as your current active number');
       return;
     }
 
@@ -93,8 +116,12 @@ export default function CustomerPhoneChangeManager() {
       }
       setStep(2);
       setResendTimer(30);
+      setOtpExpirySeconds(15 * 60);
+      toast.info('OTP verification code sent (valid for 15 minutes)');
     } catch (err) {
-      setError(err?.message || 'Failed to send OTP to new number');
+      const msg = err?.message || 'Failed to send OTP to new number';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -106,6 +133,7 @@ export default function CustomerPhoneChangeManager() {
 
     if (!otpCode || otpCode.length !== 6) {
       setError('Please enter the 6-digit verification code');
+      toast.error('Please enter the 6-digit verification code');
       return;
     }
 
@@ -114,11 +142,15 @@ export default function CustomerPhoneChangeManager() {
 
     try {
       const res = await verifyAndUpdatePhoneApi(user?.accessToken, clean, otpCode);
-      setSuccessMessage(res?.message || 'Mobile number updated successfully!');
+      const msg = res?.message || 'Mobile number updated successfully!';
+      setSuccessMessage(msg);
       setCurrentPhone(clean);
       setStep(3);
+      toast.success(msg);
     } catch (err) {
-      setError(err?.message || 'Invalid or expired OTP code');
+      const msg = err?.message || 'Invalid or expired OTP code';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -229,8 +261,18 @@ export default function CustomerPhoneChangeManager() {
         {/* ================= STEP 2: VERIFY OTP ================= */}
         {step === 2 && (
           <form onSubmit={handleVerifyOtp} className="space-y-5 animate-fadeIn">
-            <div className="p-4 bg-brand-50 border border-brand-200 rounded-xl space-y-1">
-              <div className="text-xs font-bold text-brand-900">OTP Sent!</div>
+            <div className="p-4 bg-brand-50 border border-brand-200 rounded-xl space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="text-xs font-bold text-brand-900">OTP Sent!</div>
+                <div className="flex items-center gap-1.5 py-1 px-2.5 bg-white/80 border border-brand-200 rounded-full text-[11px] font-mono font-bold text-brand-900">
+                  <Clock className="w-3.5 h-3.5 text-brand-600" />
+                  {otpExpirySeconds > 0 ? (
+                    <span>Expires: {formatOtpTime(otpExpirySeconds)}</span>
+                  ) : (
+                    <span className="text-rose-600">Expired</span>
+                  )}
+                </div>
+              </div>
               <p className="text-[11px] text-brand-700">
                 We sent a 6-digit verification code to <strong className="font-mono">{formatDisplayPhone(newPhone)}</strong>
               </p>
@@ -244,18 +286,30 @@ export default function CustomerPhoneChangeManager() {
               )}
             </div>
 
+            {otpExpirySeconds <= 0 && (
+              <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl flex items-start gap-2 text-xs font-medium">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600" />
+                <span>This OTP code has expired (15 min limit). Please click <strong>Resend OTP</strong> to request a new code.</span>
+              </div>
+            )}
+
             <div className="space-y-2">
               <label className="text-xs font-bold text-slate-700">Enter 6-Digit OTP *</label>
               <input
                 type="text"
                 maxLength={6}
+                disabled={otpExpirySeconds <= 0}
                 value={otpCode}
                 onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
                 placeholder="123456"
-                className="w-full text-center tracking-[0.5em] font-mono text-xl py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-brand-500 outline-none transition-all font-bold text-slate-900"
+                className="w-full text-center tracking-[0.5em] font-mono text-xl py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-brand-500 outline-none transition-all font-bold text-slate-900 disabled:opacity-50"
                 required
               />
             </div>
+
+            <p className="text-[10px] text-slate-400 text-center leading-relaxed">
+              OTP is valid for a maximum of 15 minutes. For security, expired codes are permanently deleted after 16 minutes.
+            </p>
 
             <div className="flex items-center justify-between pt-2">
               <button
@@ -278,7 +332,7 @@ export default function CustomerPhoneChangeManager() {
 
                 <button
                   type="submit"
-                  disabled={loading || otpCode.length !== 6}
+                  disabled={loading || otpCode.length !== 6 || otpExpirySeconds <= 0}
                   className="px-6 py-2.5 rounded-xl gradient-brand text-white font-bold text-xs shadow hover:opacity-90 transition-all flex items-center gap-2 disabled:opacity-50"
                 >
                   {loading ? (

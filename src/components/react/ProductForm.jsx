@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { toast } from 'sonner';
 import { userStore, fetchWithAuth } from '../../store/authStore.js';
 import {
   Plus, Trash2, X, Check, ChevronLeft, Link, Image, Tag, Folder,
@@ -72,6 +73,25 @@ export default function ProductForm({ productId }) {
     getWarehouses().map(w => ({ warehouseCode: w.code, warehouseName: w.name, stock: 0 }))
   );
   const [prices, setPrices] = useState(DEFAULT_PRICE_GROUPS.map(pg => ({ priceGroup: pg, price: '', tiers: [] })));
+
+  // Technical Specifications Repeater State (Key & Value pairs)
+  const [specifications, setSpecifications] = useState([]);
+
+  const handleAddSpecification = () => {
+    setSpecifications(prev => [...prev, { key: '', value: '' }]);
+  };
+
+  const handleUpdateSpecification = (index, field, val) => {
+    setSpecifications(prev => {
+      const next = [...prev];
+      next[index] = { ...next[index], [field]: val };
+      return next;
+    });
+  };
+
+  const handleRemoveSpecification = (index) => {
+    setSpecifications(prev => prev.filter((_, idx) => idx !== index));
+  };
 
   // Product Type: 'simple' | 'variation'
   const [productType, setProductType] = useState('simple');
@@ -407,6 +427,21 @@ export default function ProductForm({ productId }) {
             setShowShippingDetails(true);
           }
 
+          // Restore Technical Specifications (Key & Value pairs)
+          if (Array.isArray(product.specifications)) {
+            setSpecifications(product.specifications.map(s => ({
+              key: s.key || s.name || '',
+              value: s.value || ''
+            })));
+          } else if (typeof product.specifications === 'object' && product.specifications !== null) {
+            setSpecifications(Object.entries(product.specifications).map(([k, v]) => ({
+              key: k,
+              value: String(v)
+            })));
+          } else {
+            setSpecifications([]);
+          }
+
           // Load warehouses list dynamically
           let activeWarehouses = availableWarehouses;
           try {
@@ -581,21 +616,21 @@ export default function ProductForm({ productId }) {
     e.preventDefault();
 
     if (!name.trim()) {
-      alert('Product name is required.');
+      toast.error('Product name is required.');
       return;
     }
     if (!slug.trim()) {
-      alert('Product URL slug/handle is required.');
+      toast.error('Product URL slug/handle is required.');
       return;
     }
 
     if (!sku.trim()) {
-      alert('Product SKU is required.');
+      toast.error('Product SKU is required.');
       return;
     }
     const defaultPrice = prices.find(p => p.priceGroup === 'Default')?.price;
     if (!defaultPrice) {
-      alert('Default base price is required.');
+      toast.error('Default base price is required.');
       return;
     }
 
@@ -635,6 +670,10 @@ export default function ProductForm({ productId }) {
       metaTitle: metaTitle || null,
       metaDescription: metaDescription || null,
       metaImage: metaImage || null,
+      // Technical Specifications (Key & Value pairs)
+      specifications: specifications
+        .filter(s => s.key.trim() || s.value.trim())
+        .map(s => ({ key: s.key.trim(), value: s.value.trim() })),
       warehouseStocks: warehouseStocks.map(ws => ({
         warehouseCode: ws.warehouseCode,
         warehouseName: ws.warehouseName || ws.warehouseCode,
@@ -686,6 +725,7 @@ export default function ProductForm({ productId }) {
 
       saveMockProduct(savedProd);
 
+      toast.success(`B2B Product '${name}' saved successfully!`);
       setFormStatus({
         success: true,
         message: `B2B Product '${name}' saved successfully!`
@@ -696,6 +736,7 @@ export default function ProductForm({ productId }) {
       }, 1200);
     } catch (err) {
       console.error(err);
+      toast.error(err.message || 'Error occurred while saving product catalog details');
       setFormStatus({
         success: false,
         message: err.message || 'Error occurred while saving product catalog details'
@@ -1255,6 +1296,108 @@ export default function ProductForm({ productId }) {
                     </div>
                   </div>
                 </div>
+              </div>
+
+              {/* Card 4.5: Technical Specifications (Key & Value Repeater Table) */}
+              <div className="border border-slate-200 bg-white rounded-2xl p-6 shadow-sm space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                  <div className="space-y-0.5">
+                    <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                      <Layers className="w-4 h-4 text-brand-600" /> Technical Specifications
+                    </h3>
+                    <p className="text-[11px] text-slate-500">
+                      Add custom technical specifications (Key & Value pairs) to display formatted specs on the product page.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAddSpecification}
+                    className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer self-start sm:self-auto shrink-0"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Add Specification
+                  </button>
+                </div>
+
+                {specifications.length === 0 ? (
+                  <div className="py-8 text-center rounded-xl border border-dashed border-slate-200 bg-slate-50/60 space-y-2">
+                    <p className="text-xs text-slate-600 font-semibold">No technical specifications added yet.</p>
+                    <p className="text-[11px] text-slate-400 max-w-sm mx-auto">
+                      Define custom specs like Processor, RAM, Color, Dimensions, Material, or Warranty to display on the storefront.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleAddSpecification}
+                      className="mt-2 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all shadow-2xs cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5 text-brand-600" /> Add First Specification
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="overflow-x-auto rounded-xl border border-slate-200">
+                      <table className="w-full text-left text-xs divide-y divide-slate-200">
+                        <thead className="bg-slate-50 text-slate-600 font-bold uppercase text-[10px] tracking-wider">
+                          <tr>
+                            <th className="py-2.5 px-3 w-10 text-center">#</th>
+                            <th className="py-2.5 px-3 w-2/5">Specification Name (Key)</th>
+                            <th className="py-2.5 px-3">Specification Value</th>
+                            <th className="py-2.5 px-3 w-12 text-center">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 bg-white">
+                          {specifications.map((spec, sIdx) => (
+                            <tr key={sIdx} className="hover:bg-slate-50/60 transition-colors">
+                              <td className="py-2.5 px-3 text-center text-slate-400 font-mono text-[11px]">
+                                {sIdx + 1}
+                              </td>
+                              <td className="py-2.5 px-3">
+                                <input
+                                  type="text"
+                                  value={spec.key}
+                                  onChange={(e) => handleUpdateSpecification(sIdx, 'key', e.target.value)}
+                                  placeholder="e.g. Dimensions, Material, Warranty, Display"
+                                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs text-slate-900 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600 font-medium placeholder:font-normal placeholder:text-slate-400"
+                                />
+                              </td>
+                              <td className="py-2.5 px-3">
+                                <input
+                                  type="text"
+                                  value={spec.value}
+                                  onChange={(e) => handleUpdateSpecification(sIdx, 'value', e.target.value)}
+                                  placeholder={'e.g. 145 x 70 mm, Aluminum, 2 Years Onsite, 6.7" OLED'}
+                                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs text-slate-900 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-600 focus:border-emerald-600 placeholder:text-slate-400"
+                                />
+                              </td>
+                              <td className="py-2.5 px-3 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveSpecification(sIdx)}
+                                  className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                  title="Delete Row"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="text-[11px] text-slate-400 font-medium">
+                        {specifications.filter(s => s.key.trim() || s.value.trim()).length} specification(s) defined
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleAddSpecification}
+                        className="text-xs text-emerald-700 hover:text-emerald-800 font-bold flex items-center gap-1 cursor-pointer hover:underline"
+                      >
+                        <Plus className="w-3.5 h-3.5" /> Add Another Row
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Card 5: Search Engine Listing Summary Preview (Shopify style) */}

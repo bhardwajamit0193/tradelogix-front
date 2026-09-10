@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { toast } from 'sonner';
 import { 
   Building2, Package, Search, RefreshCw, Save, CheckCircle2, 
   AlertTriangle, Filter, Layers, ArrowUpDown, ChevronRight, Check
@@ -18,15 +19,19 @@ export default function WarehouseInventoryManager() {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [stockFilter, setStockFilter] = useState('All');
-  const [toastMsg, setToastMsg] = useState(null);
 
   const getAuthToken = () => {
     return userStore.get()?.accessToken || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('tradelogix_user') || '{}')?.accessToken : '') || '';
   };
 
   const showToast = (text, type = 'success') => {
-    setToastMsg({ text, type });
-    setTimeout(() => setToastMsg(null), 3500);
+    if (type === 'error') {
+      toast.error(text);
+    } else if (type === 'warning') {
+      toast.warning(text);
+    } else {
+      toast.success(text);
+    }
   };
 
   // Load Inventory data from API or MockDb
@@ -294,21 +299,6 @@ export default function WarehouseInventoryManager() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 pb-20 animate-fade-in">
-      {/* Toast Notification */}
-      {toastMsg && (
-        <div
-          className={`fixed top-5 right-5 z-50 flex items-center gap-2.5 px-4 py-3 text-white text-xs font-semibold rounded-2xl shadow-2xl animate-fade-in ${
-            toastMsg.type === 'error' ? 'bg-rose-900' : 'bg-slate-900'
-          }`}
-        >
-          {toastMsg.type === 'error' ? (
-            <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
-          ) : (
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-          )}
-          <span>{toastMsg.text}</span>
-        </div>
-      )}
 
       {/* Top Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">

@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { toast } from 'sonner';
+import { confirmDialog } from '../../utils/dialogs.js';
 import { 
   Building2, Plus, Trash2, Search, RefreshCw, X, Pencil, 
   MapPin, CheckCircle2, AlertTriangle, Hash, Layers, Package
@@ -22,7 +24,6 @@ export default function WarehouseManager() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState([]);
-  const [toastMsg, setToastMsg] = useState(null);
 
   // Edit modal state
   const [editModal, setEditModal] = useState(null);
@@ -33,8 +34,13 @@ export default function WarehouseManager() {
   };
 
   const showToast = (text, type = 'success') => {
-    setToastMsg({ text, type });
-    setTimeout(() => setToastMsg(null), 3500);
+    if (type === 'error') {
+      toast.error(text);
+    } else if (type === 'warning') {
+      toast.warning(text);
+    } else {
+      toast.success(text);
+    }
   };
 
   // Load warehouses from API with mock fallback
@@ -187,7 +193,14 @@ export default function WarehouseManager() {
 
   // Delete handlers
   const handleDelete = async (whId, whName) => {
-    if (!window.confirm(`Are you sure you want to delete warehouse "${whName}"? This cannot be undone.`)) return;
+    const ok = await confirmDialog({
+      title: 'Delete Warehouse?',
+      text: `Are you sure you want to delete warehouse "${whName}"? This cannot be undone.`,
+      confirmButtonText: 'Yes, Delete',
+      confirmButtonColor: '#e11d48',
+      icon: 'warning',
+    });
+    if (!ok) return;
 
     try {
       const token = getAuthToken();
@@ -212,7 +225,14 @@ export default function WarehouseManager() {
 
   const handleBulkDelete = async () => {
     if (!selected.length) return;
-    if (!window.confirm(`Delete ${selected.length} selected warehouse(s)?`)) return;
+    const ok = await confirmDialog({
+      title: 'Delete Selected Warehouses?',
+      text: `Delete ${selected.length} selected warehouse(s)? This cannot be undone.`,
+      confirmButtonText: 'Yes, Delete All',
+      confirmButtonColor: '#e11d48',
+      icon: 'warning',
+    });
+    if (!ok) return;
 
     for (const id of selected) {
       try {
@@ -264,21 +284,6 @@ export default function WarehouseManager() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 pb-20 animate-fade-in">
-      {/* Toast Notification */}
-      {toastMsg && (
-        <div
-          className={`fixed top-5 right-5 z-50 flex items-center gap-2.5 px-4 py-3 text-white text-xs font-semibold rounded-2xl shadow-2xl animate-fade-in ${
-            toastMsg.type === 'error' ? 'bg-rose-900' : 'bg-slate-900'
-          }`}
-        >
-          {toastMsg.type === 'error' ? (
-            <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
-          ) : (
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-          )}
-          <span>{toastMsg.text}</span>
-        </div>
-      )}
 
       {/* Top Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">

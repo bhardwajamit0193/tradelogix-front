@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner';
+import { confirmDialog } from '../../utils/dialogs.js';
 import {
   fetchCouponByIdApi,
   createCouponApi,
@@ -564,14 +566,13 @@ export default function CouponForm({ couponId }) {
   };
 
   const showToast = (msg) => {
-    setNotification(msg);
-    setTimeout(() => setNotification(null), 3500);
+    toast.success(msg);
   };
 
   const handleSave = async (e) => {
     if (e) e.preventDefault();
     if (!code.trim()) {
-      setErrorMsg('Please enter or generate a coupon code.');
+      toast.error('Please enter or generate a coupon code.');
       return;
     }
 
@@ -603,10 +604,10 @@ export default function CouponForm({ couponId }) {
     try {
       if (isEditing) {
         await updateCouponApi(couponId, payload);
-        showToast('Coupon updated successfully!');
+        toast.success('Coupon updated successfully!');
       } else {
         const created = await createCouponApi(payload);
-        showToast('Coupon published successfully!');
+        toast.success('Coupon published successfully!');
         if (created && created.id) {
           setTimeout(() => {
             window.location.href = `/admin/coupons/${created.id}`;
@@ -618,6 +619,7 @@ export default function CouponForm({ couponId }) {
         }
       }
     } catch (err) {
+      toast.error(err.message || 'An error occurred while saving the coupon.');
       setErrorMsg(err.message || 'An error occurred while saving the coupon.');
     } finally {
       setSaving(false);
@@ -625,10 +627,18 @@ export default function CouponForm({ couponId }) {
   };
 
   const handleDelete = async () => {
-    if (window.confirm(`Delete coupon "${code}" permanently?`)) {
-      await deleteCouponApi(couponId);
-      window.location.href = '/admin/coupons';
-    }
+    const ok = await confirmDialog({
+      title: 'Delete Coupon?',
+      text: `Delete coupon "${code}" permanently? This cannot be undone.`,
+      confirmButtonText: 'Yes, Delete',
+      confirmButtonColor: '#e11d48',
+      icon: 'warning',
+    });
+    if (!ok) return;
+
+    await deleteCouponApi(couponId);
+    toast.success(`Coupon "${code}" deleted permanently.`);
+    window.location.href = '/admin/coupons';
   };
 
   // Quick date helper
@@ -655,13 +665,6 @@ export default function CouponForm({ couponId }) {
 
   return (
     <form onSubmit={handleSave} className="space-y-6 max-w-7xl mx-auto pb-16">
-      {/* Toast Notification */}
-      {notification && (
-        <div className="fixed top-5 right-5 z-50 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl text-xs font-semibold flex items-center gap-2.5 animate-in slide-in-from-top-3 border border-slate-800">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-          <span>{notification}</span>
-        </div>
-      )}
 
       {/* ─── TOP MODERN APP BAR ─── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/80">

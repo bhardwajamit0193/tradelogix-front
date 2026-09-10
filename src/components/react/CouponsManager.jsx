@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner';
+import { confirmDialog } from '../../utils/dialogs.js';
 import {
   fetchCouponsApi,
   deleteCouponApi,
@@ -35,7 +37,6 @@ export default function CouponsManager() {
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkAction, setBulkAction] = useState('');
   const [copiedCode, setCopiedCode] = useState(null);
-  const [actionMessage, setActionMessage] = useState(null);
 
   const loadCoupons = async () => {
     setLoading(true);
@@ -91,34 +92,48 @@ export default function CouponsManager() {
 
   const handleBulkApply = async () => {
     if (bulkAction === 'delete' && selectedIds.length > 0) {
-      if (window.confirm(`Are you sure you want to delete ${selectedIds.length} selected coupon(s)?`)) {
-        for (const id of selectedIds) {
-          await deleteCouponApi(id);
-        }
-        setSelectedIds([]);
-        showToast(`${selectedIds.length} coupons deleted.`);
-        loadCoupons();
+      const ok = await confirmDialog({
+        title: 'Delete Selected Coupons?',
+        text: `Are you sure you want to permanently delete ${selectedIds.length} selected coupon(s)?`,
+        confirmButtonText: 'Yes, Delete',
+        confirmButtonColor: '#e11d48',
+        icon: 'warning',
+      });
+      if (!ok) return;
+
+      for (const id of selectedIds) {
+        await deleteCouponApi(id);
       }
+      setSelectedIds([]);
+      toast.success(`${selectedIds.length} coupons deleted.`);
+      loadCoupons();
     }
   };
 
   const handleDelete = async (id, code) => {
-    if (window.confirm(`Delete coupon "${code}"?`)) {
-      await deleteCouponApi(id);
-      showToast(`Coupon "${code}" deleted.`);
-      loadCoupons();
-    }
+    const ok = await confirmDialog({
+      title: 'Delete Coupon?',
+      text: `Are you sure you want to delete coupon "${code}"?`,
+      confirmButtonText: 'Yes, Delete',
+      confirmButtonColor: '#e11d48',
+      icon: 'warning',
+    });
+    if (!ok) return;
+
+    await deleteCouponApi(id);
+    toast.success(`Coupon "${code}" deleted.`);
+    loadCoupons();
   };
 
   const handleCopy = (code) => {
     navigator.clipboard.writeText(code);
     setCopiedCode(code);
+    toast.success(`Coupon "${code}" copied to clipboard!`);
     setTimeout(() => setCopiedCode(null), 2000);
   };
 
   const showToast = (msg) => {
-    setActionMessage(msg);
-    setTimeout(() => setActionMessage(null), 3000);
+    toast.success(msg);
   };
 
   const formatDiscountType = (type) => {
@@ -158,13 +173,6 @@ export default function CouponsManager() {
 
   return (
     <div className="space-y-5">
-      {/* Toast Notification */}
-      {actionMessage && (
-        <div className="fixed top-5 right-5 z-50 bg-slate-900 text-white px-4 py-2.5 rounded-lg shadow-xl text-xs font-semibold flex items-center gap-2 animate-fade-in border border-slate-700">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-          {actionMessage}
-        </div>
-      )}
 
       {/* Top Header Bar */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">

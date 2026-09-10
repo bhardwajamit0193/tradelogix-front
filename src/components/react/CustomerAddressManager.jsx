@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { useStore } from '@nanostores/react';
 import { userStore } from '../../store/authStore.js';
 import { fetchCustomerAddressesApi, saveCustomerAddressApi } from '../../services/customerService.js';
 import PhoneInputField from './PhoneInputField.jsx';
-import { CountrySelect, StateSelect, CitySelect } from 'react-country-state-city';
+import { lookupPincode, INDIAN_STATES } from '../../services/pincodeService.js';
 import {
   MapPin,
   Truck,
@@ -16,11 +17,60 @@ import {
 export default function CustomerAddressManager() {
   const user = useStore(userStore);
 
-  const [shippingCountryId, setShippingCountryId] = useState(101); // India
-  const [shippingStateId, setShippingStateId] = useState(0);
+  const [shippingPincodeLoading, setShippingPincodeLoading] = useState(false);
+  const [shippingPincodeMsg, setShippingPincodeMsg] = useState(null);
+  const [billingPincodeLoading, setBillingPincodeLoading] = useState(false);
+  const [billingPincodeMsg, setBillingPincodeMsg] = useState(null);
 
-  const [billingCountryId, setBillingCountryId] = useState(101);
-  const [billingStateId, setBillingStateId] = useState(0);
+  const handleShippingPincodeChange = async (val) => {
+    const clean = val.replace(/\D/g, '').slice(0, 6);
+    setShippingForm(prev => ({ ...prev, pincode: clean, country: 'India' }));
+    if (clean.length === 6) {
+      setShippingPincodeLoading(true);
+      setShippingPincodeMsg(null);
+      const res = await lookupPincode(clean);
+      setShippingPincodeLoading(false);
+      if (res && res.success) {
+        setShippingForm(prev => ({
+          ...prev,
+          pincode: clean,
+          city: res.city || prev.city,
+          state: res.state || prev.state,
+          country: 'India'
+        }));
+        setShippingPincodeMsg({ success: true, text: `${res.city}, ${res.state}` });
+      } else {
+        setShippingPincodeMsg({ success: false, text: res?.message || 'PIN code not found' });
+      }
+    } else {
+      setShippingPincodeMsg(null);
+    }
+  };
+
+  const handleBillingPincodeChange = async (val) => {
+    const clean = val.replace(/\D/g, '').slice(0, 6);
+    setBillingForm(prev => ({ ...prev, pincode: clean, country: 'India' }));
+    if (clean.length === 6) {
+      setBillingPincodeLoading(true);
+      setBillingPincodeMsg(null);
+      const res = await lookupPincode(clean);
+      setBillingPincodeLoading(false);
+      if (res && res.success) {
+        setBillingForm(prev => ({
+          ...prev,
+          pincode: clean,
+          city: res.city || prev.city,
+          state: res.state || prev.state,
+          country: 'India'
+        }));
+        setBillingPincodeMsg({ success: true, text: `${res.city}, ${res.state}` });
+      } else {
+        setBillingPincodeMsg({ success: false, text: res?.message || 'PIN code not found' });
+      }
+    } else {
+      setBillingPincodeMsg(null);
+    }
+  };
 
   const [shippingForm, setShippingForm] = useState({
     name: '',
@@ -49,7 +99,6 @@ export default function CustomerAddressManager() {
   const [isBillingSame, setIsBillingSame] = useState(true);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [toastMessage, setToastMessage] = useState(null);
 
   useEffect(() => {
     async function loadAddresses() {
@@ -128,12 +177,10 @@ export default function CustomerAddressManager() {
         });
       }
 
-      setToastMessage('Addresses successfully synchronized with your account!');
-      setTimeout(() => setToastMessage(null), 3500);
+      toast.success('Addresses successfully synchronized with your account!');
     } catch (e) {
       console.error('Failed to save address', e);
-      setToastMessage('Saved changes.');
-      setTimeout(() => setToastMessage(null), 3500);
+      toast.success('Saved changes.');
     } finally {
       setSaving(false);
     }
@@ -155,13 +202,6 @@ export default function CustomerAddressManager() {
 
   return (
     <div className="space-y-6 animate-fadeIn">
-      {toastMessage && (
-        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-bold flex items-center gap-2 shadow-sm animate-fadeIn">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-          {toastMessage}
-        </div>
-      )}
-
       <form onSubmit={handleSave} className="space-y-6">
         {/* ================= PRIMARY SHIPPING ADDRESS ================= */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6">
@@ -245,58 +285,75 @@ export default function CustomerAddressManager() {
               />
             </div>
 
-            {/* Country with react-country-state-city */}
+            {/* Postal PIN Code with Autofill */}
             <div className="space-y-1.5">
-              <label className="font-bold text-slate-700">Country *</label>
-              <CountrySelect
-                defaultValue={{ id: 101, name: shippingForm.country || 'India' }}
-                onChange={(val) => {
-                  setShippingCountryId(val.id);
-                  setShippingForm({ ...shippingForm, country: val.name });
-                }}
-                placeHolder="Select Country"
-              />
-            </div>
-
-            {/* State with react-country-state-city */}
-            <div className="space-y-1.5">
-              <label className="font-bold text-slate-700">State *</label>
-              <StateSelect
-                countryid={shippingCountryId}
-                defaultValue={shippingForm.state ? { name: shippingForm.state } : undefined}
-                onChange={(val) => {
-                  setShippingStateId(val.id);
-                  setShippingForm({ ...shippingForm, state: val.name });
-                }}
-                placeHolder={shippingForm.state || 'Select State'}
-              />
-            </div>
-
-            {/* City with react-country-state-city */}
-            <div className="space-y-1.5">
-              <label className="font-bold text-slate-700">City *</label>
-              <CitySelect
-                countryid={shippingCountryId}
-                stateid={shippingStateId}
-                defaultValue={shippingForm.city ? { name: shippingForm.city } : undefined}
-                onChange={(val) => {
-                  setShippingForm({ ...shippingForm, city: val.name });
-                }}
-                placeHolder={shippingForm.city || 'Select City'}
-              />
-            </div>
-
-            {/* Pincode */}
-            <div className="space-y-1.5">
-              <label className="font-bold text-slate-700">Postal PIN Code *</label>
+              <div className="flex items-center justify-between">
+                <label className="font-bold text-slate-700">Postal PIN Code *</label>
+                {shippingPincodeLoading && (
+                  <span className="text-[11px] text-brand-600 flex items-center gap-1 font-medium">
+                    <span className="w-3 h-3 border-2 border-brand-600 border-t-transparent rounded-full animate-spin"></span>
+                    Fetching City & State...
+                  </span>
+                )}
+                {shippingPincodeMsg && (
+                  <span className={`text-[11px] font-medium ${shippingPincodeMsg.success ? 'text-emerald-600 font-semibold' : 'text-amber-600'}`}>
+                    {shippingPincodeMsg.success ? `✓ ${shippingPincodeMsg.text}` : shippingPincodeMsg.text}
+                  </span>
+                )}
+              </div>
               <input
                 type="text"
                 value={shippingForm.pincode}
-                onChange={(e) => setShippingForm({ ...shippingForm, pincode: e.target.value.replace(/\D/g, '').slice(0, 6) })}
-                placeholder="400705"
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-brand-500 outline-none transition-all font-mono font-medium text-slate-900"
+                onChange={(e) => handleShippingPincodeChange(e.target.value)}
+                placeholder="e.g. 400059"
+                maxLength={6}
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-brand-500 outline-none transition-all font-mono font-bold tracking-wider text-slate-900"
                 required
               />
+            </div>
+
+            {/* City / District (Autofilled from PIN Code, disabled) */}
+            <div className="space-y-1.5">
+              <label className="font-bold text-slate-700 flex items-center justify-between">
+                <span>City / District *</span>
+                <span className="text-[10px] text-slate-400 font-normal">Auto-filled</span>
+              </label>
+              <input
+                type="text"
+                value={shippingForm.city}
+                readOnly
+                disabled
+                placeholder="Auto-filled from PIN"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-100 text-slate-700 cursor-not-allowed outline-none font-medium text-sm"
+              />
+            </div>
+
+            {/* State (Autofilled from PIN Code, disabled) */}
+            <div className="space-y-1.5">
+              <label className="font-bold text-slate-700 flex items-center justify-between">
+                <span>State *</span>
+                <span className="text-[10px] text-slate-400 font-normal">Auto-filled</span>
+              </label>
+              <input
+                type="text"
+                value={shippingForm.state}
+                readOnly
+                disabled
+                placeholder="Auto-filled from PIN"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-100 text-slate-700 cursor-not-allowed outline-none font-medium text-sm"
+              />
+            </div>
+
+            {/* Country (India Only) */}
+            <div className="space-y-1.5">
+              <label className="font-bold text-slate-700">Country</label>
+              <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 font-medium text-sm select-none">
+                <span className="text-lg">🇮🇳</span>
+                <span>India</span>
+                <span className="ml-auto text-[11px] text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                  Domestic Delivery Only
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -391,56 +448,75 @@ export default function CustomerAddressManager() {
               </div>
 
               {/* Country with react-country-state-city */}
+              {/* Postal PIN Code with Autofill */}
               <div className="space-y-1.5">
-                <label className="font-bold text-slate-700">Country *</label>
-                <CountrySelect
-                  defaultValue={{ id: 101, name: billingForm.country || 'India' }}
-                  onChange={(val) => {
-                    setBillingCountryId(val.id);
-                    setBillingForm({ ...billingForm, country: val.name });
-                  }}
-                  placeHolder="Select Country"
-                />
-              </div>
-
-              {/* State with react-country-state-city */}
-              <div className="space-y-1.5">
-                <label className="font-bold text-slate-700">State *</label>
-                <StateSelect
-                  countryid={billingCountryId}
-                  defaultValue={billingForm.state ? { name: billingForm.state } : undefined}
-                  onChange={(val) => {
-                    setBillingStateId(val.id);
-                    setBillingForm({ ...billingForm, state: val.name });
-                  }}
-                  placeHolder={billingForm.state || 'Select State'}
-                />
-              </div>
-
-              {/* City with react-country-state-city */}
-              <div className="space-y-1.5">
-                <label className="font-bold text-slate-700">City *</label>
-                <CitySelect
-                  countryid={billingCountryId}
-                  stateid={billingStateId}
-                  defaultValue={billingForm.city ? { name: billingForm.city } : undefined}
-                  onChange={(val) => {
-                    setBillingForm({ ...billingForm, city: val.name });
-                  }}
-                  placeHolder={billingForm.city || 'Select City'}
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="font-bold text-slate-700">Postal PIN Code *</label>
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-slate-700">Postal PIN Code *</label>
+                  {billingPincodeLoading && (
+                    <span className="text-[11px] text-brand-600 flex items-center gap-1 font-medium">
+                      <span className="w-3 h-3 border-2 border-brand-600 border-t-transparent rounded-full animate-spin"></span>
+                      Fetching City & State...
+                    </span>
+                  )}
+                  {billingPincodeMsg && (
+                    <span className={`text-[11px] font-medium ${billingPincodeMsg.success ? 'text-emerald-600 font-semibold' : 'text-amber-600'}`}>
+                      {billingPincodeMsg.success ? `✓ ${billingPincodeMsg.text}` : billingPincodeMsg.text}
+                    </span>
+                  )}
+                </div>
                 <input
                   type="text"
                   value={billingForm.pincode}
-                  onChange={(e) => setBillingForm({ ...billingForm, pincode: e.target.value.replace(/\D/g, '').slice(0, 6) })}
-                  placeholder="400021"
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-brand-500 outline-none transition-all font-mono font-medium text-slate-900"
+                  onChange={(e) => handleBillingPincodeChange(e.target.value)}
+                  placeholder="e.g. 400021"
+                  maxLength={6}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-brand-500 outline-none transition-all font-mono font-bold tracking-wider text-slate-900"
                   required
                 />
+              </div>
+
+              {/* City / District (Autofilled from PIN Code, disabled) */}
+              <div className="space-y-1.5">
+                <label className="font-bold text-slate-700 flex items-center justify-between">
+                  <span>City / District *</span>
+                  <span className="text-[10px] text-slate-400 font-normal">Auto-filled</span>
+                </label>
+                <input
+                  type="text"
+                  value={billingForm.city}
+                  readOnly
+                  disabled
+                  placeholder="Auto-filled from PIN"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-100 text-slate-700 cursor-not-allowed outline-none font-medium text-sm"
+                />
+              </div>
+
+              {/* State (Autofilled from PIN Code, disabled) */}
+              <div className="space-y-1.5">
+                <label className="font-bold text-slate-700 flex items-center justify-between">
+                  <span>State *</span>
+                  <span className="text-[10px] text-slate-400 font-normal">Auto-filled</span>
+                </label>
+                <input
+                  type="text"
+                  value={billingForm.state}
+                  readOnly
+                  disabled
+                  placeholder="Auto-filled from PIN"
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-100 text-slate-700 cursor-not-allowed outline-none font-medium text-sm"
+                />
+              </div>
+
+              {/* Country (India Only) */}
+              <div className="space-y-1.5">
+                <label className="font-bold text-slate-700">Country</label>
+                <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 font-medium text-sm select-none">
+                  <span className="text-lg">🇮🇳</span>
+                  <span>India</span>
+                  <span className="ml-auto text-[11px] text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                    Domestic Delivery Only
+                  </span>
+                </div>
               </div>
             </div>
           )}

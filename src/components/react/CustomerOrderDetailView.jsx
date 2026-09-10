@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { useStore } from '@nanostores/react';
 import { userStore } from '../../store/authStore.js';
 import { fetchCustomerOrderDetailApi } from '../../services/customerService.js';
@@ -24,7 +25,13 @@ import {
   Info,
   XCircle,
 } from 'lucide-react';
-import { generateAndDownloadInvoicePdf } from './InvoicePdfDocument.jsx';
+
+const getFullInvoiceUrl = (url) => {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  const baseUrl = (typeof window !== 'undefined' && window.__PUBLIC_API_URL__) || 'http://localhost:6543';
+  return `${baseUrl.replace(/\/$/, '')}${url.startsWith('/') ? url : `/${url}`}`;
+};
 
 export default function CustomerOrderDetailView({ orderId }) {
   const user = useStore(userStore);
@@ -121,20 +128,39 @@ export default function CustomerOrderDetailView({ orderId }) {
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => generateAndDownloadInvoicePdf(order)}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl gradient-brand text-white shadow-sm text-xs font-bold hover:opacity-95 transition-all"
+            type="button"
+            onClick={() => {
+              if (!order.invoicePdfUrl) {
+                toast.info('The official tax invoice PDF has not been uploaded by the merchant yet.');
+                return;
+              }
+              window.open(getFullInvoiceUrl(order.invoicePdfUrl), '_blank');
+            }}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl gradient-brand text-white shadow-sm text-xs font-bold hover:opacity-95 transition-all cursor-pointer"
+            title={order.invoicePdfUrl ? 'Download Official Tax Invoice PDF' : 'Invoice PDF pending upload'}
           >
             <Download className="w-4 h-4" /> Download Invoice (PDF)
           </button>
 
-          <a
-            href={`/dashboard/orders/${order.id}/invoice`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-slate-200 hover:border-slate-300 shadow-sm text-slate-700 hover:text-slate-900 text-xs font-bold transition-all"
-          >
-            <FileText className="w-3.5 h-3.5 text-slate-500" /> View Invoice
-          </a>
+          {order.invoicePdfUrl ? (
+            <a
+              href={getFullInvoiceUrl(order.invoicePdfUrl)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-slate-200 hover:border-slate-300 shadow-sm text-slate-700 hover:text-slate-900 text-xs font-bold transition-all"
+            >
+              <FileText className="w-3.5 h-3.5 text-slate-500" /> View Invoice
+            </a>
+          ) : (
+            <button
+              type="button"
+              onClick={() => toast.info('The official tax invoice PDF has not been uploaded by the merchant yet.')}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-slate-200 hover:border-slate-300 shadow-sm text-slate-400 text-xs font-bold transition-all cursor-pointer"
+              title="Invoice pending upload"
+            >
+              <FileText className="w-3.5 h-3.5 text-slate-400" /> View Invoice
+            </button>
+          )}
         </div>
       </div>
 

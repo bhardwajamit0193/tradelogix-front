@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { toast } from 'sonner';
+import { confirmDialog } from '../../utils/dialogs.js';
 import { Trash2, Search, RefreshCw, Bookmark, X, Pencil } from 'lucide-react';
 import { getBrands, saveBrand, deleteBrand, getMockProducts } from '../../utils/mockDb.js';
 import { userStore } from '../../store/authStore.js';
@@ -25,7 +27,6 @@ export default function BrandManager() {
   const [editSlugManual, setEditSlugManual] = useState(false);
   const [search, setSearch]       = useState('');
   const [selected, setSelected]   = useState([]);
-  const [saveMsg, setSaveMsg]     = useState(null);
 
   const getAuthToken = () => {
     return userStore.get()?.accessToken || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('tradelogix_user') || '{}')?.accessToken : '') || '';
@@ -102,8 +103,7 @@ export default function BrandManager() {
     load();
     setForm(EMPTY_FORM);
     setIsSlugManual(false);
-    setSaveMsg('Brand added.');
-    setTimeout(() => setSaveMsg(null), 3000);
+    toast.success('Brand added successfully.');
   };
 
   // ── Edit modal handlers ───────────────────────────────────────────────────
@@ -149,13 +149,20 @@ export default function BrandManager() {
     saveBrand({ id: editModal.id, ...payload });
     load();
     closeEditModal();
-    setSaveMsg('Brand updated.');
-    setTimeout(() => setSaveMsg(null), 3000);
+    toast.success('Brand updated successfully.');
   };
 
   // ── Delete ────────────────────────────────────────────────────────────────
   const handleDelete = async (brandId, brandName) => {
-    if (!window.confirm(`Delete brand "${brandName}"? This cannot be undone.`)) return;
+    const ok = await confirmDialog({
+      title: 'Delete Brand?',
+      text: `Delete brand "${brandName}"? This cannot be undone.`,
+      confirmButtonText: 'Yes, Delete',
+      confirmButtonColor: '#e11d48',
+      icon: 'warning',
+    });
+    if (!ok) return;
+
     try {
       const token = getAuthToken();
       await fetch(`${API_URL}/api/admin/brands/${brandId}`, {
@@ -167,12 +174,21 @@ export default function BrandManager() {
     }
     deleteBrand(brandId);
     setSelected(prev => prev.filter(id => id !== brandId));
+    toast.success(`Brand "${brandName}" deleted.`);
     load();
   };
 
   const handleBulkDelete = async () => {
     if (!selected.length) return;
-    if (!window.confirm(`Delete ${selected.length} selected brands?`)) return;
+    const ok = await confirmDialog({
+      title: 'Delete Selected Brands?',
+      text: `Delete ${selected.length} selected brands? This cannot be undone.`,
+      confirmButtonText: 'Yes, Delete All',
+      confirmButtonColor: '#e11d48',
+      icon: 'warning',
+    });
+    if (!ok) return;
+
     for (const id of selected) {
       try {
         const token = getAuthToken();
@@ -185,6 +201,7 @@ export default function BrandManager() {
       }
       deleteBrand(id);
     }
+    toast.success(`Deleted ${selected.length} brands.`);
     setSelected([]);
     load();
   };
@@ -218,12 +235,6 @@ export default function BrandManager() {
           <RefreshCw className="w-4 h-4" />
         </button>
       </div>
-
-      {saveMsg && (
-        <div className="px-4 py-2.5 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold rounded-xl">
-          ✓ {saveMsg}
-        </div>
-      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
 

@@ -26,5 +26,5 @@ const pageImage = product?.metaImage || product?.featuredImage || (product?.imag
 ---
 
 <ShopLayout title={pageTitle} description={pageDesc} image={pageImage}>
-  <ProductDetailView client:load initialSlug={slug} />
+  <ProductDetailView client:load initialSlug={slug} initialData={product} />
 </ShopLayout>

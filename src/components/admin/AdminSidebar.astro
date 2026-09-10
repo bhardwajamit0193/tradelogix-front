@@ -422,6 +422,7 @@ const isSubItemActive = (subStatus) => {
     } else {
       initSidebarToggle();
     }
+    document.addEventListener('astro:page-load', initSidebarToggle);
   })();
 </script>
 

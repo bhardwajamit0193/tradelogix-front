@@ -1,21 +1,41 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '@nanostores/react';
 import { userStore } from '../../store/authStore.js';
-import { addToCart } from '../../store/cartStore.js';
+import { addToCart, cartItems, getAvailableStock } from '../../store/cartStore.js';
 import ProductCard from './ProductCard.jsx';
 import { formatPrice } from '../../utils/formatters.js';
 import { 
   ShoppingCart, Check, Plus, Minus, Star, ShieldCheck, 
-  Truck, ArrowRight, Package, Warehouse, Layers, Tag, RotateCcw
+  Truck, ArrowRight, Package, Warehouse, Layers, Tag, RotateCcw, Sliders
 } from 'lucide-react';
 
 const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:4000';
 
 export default function ProductDetailView({ initialSlug, initialData = null }) {
   const user = useStore(userStore);
+  const cart = useStore(cartItems);
   const isLoggedIn = user?.isLoggedIn;
 
-  const [product, setProduct] = useState(initialData);
+  const [product, setProduct] = useState(() => {
+    if (initialData) {
+      if (!initialData.specifications || initialData.specifications.length === 0) {
+        if (typeof window !== 'undefined') {
+          try {
+            const raw = localStorage.getItem('tradelogix_products_v4');
+            if (raw) {
+              const list = JSON.parse(raw);
+              const found = list.find(p => p.slug === initialSlug || p.id === initialData.id);
+              if (found && Array.isArray(found.specifications) && found.specifications.length > 0) {
+                return { ...initialData, specifications: found.specifications };
+              }
+            }
+          } catch (e) {}
+        }
+      }
+      return initialData;
+    }
+    return null;
+  });
   const [selectedImage, setSelectedImage] = useState(
     initialData?.featuredImage || initialData?.image || initialData?.images?.[0] || null
   );
@@ -42,9 +62,23 @@ export default function ProductDetailView({ initialSlug, initialData = null }) {
         const json = await res.json();
         const data = json?.data || json;
 
+        let mergedData = { ...data };
+        if (!mergedData.specifications || mergedData.specifications.length === 0) {
+          try {
+            const raw = localStorage.getItem('tradelogix_products_v4');
+            if (raw) {
+              const list = JSON.parse(raw);
+              const found = list.find(p => p.slug === initialSlug || p.id === data.id);
+              if (found && Array.isArray(found.specifications) && found.specifications.length > 0) {
+                mergedData.specifications = found.specifications;
+              }
+            }
+          } catch (e) {}
+        }
+
         if (isMounted) {
-          setProduct(data);
-          const defaultImg = data.featuredImage || data.image || (data.images && data.images[0]) || null;
+          setProduct(mergedData);
+          const defaultImg = mergedData.featuredImage || mergedData.image || (mergedData.images && mergedData.images[0]) || null;
           setSelectedImage(defaultImg);
         }
       } catch (err) {
@@ -60,6 +94,24 @@ export default function ProductDetailView({ initialSlug, initialData = null }) {
     loadProduct();
     return () => { isMounted = false; };
   }, [initialSlug, user?.accessToken]);
+
+  // Calculate available stock and units already in cart (must be before any early return)
+  const maxStock = getAvailableStock(product);
+  const cartItem = cart.find((i) => String(i.id) === String(product?.id));
+  const inCartQty = cartItem ? cartItem.quantity : 0;
+  const availableToAdd = Math.max(0, maxStock - inCartQty);
+  const isOutOfStock = maxStock <= 0 || !product?.inStock;
+  const isMaxInCart = inCartQty >= maxStock && maxStock > 0;
+  const canAddToCart = !isOutOfStock && !isMaxInCart && availableToAdd > 0;
+
+  // Auto-clamp quantity to availableToAdd if exceeded (hook called unconditionally)
+  useEffect(() => {
+    if (availableToAdd > 0 && quantity > availableToAdd) {
+      setQuantity(availableToAdd);
+    } else if (availableToAdd <= 0 && quantity !== 1) {
+      setQuantity(1);
+    }
+  }, [availableToAdd]);
 
   if (isLoading) {
     return (
@@ -118,6 +170,26 @@ export default function ProductDetailView({ initialSlug, initialData = null }) {
   const fallbackImage = 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&auto=format&fit=crop&q=80';
   const currentImage = selectedImage || fallbackImage;
 
+  // Process and normalize custom technical specifications
+  const rawSpecs = product?.specifications;
+  let customSpecs = [];
+  if (Array.isArray(rawSpecs)) {
+    customSpecs = rawSpecs;
+  } else if (typeof rawSpecs === 'object' && rawSpecs !== null) {
+    customSpecs = Object.entries(rawSpecs).map(([key, value]) => ({ key, value: String(value) }));
+  } else if (typeof rawSpecs === 'string') {
+    try {
+      const parsed = JSON.parse(rawSpecs);
+      if (Array.isArray(parsed)) customSpecs = parsed;
+      else if (typeof parsed === 'object' && parsed !== null) {
+        customSpecs = Object.entries(parsed).map(([key, value]) => ({ key, value: String(value) }));
+      }
+    } catch (e) {}
+  }
+  customSpecs = customSpecs.filter(
+    (item) => item && (item.key?.toString().trim() || item.value?.toString().trim())
+  );
+
   // Calculate live volume pricing based on quantity using customer's assigned tiers
   const customerTiers = product.pricing?.tiers || [];
   let currentUnitPrice = product.price || 0;
@@ -130,15 +202,21 @@ export default function ProductDetailView({ initialSlug, initialData = null }) {
   }
 
   const handleAddToCart = () => {
+    if (!canAddToCart) return;
+    const addQty = Math.min(quantity, availableToAdd);
+    if (addQty <= 0) return;
+
     addToCart({
       ...product,
+      stockCount: maxStock,
+      inStock: maxStock > 0,
       basePrice: product.pricing?.basePrice ? parseFloat(product.pricing.basePrice) : product.price,
       tiers: customerTiers,
       pricing: product.pricing,
       price: product.price,
       image: currentImage,
       category: product.category,
-    }, quantity);
+    }, addQty);
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
   };
@@ -225,16 +303,27 @@ export default function ProductDetailView({ initialSlug, initialData = null }) {
             </h1>
 
             {/* Ratings & Stock Status */}
-            <div className="flex items-center gap-4 mt-3 text-xs text-slate-500">
+            <div className="flex items-center gap-4 mt-3 text-xs text-slate-500 flex-wrap">
               <div className="flex items-center gap-1 text-amber-500 font-bold">
                 <Star className="w-4 h-4 fill-amber-500" />
                 <span>4.9</span>
                 <span className="text-slate-400 font-normal">(Verified OEM)</span>
               </div>
               <span>•</span>
-              <span className={`font-bold ${product.inStock ? 'text-emerald-600' : 'text-rose-600'}`}>
-                {product.inStock ? `In Stock (${product.stockCount ?? 'Available'})` : 'Out of Stock'}
-              </span>
+              {isOutOfStock ? (
+                <span className="font-bold text-rose-600">Out of Stock</span>
+              ) : maxStock <= 5 ? (
+                <span className="font-bold text-amber-600 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                  Only {maxStock} left in stock!
+                  {inCartQty > 0 && <span className="text-slate-500 font-normal">({inCartQty} in cart)</span>}
+                </span>
+              ) : (
+                <span className="font-bold text-emerald-600 flex items-center gap-1">
+                  In Stock ({maxStock} Available)
+                  {inCartQty > 0 && <span className="text-slate-500 font-normal">({inCartQty} in cart)</span>}
+                </span>
+              )}
             </div>
           </div>
 
@@ -289,7 +378,7 @@ export default function ProductDetailView({ initialSlug, initialData = null }) {
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                       <button
                         type="button"
-                        onClick={() => setQuantity(1)}
+                        onClick={() => setQuantity(Math.min(1, Math.max(1, availableToAdd)))}
                         className={`p-2.5 rounded-xl border text-center transition-all ${
                           quantity < (customerTiers[0]?.minQuantity || 999)
                             ? 'bg-brand-50 border-brand-300 ring-2 ring-brand-500/20'
@@ -301,18 +390,29 @@ export default function ProductDetailView({ initialSlug, initialData = null }) {
                       </button>
                       {customerTiers.map((tier, idx) => {
                         const isTierActive = quantity >= tier.minQuantity;
+                        const exceedsStock = tier.minQuantity > maxStock;
                         return (
                           <button
                             key={idx}
                             type="button"
-                            onClick={() => setQuantity(tier.minQuantity)}
+                            disabled={exceedsStock || availableToAdd <= 0}
+                            onClick={() => {
+                              if (!exceedsStock) {
+                                setQuantity(Math.min(tier.minQuantity, availableToAdd));
+                              }
+                            }}
                             className={`p-2.5 rounded-xl border text-center transition-all ${
-                              isTierActive
+                              exceedsStock
+                                ? 'opacity-40 bg-slate-100 border-slate-200 cursor-not-allowed'
+                                : isTierActive
                                 ? 'bg-brand-50 border-brand-300 ring-2 ring-brand-500/20'
                                 : 'bg-white border-slate-200 hover:bg-slate-50'
                             }`}
+                            title={exceedsStock ? `Required ${tier.minQuantity} units exceeds total available stock (${maxStock})` : ''}
                           >
-                            <div className="text-[11px] text-slate-500 font-medium">{tier.minQuantity}+ Units</div>
+                            <div className="text-[11px] text-slate-500 font-medium">
+                              {tier.minQuantity}+ Units {exceedsStock && <span className="text-rose-500 text-[9px] block">Max {maxStock}</span>}
+                            </div>
                             <div className="text-xs font-bold text-brand-700">{formatPrice(tier.price)} <span className="text-[10px] font-normal text-slate-500">/ pc</span></div>
                           </button>
                         );
@@ -322,44 +422,64 @@ export default function ProductDetailView({ initialSlug, initialData = null }) {
                 )}
 
                 {/* Quantity Selector & Action Button */}
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 pt-2">
-                  <div className="flex items-center justify-between sm:justify-start bg-slate-100 border border-slate-200 rounded-2xl p-1.5 shrink-0">
+                <div className="space-y-2 pt-2">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+                    <div className="flex items-center justify-between sm:justify-start bg-slate-100 border border-slate-200 rounded-2xl p-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                        className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-200 rounded-xl transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        disabled={quantity <= 1 || availableToAdd <= 0}
+                        title="Decrease quantity"
+                      >
+                        <Minus className="w-4 h-4" />
+                      </button>
+                      <span className="w-12 text-center font-display font-bold text-sm text-slate-900">
+                        {availableToAdd <= 0 ? 0 : quantity}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setQuantity(Math.min(availableToAdd, quantity + 1))}
+                        className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-200 rounded-xl transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        disabled={quantity >= availableToAdd || availableToAdd <= 0}
+                        title={quantity >= availableToAdd ? `Cannot add more. Only ${availableToAdd} available to add` : 'Increase quantity'}
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </div>
+
                     <button
                       type="button"
-                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                      className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-200 rounded-xl transition-colors"
-                      disabled={quantity <= 1}
+                      onClick={handleAddToCart}
+                      disabled={!canAddToCart}
+                      className="flex-1 py-3.5 px-6 rounded-2xl gradient-brand text-white font-display font-bold text-sm transition-all shadow-md hover:opacity-95 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
-                      <Minus className="w-4 h-4" />
-                    </button>
-                    <span className="w-12 text-center font-display font-bold text-sm text-slate-900">
-                      {quantity}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setQuantity(quantity + 1)}
-                      className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-200 rounded-xl transition-colors"
-                    >
-                      <Plus className="w-4 h-4" />
+                      {added ? (
+                        <>
+                          <Check className="w-5 h-5 text-emerald-200" /> Added to Cart!
+                        </>
+                      ) : isOutOfStock ? (
+                        'Out of Stock'
+                      ) : isMaxInCart ? (
+                        `Max Stock in Cart (${inCartQty} / ${maxStock})`
+                      ) : (
+                        <>
+                          <ShoppingCart className="w-5 h-5" /> Add {quantity > 1 ? `${quantity} Units` : 'to Cart'}
+                        </>
+                      )}
                     </button>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={handleAddToCart}
-                    disabled={!product.inStock}
-                    className="flex-1 py-3.5 px-6 rounded-2xl gradient-brand text-white font-display font-bold text-sm transition-all shadow-md hover:opacity-95 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    {added ? (
-                      <>
-                        <Check className="w-5 h-5 text-emerald-200" /> Added to Cart!
-                      </>
-                    ) : (
-                      <>
-                        <ShoppingCart className="w-5 h-5" /> Add {quantity > 1 ? `${quantity} Units` : 'to Cart'}
-                      </>
-                    )}
-                  </button>
+                  {inCartQty > 0 && availableToAdd > 0 && (
+                    <p className="text-[11px] text-slate-500 font-medium">
+                      You currently have <strong>{inCartQty}</strong> in your cart. You can add up to <strong>{availableToAdd}</strong> more.
+                    </p>
+                  )}
+                  {isMaxInCart && (
+                    <p className="text-[11px] text-amber-600 font-semibold flex items-center gap-1">
+                      ⚠️ All {maxStock} available units are already in your cart.
+                    </p>
+                  )}
                 </div>
               </>
             ) : (
@@ -372,7 +492,7 @@ export default function ProductDetailView({ initialSlug, initialData = null }) {
                   </p>
                 </div>
                 <a
-                  href="/login"
+                  href={typeof window !== 'undefined' ? `/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}` : (product.slug ? `/login?redirect=${encodeURIComponent(`/shop/${product.slug}`)}` : '/login')}
                   className="w-full py-3.5 px-6 rounded-2xl bg-brand-600 hover:bg-brand-500 text-white font-display font-semibold text-sm transition-all flex items-center justify-center gap-2 shadow-md"
                 >
                   Sign In to View Price & Purchase
@@ -399,33 +519,61 @@ export default function ProductDetailView({ initialSlug, initialData = null }) {
           )}
 
           {/* Technical Specifications */}
-          <div className="pt-6 border-t border-slate-200 space-y-3">
-            <h3 className="font-display font-bold text-base text-slate-900">Technical Specifications</h3>
-            <div className="glass-panel rounded-2xl p-4 border border-slate-200 bg-white space-y-2 text-xs">
-              <div className="flex justify-between py-1 border-b border-slate-100">
-                <span className="text-slate-500 font-medium">SKU</span>
-                <span className="text-slate-900 font-semibold font-mono">{product.sku}</span>
+          {(product.sku || product.productWeight || product.countryOfOrigin || product.hsCode || customSpecs.length > 0) && (
+            <div className="pt-6 border-t border-slate-200 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-display font-bold text-base text-slate-900 flex items-center gap-2">
+                  <Sliders className="w-4 h-4 text-brand-600" />
+                  Technical Specifications
+                </h3>
+                {customSpecs.length > 0 && (
+                  <span className="text-[11px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+                    {customSpecs.length + (product.sku ? 1 : 0) + (product.productWeight ? 1 : 0) + (product.countryOfOrigin ? 1 : 0) + (product.hsCode ? 1 : 0)} Specs
+                  </span>
+                )}
               </div>
-              {product.productWeight && (
-                <div className="flex justify-between py-1 border-b border-slate-100">
-                  <span className="text-slate-500 font-medium">Weight</span>
-                  <span className="text-slate-900 font-semibold">{product.productWeight} kg</span>
-                </div>
-              )}
-              {product.countryOfOrigin && (
-                <div className="flex justify-between py-1 border-b border-slate-100">
-                  <span className="text-slate-500 font-medium">Country of Origin</span>
-                  <span className="text-slate-900 font-semibold">{product.countryOfOrigin}</span>
-                </div>
-              )}
-              {product.hsCode && (
-                <div className="flex justify-between py-1">
-                  <span className="text-slate-500 font-medium">HS Code</span>
-                  <span className="text-slate-900 font-semibold">{product.hsCode}</span>
-                </div>
-              )}
+
+              <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-xs divide-y divide-slate-100 text-xs">
+                {product.sku && (
+                  <div className="grid grid-cols-2 p-3 bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                    <span className="text-slate-500 font-medium">SKU / Model</span>
+                    <span className="text-slate-900 font-semibold font-mono text-right">{product.sku}</span>
+                  </div>
+                )}
+                {product.productWeight && (
+                  <div className="grid grid-cols-2 p-3 hover:bg-slate-50 transition-colors">
+                    <span className="text-slate-500 font-medium">Weight</span>
+                    <span className="text-slate-900 font-semibold text-right">{product.productWeight} kg</span>
+                  </div>
+                )}
+                {product.countryOfOrigin && (
+                  <div className="grid grid-cols-2 p-3 bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                    <span className="text-slate-500 font-medium">Country of Origin</span>
+                    <span className="text-slate-900 font-semibold text-right">{product.countryOfOrigin}</span>
+                  </div>
+                )}
+                {product.hsCode && (
+                  <div className="grid grid-cols-2 p-3 hover:bg-slate-50 transition-colors">
+                    <span className="text-slate-500 font-medium">HS Tariff Code</span>
+                    <span className="text-slate-900 font-semibold font-mono text-right">{product.hsCode}</span>
+                  </div>
+                )}
+                {customSpecs.map((spec, idx) => {
+                  const baseCount = (product.sku ? 1 : 0) + (product.productWeight ? 1 : 0) + (product.countryOfOrigin ? 1 : 0) + (product.hsCode ? 1 : 0);
+                  const isEven = (idx + baseCount) % 2 === 0;
+                  return (
+                    <div
+                      key={idx}
+                      className={`grid grid-cols-2 p-3 transition-colors ${isEven ? 'bg-slate-50/50' : 'bg-white'} hover:bg-brand-50/30`}
+                    >
+                      <span className="text-slate-600 font-medium pr-2">{spec.key}</span>
+                      <span className="text-slate-900 font-semibold text-right break-words">{spec.value}</span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 

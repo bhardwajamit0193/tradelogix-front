@@ -476,7 +476,7 @@ export default function ProductFilter({ initialCategory = 'All' }) {
                         <span className="text-2xl font-extrabold font-display text-slate-900">{formatPrice(product.price)}</span>
                       ) : (
                         <a
-                          href="/login"
+                          href={typeof window !== 'undefined' ? `/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}` : (product.slug ? `/login?redirect=${encodeURIComponent(`/shop/${product.slug}`)}` : '/login')}
                           className="py-1.5 px-3 rounded-lg border border-brand-200 text-brand-600 bg-brand-50 hover:bg-brand-100 font-semibold text-xs transition-colors"
                         >
                           Sign In to View Price

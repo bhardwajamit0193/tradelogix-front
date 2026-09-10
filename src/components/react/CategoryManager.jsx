@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { toast } from 'sonner';
+import { confirmDialog } from '../../utils/dialogs.js';
 import { Trash2, Search, RefreshCw, FolderTree, ChevronRight, X, Pencil, Sparkles } from 'lucide-react';
 import { getCategories, saveCategory, deleteCategory, getMockProducts } from '../../utils/mockDb.js';
 import { userStore } from '../../store/authStore.js';
@@ -27,7 +29,6 @@ export default function CategoryManager() {
   const [editSlugManual, setEditSlugManual] = useState(false);
   const [search, setSearch]         = useState('');
   const [selected, setSelected]     = useState([]);
-  const [saveMsg, setSaveMsg]       = useState(null);
 
   const getAuthToken = () => {
     return userStore.get()?.accessToken || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('tradelogix_user') || '{}')?.accessToken : '') || '';
@@ -115,8 +116,7 @@ export default function CategoryManager() {
     await load();
     setForm(EMPTY_FORM);
     setIsSlugManual(false);
-    setSaveMsg('Category added successfully with selected icon.');
-    setTimeout(() => setSaveMsg(null), 3000);
+    toast.success('Category added successfully with selected icon.');
   };
 
   // Edit modal open
@@ -175,12 +175,19 @@ export default function CategoryManager() {
     saveCategory({ id: editModal.id, ...payload });
     await load();
     closeEditModal();
-    setSaveMsg('Category updated with icon.');
-    setTimeout(() => setSaveMsg(null), 3000);
+    toast.success('Category updated with icon.');
   };
 
   const handleDelete = async (catId, catName) => {
-    if (!window.confirm(`Delete category "${catName}"? This cannot be undone.`)) return;
+    const ok = await confirmDialog({
+      title: 'Delete Category?',
+      text: `Delete category "${catName}"? This cannot be undone.`,
+      confirmButtonText: 'Yes, Delete',
+      confirmButtonColor: '#e11d48',
+      icon: 'warning',
+    });
+    if (!ok) return;
+
     try {
       const token = getAuthToken();
       await fetch(`${API_URL}/api/admin/categories/${catId}`, {
@@ -192,12 +199,21 @@ export default function CategoryManager() {
     }
     deleteCategory(catId);
     setSelected(prev => prev.filter(id => id !== catId));
+    toast.success(`Category "${catName}" deleted.`);
     load();
   };
 
   const handleBulkDelete = async () => {
     if (!selected.length) return;
-    if (!window.confirm(`Delete ${selected.length} selected categories?`)) return;
+    const ok = await confirmDialog({
+      title: 'Delete Selected Categories?',
+      text: `Delete ${selected.length} selected categories? This cannot be undone.`,
+      confirmButtonText: 'Yes, Delete All',
+      confirmButtonColor: '#e11d48',
+      icon: 'warning',
+    });
+    if (!ok) return;
+
     for (const id of selected) {
       try {
         const token = getAuthToken();
@@ -210,6 +226,7 @@ export default function CategoryManager() {
       }
       deleteCategory(id);
     }
+    toast.success(`Deleted ${selected.length} categories.`);
     setSelected([]);
     load();
   };
@@ -242,12 +259,6 @@ export default function CategoryManager() {
           <RefreshCw className="w-4 h-4" />
         </button>
       </div>
-
-      {saveMsg && (
-        <div className="px-4 py-2.5 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold rounded-xl">
-          ✓ {saveMsg}
-        </div>
-      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import {
   getPaymentSettings,
   savePaymentSettings,
@@ -21,13 +22,13 @@ import {
   RotateCcw,
   Lock,
 } from 'lucide-react';
+import { confirmDialog } from '../../utils/dialogs.js';
 
 export default function PaymentSettingsManager() {
   const user = useStore(userStore);
   const [settings, setSettings] = useState(() => getPaymentSettings());
   const [showSecret, setShowSecret] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [toastMessage, setToastMessage] = useState(null);
 
   useEffect(() => {
     // Read local cache first for immediate render
@@ -55,25 +56,28 @@ export default function PaymentSettingsManager() {
     try {
       const updated = await updatePaymentSettingsApi(user?.accessToken, settings);
       setSettings(updated);
-      setToastMessage('Payment gateway settings & API keys successfully updated!');
-      setTimeout(() => setToastMessage(null), 3500);
+      toast.success('Payment gateway settings & API keys successfully updated!');
     } catch (e) {
       console.error(e);
       savePaymentSettings(settings);
-      setToastMessage('Settings saved locally.');
-      setTimeout(() => setToastMessage(null), 3500);
+      toast.success('Settings saved locally.');
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleReset = () => {
-    if (confirm('Reset payment settings to TradeLogix defaults?')) {
+  const handleReset = async () => {
+    const ok = await confirmDialog({
+      title: 'Reset Payment Settings?',
+      text: 'Reset payment settings to TradeLogix defaults?',
+      confirmButtonText: 'Yes, reset defaults',
+      icon: 'warning',
+    });
+    if (ok) {
       const defaults = { ...DEFAULT_PAYMENT_SETTINGS };
       savePaymentSettings(defaults);
       setSettings(defaults);
-      setToastMessage('Reset to default configurations.');
-      setTimeout(() => setToastMessage(null), 3000);
+      toast.success('Reset to default configurations.');
     }
   };
 
@@ -81,13 +85,6 @@ export default function PaymentSettingsManager() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 animate-fadeIn">
-      {/* Toast Notification */}
-      {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl border border-slate-700 text-xs font-bold flex items-center gap-2.5 animate-slideUp">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-          <span>{toastMessage}</span>
-        </div>
-      )}
 
       {/* Header Banner */}
       <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">

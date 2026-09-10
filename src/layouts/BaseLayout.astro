@@ -1,6 +1,7 @@
 ---
 import '../styles/global.css';
-import ToastNotification from '../components/react/ToastNotification.jsx';
+import { ViewTransitions } from 'astro:transitions';
+import SonnerToaster from '../components/react/SonnerToaster.jsx';
 import { fetchPlatformSettingsApi } from '../services/platformSettingsService.js';
 
 export interface Props {
@@ -79,19 +80,26 @@ else if (finalFavicon.toLowerCase().endsWith('.webp')) iconType = 'image/webp';
       rel="stylesheet"
     />
 
+    <!-- Astro View Transitions for SPA-like Instant Transitions -->
+    <ViewTransitions fallback="animate" />
+
     <!-- Instant Auth State Detection to Eliminate Pre-Hydration Sign In Button Flash -->
     <script is:inline>
-      (function() {
+      function syncAuthClass() {
         try {
           var saved = localStorage.getItem('tradelogix_user');
           if (saved) {
             var u = JSON.parse(saved);
             if (u && u.isLoggedIn) {
               document.documentElement.classList.add('tradelogix-auth-active');
+              return;
             }
           }
+          document.documentElement.classList.remove('tradelogix-auth-active');
         } catch (e) {}
-      })();
+      }
+      syncAuthClass();
+      document.addEventListener('astro:page-load', syncAuthClass);
     </script>
   </head>
   <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col antialiased selection:bg-brand-500 selection:text-white">
@@ -101,7 +109,7 @@ else if (finalFavicon.toLowerCase().endsWith('.webp')) iconType = 'image/webp';
 
     <slot />
 
-    <!-- React Island: Global Toast Notifications -->
-    <ToastNotification client:load />
+    <!-- React Island: Global Floating Alerts (Sonner Top-Center) -->
+    <SonnerToaster client:load transition:persist />
   </body>
 </html>

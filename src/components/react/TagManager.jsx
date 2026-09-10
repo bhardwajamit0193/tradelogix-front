@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Trash2, Search, RefreshCw, Tag, X, Pencil } from 'lucide-react';
+import { toast } from 'sonner';
 import { getTags, saveTag, deleteTag, getMockProducts } from '../../utils/mockDb.js';
 import { userStore } from '../../store/authStore.js';
+import { confirmDialog } from '../../utils/dialogs.js';
 
 const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -25,7 +27,6 @@ export default function TagManager() {
   const [editSlugManual, setEditSlugManual] = useState(false);
   const [search, setSearch]       = useState('');
   const [selected, setSelected]   = useState([]);
-  const [saveMsg, setSaveMsg]     = useState(null);
 
   const getAuthToken = () => {
     return userStore.get()?.accessToken || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('tradelogix_user') || '{}')?.accessToken : '') || '';
@@ -102,8 +103,7 @@ export default function TagManager() {
     load();
     setForm(EMPTY_FORM);
     setIsSlugManual(false);
-    setSaveMsg('Tag added.');
-    setTimeout(() => setSaveMsg(null), 3000);
+    toast.success('Tag added successfully');
   };
 
   // ── Edit modal handlers ───────────────────────────────────────────────────
@@ -149,13 +149,18 @@ export default function TagManager() {
     saveTag({ id: editModal.id, ...payload });
     load();
     closeEditModal();
-    setSaveMsg('Tag updated.');
-    setTimeout(() => setSaveMsg(null), 3000);
+    toast.success('Tag updated successfully');
   };
 
   // ── Delete ────────────────────────────────────────────────────────────────
   const handleDelete = async (tagId, tagName) => {
-    if (!window.confirm(`Delete tag "${tagName}"? This cannot be undone.`)) return;
+    const ok = await confirmDialog({
+      title: 'Delete Tag?',
+      text: `Are you sure you want to delete tag "${tagName}"? This action cannot be undone.`,
+      confirmButtonText: 'Yes, delete',
+      icon: 'warning',
+    });
+    if (!ok) return;
     try {
       const token = getAuthToken();
       await fetch(`${API_URL}/api/admin/tags/${tagId}`, {
@@ -168,11 +173,18 @@ export default function TagManager() {
     deleteTag(tagId);
     setSelected(prev => prev.filter(id => id !== tagId));
     load();
+    toast.success(`Tag "${tagName}" deleted`);
   };
 
   const handleBulkDelete = async () => {
     if (!selected.length) return;
-    if (!window.confirm(`Delete ${selected.length} selected tags?`)) return;
+    const ok = await confirmDialog({
+      title: 'Delete Selected Tags?',
+      text: `Are you sure you want to delete ${selected.length} selected tags?`,
+      confirmButtonText: 'Yes, delete all',
+      icon: 'warning',
+    });
+    if (!ok) return;
     for (const id of selected) {
       try {
         const token = getAuthToken();
@@ -185,8 +197,10 @@ export default function TagManager() {
       }
       deleteTag(id);
     }
+    const count = selected.length;
     setSelected([]);
     load();
+    toast.success(`${count} tags deleted`);
   };
 
   // ── Table helpers ─────────────────────────────────────────────────────────
@@ -218,12 +232,6 @@ export default function TagManager() {
           <RefreshCw className="w-4 h-4" />
         </button>
       </div>
-
-      {saveMsg && (
-        <div className="px-4 py-2.5 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold rounded-xl">
-          ✓ {saveMsg}
-        </div>
-      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
 

@@ -10,7 +10,7 @@ export const INITIAL_MOCK_COUPONS = [
     discountType: 'percent',
     amount: 15,
     allowFreeShipping: true,
-    expiryDate: '2026-06-15T23:59:59.000Z',
+    expiryDate: '2028-12-31T23:59:59.000Z',
     minimumSpend: 500,
     maximumSpend: 50000,
     individualUse: false,
@@ -330,70 +330,146 @@ export async function generateCouponCodeApi(prefix = 'pm-') {
  * Public / Storefront Cart Coupon Validation Engine API
  */
 export async function validateCouponApi(validatePayload) {
+  let res;
+  let raw;
   try {
-    const res = await fetch(`${API_URL}/api/coupons/validate`, {
+    res = await fetch(`${API_URL}/api/coupons/validate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(validatePayload),
     });
-    const raw = await res.json();
-    if (!res.ok) {
-      throw new Error(raw.message || 'Invalid coupon');
-    }
-    const data = raw && raw.data !== undefined ? raw.data : raw;
-    return data;
-  } catch (err) {
-    // If backend offline, use local validation algorithm
-    const cleanCode = (validatePayload.code || '').trim().toUpperCase();
-    const all = getLocalCoupons();
-    const coupon = all.find((c) => c.code.toUpperCase() === cleanCode);
-
-    if (!coupon) {
-      throw new Error(`Coupon "${validatePayload.code}" does not exist.`);
-    }
-
-    if (coupon.status !== 'publish') {
-      throw new Error(`Coupon "${coupon.code}" is not active.`);
-    }
-
-    if (coupon.expiryDate && new Date() > new Date(coupon.expiryDate)) {
-      throw new Error(`Coupon "${coupon.code}" has expired.`);
-    }
-
-    const subtotal = Number(validatePayload.subtotal || 0);
-    if (coupon.minimumSpend && subtotal < Number(coupon.minimumSpend)) {
-      throw new Error(`The minimum spend for this coupon is ₹${Number(coupon.minimumSpend).toFixed(2)}.`);
-    }
-
-    if (coupon.maximumSpend && subtotal > Number(coupon.maximumSpend)) {
-      throw new Error(`The maximum spend for this coupon is ₹${Number(coupon.maximumSpend).toFixed(2)}.`);
-    }
-
-    let discount = 0;
-    if (coupon.discountType === 'percent') {
-      discount = (subtotal * Number(coupon.amount)) / 100;
-    } else if (coupon.discountType === 'fixed_cart') {
-      discount = Math.min(Number(coupon.amount), subtotal);
-    } else if (coupon.discountType === 'fixed_product') {
-      const items = validatePayload.items || [];
-      discount = items.reduce((acc, it) => acc + Math.min(Number(coupon.amount), it.price) * it.quantity, 0);
-    }
-
-    discount = Math.max(0, Math.min(discount, subtotal));
-    discount = Math.round(discount * 100) / 100;
-
-    return {
-      valid: true,
-      code: coupon.code,
-      couponId: coupon.id,
-      discountType: coupon.discountType,
-      amount: Number(coupon.amount),
-      discountAmount: discount,
-      allowFreeShipping: Boolean(coupon.allowFreeShipping),
-      message: `Coupon "${coupon.code}" applied successfully!`,
-    };
+    raw = await res.json();
+  } catch (networkErr) {
+    console.warn('Backend coupon validation network error, falling back to local:', networkErr);
+    return validateCouponLocally(validatePayload);
   }
+
+  if (!res.ok) {
+    throw new Error(raw?.message || 'Invalid coupon');
+  }
+
+  const data = raw && raw.data !== undefined ? raw.data : raw;
+  return data;
 }
+
+/**
+ * Local fallback validation algorithm when backend API is completely unreachable
+ */
+function validateCouponLocally(validatePayload) {
+  const cleanCode = (validatePayload.code || '').trim().toUpperCase();
+  const all = getLocalCoupons();
+  const coupon = all.find((c) => c.code.toUpperCase() === cleanCode);
+
+  if (!coupon) {
+    throw new Error(`Coupon "${validatePayload.code}" does not exist.`);
+  }
+
+  if (coupon.status !== 'publish') {
+    throw new Error(`Coupon "${coupon.code}" is not active.`);
+  }
+
+  if (coupon.expiryDate && new Date() > new Date(coupon.expiryDate)) {
+    throw new Error(`Coupon "${coupon.code}" has expired.`);
+  }
+
+  const subtotal = Number(validatePayload.subtotal || 0);
+  if (coupon.minimumSpend && subtotal < Number(coupon.minimumSpend)) {
+    throw new Error(`The minimum spend for this coupon is ₹${Number(coupon.minimumSpend).toFixed(2)}.`);
+  }
+
+  if (coupon.maximumSpend && subtotal > Number(coupon.maximumSpend)) {
+    throw new Error(`The maximum spend for this coupon is ₹${Number(coupon.maximumSpend).toFixed(2)}.`);
+  }
+
+  let discount = 0;
+  if (coupon.discountType === 'percent') {
+    discount = (subtotal * Number(coupon.amount)) / 100;
+  } else if (coupon.discountType === 'fixed_cart') {
+    discount = Math.min(Number(coupon.amount), subtotal);
+  } else if (coupon.discountType === 'fixed_product') {
+    const items = validatePayload.items || [];
+    discount = items.reduce((acc, it) => acc + Math.min(Number(coupon.amount), it.price) * it.quantity, 0);
+  }
+
+  discount = Math.max(0, Math.min(discount, subtotal));
+  discount = Math.round(discount * 100) / 100;
+
+  return {
+    valid: true,
+    code: coupon.code,
+    couponId: coupon.id,
+    discountType: coupon.discountType,
+    amount: Number(coupon.amount),
+    discountAmount: discount,
+    allowFreeShipping: Boolean(coupon.allowFreeShipping),
+    message: `Coupon "${coupon.code}" applied successfully!`,
+  };
+}
+
+/**
+ * Fetch available/eligible promo codes for current user on checkout / storefront
+ */
+export async function fetchAvailableCouponsApi(customerEmail, customerId) {
+  try {
+    const params = new URLSearchParams();
+    if (customerEmail) params.append('customerEmail', customerEmail);
+    if (customerId) params.append('customerId', customerId);
+
+    const res = await fetch(`${API_URL}/api/coupons/available?${params.toString()}`);
+    if (res.ok) {
+      const raw = await res.json();
+      const payload = raw && raw.data !== undefined ? raw.data : raw;
+      if (Array.isArray(payload)) {
+        return payload;
+      }
+    }
+  } catch (err) {
+    console.warn('Backend available coupons fetch failed, fallback to local coupons:', err);
+  }
+
+  // Fallback to active local/mock coupons
+  const all = getLocalCoupons();
+  const now = new Date();
+  const userEmail = (customerEmail || '').trim().toLowerCase();
+  const custId = (customerId || '').trim().toLowerCase();
+
+  return all
+    .filter((c) => {
+      if (c.status !== 'publish') return false;
+      if (c.expiryDate && new Date(c.expiryDate) < now) return false;
+      if (c.usageLimit !== null && c.usageLimit !== undefined && c.usageCount >= c.usageLimit) return false;
+
+      const emailWhitelist = Array.isArray(c.emailWhitelist) ? c.emailWhitelist : [];
+      if (emailWhitelist.length > 0) {
+        if (!userEmail && !custId) return false;
+        const matches = emailWhitelist.some((pattern) => {
+          const p = pattern.trim().toLowerCase();
+          if (custId && p === custId) return true;
+          if (userEmail) {
+            if (p.startsWith('*@')) {
+              return userEmail.endsWith(`@${p.slice(2)}`);
+            }
+            return userEmail === p;
+          }
+          return false;
+        });
+        if (!matches) return false;
+      }
+      return true;
+    })
+    .map((c) => ({
+      id: c.id,
+      code: c.code,
+      description: c.description || '',
+      discountType: c.discountType,
+      amount: Number(c.amount || 0),
+      minimumSpend: c.minimumSpend ? Number(c.minimumSpend) : null,
+      maximumSpend: c.maximumSpend ? Number(c.maximumSpend) : null,
+      expiryDate: c.expiryDate,
+      allowFreeShipping: Boolean(c.allowFreeShipping),
+    }));
+}
+
 
 /**
  * Live search products from backend PostgreSQL database

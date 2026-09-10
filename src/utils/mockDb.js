@@ -9,6 +9,16 @@ const SEED_PRODUCTS = [
     tags: ["mouse", "wireless", "logitech", "ergonomic"],
     isActive: true,
     sku: "LOGI-MX3S-BLK",
+    productWeight: "0.14",
+    countryOfOrigin: "Switzerland",
+    hsCode: "8471.60.60",
+    specifications: [
+      { key: "Sensor Resolution", value: "8,000 DPI Darkfield" },
+      { key: "Connectivity", value: "Bluetooth Low Energy & Logi Bolt USB" },
+      { key: "Battery Life", value: "Up to 70 days on a full charge" },
+      { key: "Scroll Wheel", value: "MagSpeed Electromagnetic SmartShift" },
+      { key: "Customizable Buttons", value: "7 buttons (Left/Right-click, Back/Forward, App-Switch, Wheel mode-shift, Middle click)" }
+    ],
     pricingConfigurations: [
       {
         totalStock: 120,
@@ -36,6 +46,16 @@ const SEED_PRODUCTS = [
     tags: ["monitor", "dell", "curved", "4k"],
     isActive: true,
     sku: "DELL-U3425WE",
+    productWeight: "11.2",
+    countryOfOrigin: "Malaysia",
+    hsCode: "8528.52.00",
+    specifications: [
+      { key: "Screen Size", value: "34.14 inches Curved 1900R" },
+      { key: "Resolution", value: "WQHD 3440 x 1440 at 60 Hz" },
+      { key: "Panel Technology", value: "IPS Black (2000:1 Contrast Ratio)" },
+      { key: "Color Gamut", value: "98% DCI-P3, 100% sRGB" },
+      { key: "Ports", value: "Thunderbolt 4 (90W PD), HDMI 2.1, DP 1.4, RJ45 Ethernet" }
+    ],
     pricingConfigurations: [
       {
         totalStock: 35,
@@ -63,6 +83,16 @@ const SEED_PRODUCTS = [
     tags: ["keyboard", "mechanical", "wireless", "keychron"],
     isActive: true,
     sku: "KEYC-K2-RGB-BR",
+    productWeight: "0.79",
+    countryOfOrigin: "China",
+    hsCode: "8471.60.20",
+    specifications: [
+      { key: "Layout", value: "75% Compact (84 keys)" },
+      { key: "Switches", value: "Gateron G Pro Brown (Tactile, Hot-Swappable)" },
+      { key: "Connectivity", value: "Bluetooth 5.1 & Type-C Cable" },
+      { key: "Battery", value: "4000mAh rechargeable Li-polymer" },
+      { key: "Operating System", value: "macOS / Windows / iOS / Android" }
+    ],
     pricingConfigurations: [
       {
         totalStock: 80,
@@ -90,6 +120,16 @@ const SEED_PRODUCTS = [
     tags: ["headphones", "sony", "noise-cancelling", "wireless"],
     isActive: true,
     sku: "SONY-WH1000XM5-BLK",
+    productWeight: "0.25",
+    countryOfOrigin: "Japan",
+    hsCode: "8518.30.00",
+    specifications: [
+      { key: "Acoustic Driver", value: "30mm precision carbon fiber composite dome" },
+      { key: "Noise Cancellation", value: "HD Noise Cancelling Processor QN1 + Integrated Processor V1 (8 Mics)" },
+      { key: "Battery Life", value: "Up to 30 hours (NC ON) / 40 hours (NC OFF)" },
+      { key: "Fast Charging", value: "3 mins charge = 3 hours playback (USB-PD)" },
+      { key: "Audio Formats", value: "LDAC, AAC, SBC (Hi-Res Audio Wireless)" }
+    ],
     pricingConfigurations: [
       {
         totalStock: 60,

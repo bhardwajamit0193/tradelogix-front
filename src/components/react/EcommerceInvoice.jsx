@@ -15,7 +15,6 @@ import {
   fetchPlatformSettingsApi,
   DEFAULT_PLATFORM_SETTINGS,
 } from '../../services/platformSettingsService.js';
-import InvoicePdfDocument from './InvoicePdfDocument.jsx';
 
 // Number to Words Converter (Indian Numbering Format)
 function numberToWords(num) {
@@ -123,24 +122,19 @@ export default function EcommerceInvoice({ orderId, initialOrder = null, onBack 
   };
 
   const handleDownloadPdf = async () => {
-    setIsGeneratingPdf(true);
-    try {
-      const { pdf } = await import('@react-pdf/renderer');
-      const blob = await pdf(<InvoicePdfDocument invoiceData={invoiceData} platformSettings={platformSettings} />).toBlob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `Invoice_${invoiceNumber}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('Failed to generate PDF with React PDF', err);
-      window.print();
-    } finally {
-      setIsGeneratingPdf(false);
+    if (invoiceData?.invoicePdfUrl) {
+      const getFullInvoiceUrl = (url) => {
+        if (!url) return '';
+        if (url.startsWith('http://') || url.startsWith('https://')) return url;
+        const baseUrl = (typeof window !== 'undefined' && window.__PUBLIC_API_URL__) || 'http://localhost:6543';
+        return `${baseUrl.replace(/\/$/, '')}${url.startsWith('/') ? url : `/${url}`}`;
+      };
+      const fullUrl = getFullInvoiceUrl(invoiceData.invoicePdfUrl);
+      window.open(fullUrl, '_blank');
+      return;
     }
+    // If no manual PDF has been uploaded yet, trigger standard print dialog
+    window.print();
   };
 
   if (loading) {

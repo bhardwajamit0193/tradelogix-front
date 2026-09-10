@@ -20,12 +20,12 @@ const currentPath = Astro.url.pathname;
 
 <BaseLayout title={title} noindex={true}>
   <script is:inline>
-    (function() {
+    function checkAdminAuth() {
       try {
         const saved = localStorage.getItem('tradelogix_user');
         if (saved) {
           const user = JSON.parse(saved);
-          if (user.isLoggedIn && user.role.toLowerCase() === 'admin') {
+          if (user.isLoggedIn && user.role && user.role.toLowerCase() === 'admin') {
             return; // Authorized
           }
         }
@@ -33,7 +33,9 @@ const currentPath = Astro.url.pathname;
         console.error(e);
       }
       window.location.href = '/admin/login';
-    })();
+    }
+    checkAdminAuth();
+    document.addEventListener('astro:page-load', checkAdminAuth);
   </script>
   <div class="flex min-h-screen bg-slate-50">
     <!-- Left Sidebar (Desktop Static / Mobile Drawer) -->

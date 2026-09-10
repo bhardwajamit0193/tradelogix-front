@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { getCustomerByIdApi, updateCustomerStatusApi, userStore } from '../../store/authStore.js';
 import {
   ArrowLeft,
@@ -31,10 +32,8 @@ export default function CustomerEditor({ customerId }) {
 
   // Form States
   const [status, setStatus] = useState('Pending Approval');
-  const [category, setCategory] = useState('Retailer');
   const [priceGroup, setPriceGroup] = useState('Default');
   const [warehouse, setWarehouse] = useState('');
-  const [salesExecutive, setSalesExecutive] = useState('');
 
   const token = userStore.get()?.accessToken || '';
 
@@ -71,10 +70,8 @@ export default function CustomerEditor({ customerId }) {
         const data = await getCustomerByIdApi(token, customerId);
         setCustomer(data);
         setStatus(data.status || 'Pending Approval');
-        setCategory(data.category || 'Retailer');
         setPriceGroup(data.priceGroup || 'Default');
         setWarehouse(data.assignedWarehouse || '');
-        setSalesExecutive(data.assignedSalesExecutive || '');
       } catch (err) {
         setError(err.message || 'Failed to fetch customer profile.');
       } finally {
@@ -93,16 +90,17 @@ export default function CustomerEditor({ customerId }) {
     try {
       const payload = {
         status: statusValue,
-        category,
         priceGroup,
         assignedWarehouse: warehouse,
-        assignedSalesExecutive: salesExecutive,
       };
 
       await updateCustomerStatusApi(token, customerId, payload);
+      toast.success('Customer changes saved successfully');
       window.location.href = '/admin/users';
     } catch (err) {
-      setError(err.message || 'Failed to save customer changes.');
+      const msg = err.message || 'Failed to save customer changes.';
+      toast.error(msg);
+      setError(msg);
       setIsSaving(false);
     }
   };
@@ -193,7 +191,7 @@ export default function CustomerEditor({ customerId }) {
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {customer.status !== 'Pending Approval' && (
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 sm:col-span-2">
                     <label className="text-slate-700 font-bold">Account Status</label>
                     <select
                       value={status}
@@ -207,24 +205,6 @@ export default function CustomerEditor({ customerId }) {
                   </div>
                 )}
 
-                <div className={`space-y-1.5 ${customer.status === 'Pending Approval' ? 'sm:col-span-2' : ''}`}>
-                  <label className="text-slate-700 font-bold">Customer Category</label>
-                  <select
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    className="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 focus:bg-white focus:ring-2 focus:ring-brand-500 outline-none text-xs font-medium"
-                  >
-                    <option value="Retailer">Retailer</option>
-                    <option value="Dealer">Dealer</option>
-                    <option value="Distributor">Distributor</option>
-                    <option value="Corporate Buyer">Corporate Buyer</option>
-                    <option value="Institutional Buyer">Institutional Buyer</option>
-                    <option value="Special">Special / Key Account</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-slate-700 font-bold">Price Group</label>
                   <select
@@ -254,17 +234,6 @@ export default function CustomerEditor({ customerId }) {
                     ))}
                   </select>
                 </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-slate-700 font-bold">Assigned Sales Executive</label>
-                <input
-                  type="text"
-                  value={salesExecutive}
-                  onChange={(e) => setSalesExecutive(e.target.value)}
-                  placeholder="e.g. Rahul Sharma"
-                  className="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 focus:bg-white focus:ring-2 focus:ring-brand-500 outline-none text-xs font-medium"
-                />
               </div>
 
               <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-100 flex-wrap">
@@ -499,8 +468,8 @@ export default function CustomerEditor({ customerId }) {
             </h4>
             <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
               <div className="flex items-center justify-between">
-                <span className="text-slate-500 font-medium">Buyer Category:</span>
-                <span className="font-bold text-slate-800">{customer.buyerType || 'NON_GST'}</span>
+                <span className="text-slate-500 font-medium">Buyer Type:</span>
+                <span className="font-bold text-slate-800">{customer.buyerType === 'GST' ? 'GST Registered' : 'Non-GST'}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-500 font-medium">GSTIN:</span>

@@ -154,6 +154,7 @@ const navItems = [
     } else {
       initCustomerSidebar();
     }
+    document.addEventListener('astro:page-load', initCustomerSidebar);
   })();
 </script>
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { useStore } from '@nanostores/react';
 import { userStore } from '../../store/authStore.js';
 import { fetchCustomerProfileApi, updateCustomerProfileApi } from '../../services/customerService.js';
@@ -12,7 +13,6 @@ import {
   Save,
   CheckCircle2,
   AlertCircle,
-  Warehouse,
   Lock,
 } from 'lucide-react';
 
@@ -31,7 +31,6 @@ export default function CustomerProfileManager() {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [toastMessage, setToastMessage] = useState(null);
 
   useEffect(() => {
     async function loadProfile() {
@@ -67,13 +66,11 @@ export default function CustomerProfileManager() {
       const updated = await updateCustomerProfileApi(user?.accessToken, profile);
       if (updated) {
         setProfile((prev) => ({ ...prev, ...updated }));
-        setToastMessage('Business profile details successfully updated!');
-        setTimeout(() => setToastMessage(null), 3500);
+        toast.success('Business profile details successfully updated!');
       }
     } catch (e) {
       console.error('Profile update error', e);
-      setToastMessage('Saved changes locally.');
-      setTimeout(() => setToastMessage(null), 3500);
+      toast.success('Saved changes locally.');
     } finally {
       setSaving(false);
     }
@@ -95,13 +92,6 @@ export default function CustomerProfileManager() {
 
   return (
     <div className="space-y-6 animate-fadeIn">
-      {toastMessage && (
-        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-bold flex items-center gap-2 shadow-sm animate-fadeIn">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-          {toastMessage}
-        </div>
-      )}
-
       {/* Profile Overview Card */}
       <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
@@ -220,23 +210,7 @@ export default function CustomerProfileManager() {
           </div>
         </div>
 
-        {/* Read-Only Account Parameters */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-slate-100 text-xs">
-          <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80">
-            <span className="text-slate-400 font-medium block">Buyer Category</span>
-            <span className="font-bold text-slate-800 mt-0.5 block">{profile.category || 'Retailer'}</span>
-          </div>
 
-          <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80">
-            <span className="text-slate-400 font-medium block">Wholesale Price Tier</span>
-            <span className="font-bold text-brand-600 mt-0.5 block">{profile.priceGroup || 'Default B2B'}</span>
-          </div>
-
-          <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80">
-            <span className="text-slate-400 font-medium block">Assigned Primary Warehouse</span>
-            <span className="font-bold text-slate-800 mt-0.5 block">{profile.assignedWarehouse || 'Mumbai Central'}</span>
-          </div>
-        </div>
 
         {/* Submit CTA */}
         <div className="pt-4 flex justify-end">

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { toast } from 'sonner';
 import {
   fetchAdminPageByIdApi,
   createAdminPageApi,
@@ -247,7 +248,6 @@ export default function AdminPageEditor({ pageId = null, isNew = false }) {
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('editor'); // 'editor' | 'homeSections' | 'seo' | 'preview'
   const [previewDevice, setPreviewDevice] = useState('desktop'); // 'desktop' | 'tablet' | 'mobile'
-  const [toast, setToast] = useState(null);
 
   // Available catalog data for multi-selectors
   const [availableCategories, setAvailableCategories] = useState([
@@ -320,10 +320,13 @@ export default function AdminPageEditor({ pageId = null, isNew = false }) {
   const isStructuredPage = isHomePage || isAboutPage || isContactPage;
 
   const showToast = (message, type = 'success') => {
-    setToast({ message, type });
-    setTimeout(() => {
-      setToast(null);
-    }, 4000);
+    if (type === 'error') {
+      toast.error(message);
+    } else if (type === 'warning') {
+      toast.warning(message);
+    } else {
+      toast.success(message);
+    }
   };
 
   // Load Categories & Products on mount directly from database API
@@ -551,21 +554,6 @@ export default function AdminPageEditor({ pageId = null, isNew = false }) {
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-20">
-      {/* Toast Notification */}
-      {toast && (
-        <div
-          className={`fixed bottom-6 right-6 z-50 px-5 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3 text-sm font-semibold border transition-all animate-bounce ${
-            toast.type === 'error'
-              ? 'bg-rose-50 border-rose-200 text-rose-800'
-              : 'bg-emerald-50 border-emerald-200 text-emerald-800'
-          }`}
-        >
-          <span className="material-symbols-outlined text-[20px]">
-            {toast.type === 'error' ? 'error' : 'check_circle'}
-          </span>
-          <span>{toast.message}</span>
-        </div>
-      )}
 
       {/* Action Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs">

@@ -7,6 +7,7 @@ import {
   updateQuantity,
   removeFromCart,
   cartSubtotal,
+  getAvailableStock,
 } from '../../store/cartStore.js';
 import { X, ShoppingCart, Plus, Minus, Trash2, ArrowRight } from 'lucide-react';
 
@@ -63,55 +64,77 @@ export default function CartDrawer() {
                 </a>
               </div>
             ) : (
-              items.map((item) => (
-                <div
-                  key={`${item.id}-${item.variant}`}
-                  className="glass-panel p-3.5 rounded-2xl flex items-center gap-3 border border-slate-200 bg-slate-50/80 hover:border-slate-300 transition-all"
-                >
-                  <img
-                    src={item.image || item.featuredImage || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&auto=format&fit=crop&q=80'}
-                    alt={item.name}
-                    onError={(e) => {
-                      e.target.onerror = null;
-                      e.target.src = 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&auto=format&fit=crop&q=80';
-                    }}
-                    className="w-16 h-16 rounded-xl object-cover border border-slate-200 shrink-0 bg-white"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-sm font-semibold text-slate-900 truncate">{item.name}</h4>
-                    <p className="text-[11px] text-slate-500">Variant: {item.variant}</p>
-                    <p className="text-xs font-bold text-brand-600 mt-1">
-                      ₹{typeof item.price === 'number' ? item.price.toLocaleString('en-IN') : item.price} <span className="text-[10px] text-slate-400 font-normal">/ unit</span>
-                    </p>
-                  </div>
+              items.map((item) => {
+                const maxStock = getAvailableStock(item);
+                const isMaxReached = item.quantity >= maxStock;
 
-                  {/* Quantity Modifiers */}
-                  <div className="flex items-center gap-1.5 bg-white p-1 rounded-xl border border-slate-200">
-                    <button
-                      onClick={() => updateQuantity(item.id, item.variant, item.quantity - 1)}
-                      className="p-1 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100"
-                    >
-                      <Minus className="w-3.5 h-3.5" />
-                    </button>
-                    <span className="w-5 text-center text-xs font-bold text-slate-900">{item.quantity}</span>
-                    <button
-                      onClick={() => updateQuantity(item.id, item.variant, item.quantity + 1)}
-                      className="p-1 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-
-                  {/* Remove Button */}
-                  <button
-                    onClick={() => removeFromCart(item.id, item.variant)}
-                    className="p-1.5 text-slate-400 hover:text-rose-500 transition-colors"
-                    title="Remove item"
+                return (
+                  <div
+                    key={`${item.id}-${item.variant}`}
+                    className="glass-panel p-3.5 rounded-2xl flex items-center gap-3 border border-slate-200 bg-slate-50/80 hover:border-slate-300 transition-all"
                   >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              ))
+                    <img
+                      src={item.image || item.featuredImage || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&auto=format&fit=crop&q=80'}
+                      alt={item.name}
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&auto=format&fit=crop&q=80';
+                      }}
+                      className="w-16 h-16 rounded-xl object-cover border border-slate-200 shrink-0 bg-white"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-sm font-semibold text-slate-900 truncate">{item.name}</h4>
+                      <p className="text-[11px] text-slate-500">Variant: {item.variant}</p>
+                      <p className="text-xs font-bold text-brand-600 mt-1">
+                        ₹{typeof item.price === 'number' ? item.price.toLocaleString('en-IN') : item.price} <span className="text-[10px] text-slate-400 font-normal">/ unit</span>
+                      </p>
+                      {maxStock < 9999 && isMaxReached && (
+                        <p className="text-[10px] text-amber-600 font-bold mt-0.5 flex items-center gap-1">
+                          Max stock ({maxStock}) in cart
+                        </p>
+                      )}
+                      {maxStock < 9999 && !isMaxReached && maxStock <= 5 && (
+                        <p className="text-[10px] text-slate-500 font-medium mt-0.5">
+                          Only {maxStock} left in stock
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Quantity Modifiers */}
+                    <div className="flex items-center gap-1.5 bg-white p-1 rounded-xl border border-slate-200 shrink-0">
+                      <button
+                        onClick={() => updateQuantity(item.id, item.variant, item.quantity - 1)}
+                        className="p-1 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+                        title="Decrease quantity"
+                      >
+                        <Minus className="w-3.5 h-3.5" />
+                      </button>
+                      <span className="w-6 text-center text-xs font-bold text-slate-900">{item.quantity}</span>
+                      <button
+                        onClick={() => updateQuantity(item.id, item.variant, item.quantity + 1)}
+                        disabled={isMaxReached}
+                        className={`p-1 rounded-lg transition-colors ${
+                          isMaxReached
+                            ? 'text-slate-300 bg-slate-50 cursor-not-allowed'
+                            : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
+                        }`}
+                        title={isMaxReached ? `Only ${maxStock} available in stock` : 'Increase quantity'}
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    {/* Remove Button */}
+                    <button
+                      onClick={() => removeFromCart(item.id, item.variant)}
+                      className="p-1.5 text-slate-400 hover:text-rose-500 transition-colors shrink-0"
+                      title="Remove item"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                );
+              })
             )}
           </div>
 

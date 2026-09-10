@@ -5,10 +5,10 @@ import { userStore } from '../../store/authStore.js';
 import { createOrder } from '../../services/orderService.js';
 import { saveAddress, fetchCustomerAddressesApi } from '../../services/addressService.js';
 import { getPaymentSettings, fetchPaymentSettingsApi } from '../../services/paymentSettingsService.js';
-import { validateCouponApi } from '../../services/couponService.js';
+import { validateCouponApi, fetchAvailableCouponsApi } from '../../services/couponService.js';
 import { formatPrice } from '../../utils/formatters.js';
 import PhoneInputField from './PhoneInputField.jsx';
-import { CountrySelect, StateSelect, CitySelect } from 'react-country-state-city';
+import { lookupPincode, INDIAN_STATES } from '../../services/pincodeService.js';
 import {
   Truck,
   CreditCard,
@@ -44,11 +44,76 @@ export default function CheckoutStepper() {
   const [couponLoading, setCouponLoading] = useState(false);
   const [couponError, setCouponError] = useState(null);
   const [couponSuccess, setCouponSuccess] = useState(null);
+  const [availableCoupons, setAvailableCoupons] = useState([]);
+  const [isCouponsLoading, setIsCouponsLoading] = useState(false);
+  const [showAvailableOffers, setShowAvailableOffers] = useState(true);
 
-  const [shippingCountryId, setShippingCountryId] = useState(101);
-  const [shippingStateId, setShippingStateId] = useState(0);
-  const [billingCountryId, setBillingCountryId] = useState(101);
-  const [billingStateId, setBillingStateId] = useState(0);
+  const [shippingPincodeLoading, setShippingPincodeLoading] = useState(false);
+  const [shippingPincodeMsg, setShippingPincodeMsg] = useState(null);
+  const [billingPincodeLoading, setBillingPincodeLoading] = useState(false);
+  const [billingPincodeMsg, setBillingPincodeMsg] = useState(null);
+
+  const handleShippingPincodeChange = async (val) => {
+    const clean = val.replace(/\D/g, '').slice(0, 6);
+    setShippingForm(prev => ({ ...prev, pincode: clean, country: 'India' }));
+    if (clean.length === 6) {
+      setShippingPincodeLoading(true);
+      setShippingPincodeMsg(null);
+      const res = await lookupPincode(clean);
+      setShippingPincodeLoading(false);
+      if (res && res.success) {
+        setShippingForm(prev => ({
+          ...prev,
+          pincode: clean,
+          city: res.city || prev.city,
+          state: res.state || prev.state,
+          country: 'India'
+        }));
+        setShippingPincodeMsg({ success: true, text: `${res.city}, ${res.state}` });
+        setErrors(prev => ({
+          ...prev,
+          shipping_pincode: undefined,
+          shipping_city: undefined,
+          shipping_state: undefined
+        }));
+      } else {
+        setShippingPincodeMsg({ success: false, text: res?.message || 'PIN code not found' });
+      }
+    } else {
+      setShippingPincodeMsg(null);
+    }
+  };
+
+  const handleBillingPincodeChange = async (val) => {
+    const clean = val.replace(/\D/g, '').slice(0, 6);
+    setBillingForm(prev => ({ ...prev, pincode: clean, country: 'India' }));
+    if (clean.length === 6) {
+      setBillingPincodeLoading(true);
+      setBillingPincodeMsg(null);
+      const res = await lookupPincode(clean);
+      setBillingPincodeLoading(false);
+      if (res && res.success) {
+        setBillingForm(prev => ({
+          ...prev,
+          pincode: clean,
+          city: res.city || prev.city,
+          state: res.state || prev.state,
+          country: 'India'
+        }));
+        setBillingPincodeMsg({ success: true, text: `${res.city}, ${res.state}` });
+        setErrors(prev => ({
+          ...prev,
+          billing_pincode: undefined,
+          billing_city: undefined,
+          billing_state: undefined
+        }));
+      } else {
+        setBillingPincodeMsg({ success: false, text: res?.message || 'PIN code not found' });
+      }
+    } else {
+      setBillingPincodeMsg(null);
+    }
+  };
 
   // Payment Gateway Settings
   const [paymentSettings, setPaymentSettings] = useState(getPaymentSettings());
@@ -80,8 +145,8 @@ export default function CheckoutStepper() {
     country: 'India',
   });
 
-  // Billing Address Form State (Default: isBillingSame is false)
-  const [isBillingSame, setIsBillingSame] = useState(false);
+  // Billing Address Form State (Default: isBillingSame is true)
+  const [isBillingSame, setIsBillingSame] = useState(true);
   const [billingForm, setBillingForm] = useState({
     name: '',
     phone: '',
@@ -93,6 +158,23 @@ export default function CheckoutStepper() {
     pincode: '',
     country: 'India',
   });
+
+  // Synchronize billing form with shipping form when isBillingSame is true
+  useEffect(() => {
+    if (isBillingSame) {
+      setBillingForm({
+        name: shippingForm.name || '',
+        phone: shippingForm.phone || '',
+        email: shippingForm.email || '',
+        addressLine1: shippingForm.addressLine1 || '',
+        addressLine2: shippingForm.addressLine2 || '',
+        city: shippingForm.city || '',
+        state: shippingForm.state || '',
+        pincode: shippingForm.pincode || '',
+        country: 'India',
+      });
+    }
+  }, [isBillingSame, shippingForm]);
 
   // Order Remarks State
   const [orderRemarks, setOrderRemarks] = useState('');
@@ -109,15 +191,45 @@ export default function CheckoutStepper() {
   const taxAmount = discountedSubtotal * taxRate;
   const grandTotal = discountedSubtotal + taxAmount;
 
-  const handleApplyCoupon = async (e) => {
-    if (e) e.preventDefault();
-    if (!couponInput.trim()) return;
+  // Fetch available coupons for current customer or guest
+  useEffect(() => {
+    let isMounted = true;
+    const loadAvailableCoupons = async () => {
+      setIsCouponsLoading(true);
+      try {
+        const activeEmail = user?.email || shippingForm.email;
+        const activeId = user?.id;
+        const list = await fetchAvailableCouponsApi(activeEmail, activeId);
+        if (isMounted && Array.isArray(list)) {
+          setAvailableCoupons(list);
+        }
+      } catch (err) {
+        console.warn('Failed to load available coupons:', err);
+      } finally {
+        if (isMounted) setIsCouponsLoading(false);
+      }
+    };
+    loadAvailableCoupons();
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.email, user?.id, shippingForm.email]);
+
+  const handleApplyCoupon = async (codeOrEvent) => {
+    let codeToApply = couponInput.trim();
+    if (typeof codeOrEvent === 'string') {
+      codeToApply = codeOrEvent.trim();
+      setCouponInput(codeToApply);
+    } else if (codeOrEvent && codeOrEvent.preventDefault) {
+      codeOrEvent.preventDefault();
+    }
+    if (!codeToApply) return;
     setCouponLoading(true);
     setCouponError(null);
     setCouponSuccess(null);
     try {
       const res = await validateCouponApi({
-        code: couponInput.trim(),
+        code: codeToApply,
         subtotal: rawSubtotal || 0,
         items: items.map((i) => ({
           productId: i.id,
@@ -285,11 +397,7 @@ export default function CheckoutStepper() {
 
   const validatePayment = () => {
     const errs = {};
-    if (paymentMethod === 'OfflineTransfer') {
-      if (!utrNumber.trim() || utrNumber.trim().length < 8) {
-        errs.utr_number = 'Enter a valid Bank UTR reference (min 8 characters)';
-      }
-    }
+    // Offline Transfer UTR is completely optional
     if (paymentMethod === 'COD' && grandTotal > maxCodLimit) {
       errs.cod_limit = `Cash on Delivery is unavailable for orders above ₹${maxCodLimit.toLocaleString('en-IN')}.`;
     }
@@ -479,7 +587,7 @@ export default function CheckoutStepper() {
         orderRemarks: orderRemarks,
         paymentMethod: 'OfflineTransfer',
         paymentStatus: 'Pending NEFT Verification',
-        offlineUtrNumber: utrNumber.trim().toUpperCase(),
+        offlineUtrNumber: utrNumber.trim() ? utrNumber.trim().toUpperCase() : null,
         couponCode: appliedCoupon ? appliedCoupon.code : null,
         discountAmount: discountAmount,
         items: effectiveItems,
@@ -517,6 +625,105 @@ export default function CheckoutStepper() {
       clearCart();
       setStep(4);
     }
+  };
+
+  const renderAvailableOffers = () => {
+    if (!availableCoupons || availableCoupons.length === 0) return null;
+
+    return (
+      <div className="pt-2 border-t border-slate-100/90 space-y-2">
+        <button
+          type="button"
+          onClick={() => setShowAvailableOffers((prev) => !prev)}
+          className="w-full flex items-center justify-between text-left group cursor-pointer py-1"
+        >
+          <div className="flex items-center gap-1.5">
+            <span className="p-1 rounded-md bg-brand-50 text-brand-700 group-hover:bg-brand-100 transition-colors">
+              <Tag className="w-3 h-3 text-brand-600" />
+            </span>
+            <span className="font-bold text-slate-800 text-[11px] group-hover:text-brand-700 transition-colors">
+              Available Offers
+            </span>
+            <span className="px-1.5 py-0.2 bg-brand-50 text-brand-700 font-mono font-semibold text-[10px] rounded-full border border-brand-200/80">
+              {availableCoupons.length}
+            </span>
+          </div>
+          <span className="text-[10px] font-semibold text-brand-600 flex items-center gap-0.5">
+            {showAvailableOffers ? 'Hide' : 'View'}
+            {showAvailableOffers ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+          </span>
+        </button>
+
+        {showAvailableOffers && (
+          <div className="space-y-2 max-h-56 overflow-y-auto pr-0.5 pt-0.5">
+            {availableCoupons.map((c) => {
+              const isApplied = appliedCoupon && appliedCoupon.code?.toUpperCase() === c.code?.toUpperCase();
+              const qualifies = !c.minimumSpend || subtotal >= c.minimumSpend;
+              const discountText = c.discountType === 'percent'
+                ? `${c.amount}% OFF`
+                : `₹${c.amount} OFF`;
+
+              return (
+                <div
+                  key={c.id || c.code}
+                  className={`p-2.5 rounded-xl border transition-all ${
+                    isApplied
+                      ? 'bg-emerald-50/70 border-emerald-300 ring-1 ring-emerald-400'
+                      : 'bg-slate-50/80 hover:bg-slate-50 border-slate-200/90'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 space-y-0.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="px-1.5 py-0.5 bg-white border border-dashed border-brand-300 text-brand-700 font-mono font-bold text-[11px] rounded tracking-wide shadow-2xs">
+                          {c.code}
+                        </span>
+                        <span className="text-[11px] font-bold text-slate-900">
+                          {discountText}
+                        </span>
+                      </div>
+                      {c.description && (
+                        <p className="text-[10.5px] text-slate-600 leading-tight line-clamp-1">
+                          {c.description}
+                        </p>
+                      )}
+                      {c.minimumSpend && (
+                        <p className="text-[10px]">
+                          {qualifies ? (
+                            <span className="text-slate-500">Min spend: {formatPrice(c.minimumSpend)}</span>
+                          ) : (
+                            <span className="text-amber-600 font-medium">
+                              Add {formatPrice(c.minimumSpend - subtotal)} more to qualify
+                            </span>
+                          )}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="shrink-0 pt-0.5">
+                      {isApplied ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-600 text-white rounded-lg text-[10px] font-bold shadow-2xs">
+                          <Check className="w-3 h-3 stroke-[3]" /> Applied
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleApplyCoupon(c.code)}
+                          disabled={couponLoading || !qualifies}
+                          className="px-2.5 py-1 gradient-brand hover:opacity-95 disabled:opacity-40 text-white rounded-lg text-[10px] font-display font-bold transition-all shadow-2xs cursor-pointer disabled:cursor-not-allowed"
+                        >
+                          {couponLoading && couponInput === c.code ? '...' : 'Apply'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
   };
 
   if (!isHydrated) {
@@ -665,22 +872,31 @@ export default function CheckoutStepper() {
               {/* Coupon Section */}
               <div className="pt-2 border-t border-slate-100 space-y-1.5">
                 {!appliedCoupon ? (
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="Promo Code"
-                      value={couponInput}
-                      onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
-                      className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg uppercase placeholder:normal-case font-mono"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleApplyCoupon}
-                      disabled={couponLoading || !couponInput.trim()}
-                      className="px-4 py-2 gradient-brand hover:opacity-95 disabled:opacity-50 text-white rounded-lg text-xs font-bold transition-all shrink-0"
-                    >
-                      {couponLoading ? '...' : 'Apply'}
-                    </button>
+                  <div className="space-y-1">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Promo Code"
+                        value={couponInput}
+                        onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleApplyCoupon();
+                          }
+                        }}
+                        className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg uppercase placeholder:normal-case font-mono"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleApplyCoupon}
+                        disabled={couponLoading || !couponInput.trim()}
+                        className="px-4 py-2 gradient-brand hover:opacity-95 disabled:opacity-50 text-white rounded-lg text-xs font-bold transition-all shrink-0"
+                      >
+                        {couponLoading ? '...' : 'Apply'}
+                      </button>
+                    </div>
+                    {couponError && <p className="text-[11px] text-red-500 font-medium">{couponError}</p>}
                   </div>
                 ) : (
                   <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center justify-between">
@@ -691,6 +907,7 @@ export default function CheckoutStepper() {
                     <button type="button" onClick={handleRemoveCoupon} className="text-xs text-red-600 font-semibold">Remove</button>
                   </div>
                 )}
+                {renderAvailableOffers()}
               </div>
 
               {/* Breakdown */}
@@ -891,62 +1108,79 @@ export default function CheckoutStepper() {
                     />
                   </div>
 
-                  {/* Country */}
+                  {/* Postal PIN Code with Autofill */}
                   <div className="space-y-1">
-                    <label className="font-semibold text-slate-700">Country *</label>
-                    <CountrySelect
-                      defaultValue={{ id: 101, name: shippingForm.country || 'India' }}
-                      onChange={(val) => {
-                        setShippingCountryId(val.id);
-                        setShippingForm({ ...shippingForm, country: val.name });
-                      }}
-                      placeHolder="Select Country"
-                    />
-                  </div>
-
-                  {/* State */}
-                  <div className="space-y-1">
-                    <label className="font-semibold text-slate-700">State *</label>
-                    <StateSelect
-                      countryid={shippingCountryId}
-                      defaultValue={shippingForm.state ? { name: shippingForm.state } : undefined}
-                      onChange={(val) => {
-                        setShippingStateId(val.id);
-                        setShippingForm({ ...shippingForm, state: val.name });
-                      }}
-                      placeHolder={shippingForm.state || 'Select State'}
-                    />
-                    {errors.shipping_state && <p className="text-red-500 text-[11px]">{errors.shipping_state}</p>}
-                  </div>
-
-                  {/* City */}
-                  <div className="space-y-1">
-                    <label className="font-semibold text-slate-700">City *</label>
-                    <CitySelect
-                      countryid={shippingCountryId}
-                      stateid={shippingStateId}
-                      defaultValue={shippingForm.city ? { name: shippingForm.city } : undefined}
-                      onChange={(val) => {
-                        setShippingForm({ ...shippingForm, city: val.name });
-                      }}
-                      placeHolder={shippingForm.city || 'Select City'}
-                    />
-                    {errors.shipping_city && <p className="text-red-500 text-[11px]">{errors.shipping_city}</p>}
-                  </div>
-
-                  {/* Pincode */}
-                  <div className="space-y-1">
-                    <label className="font-semibold text-slate-700">Pincode *</label>
+                    <div className="flex items-center justify-between">
+                      <label className="font-semibold text-slate-700">Postal PIN Code *</label>
+                      {shippingPincodeLoading && (
+                        <span className="text-[11px] text-brand-600 flex items-center gap-1 font-medium">
+                          <span className="w-3 h-3 border-2 border-brand-600 border-t-transparent rounded-full animate-spin"></span>
+                          Fetching City & State...
+                        </span>
+                      )}
+                      {shippingPincodeMsg && (
+                        <span className={`text-[11px] font-medium ${shippingPincodeMsg.success ? 'text-emerald-600 font-semibold' : 'text-amber-600'}`}>
+                          {shippingPincodeMsg.success ? `✓ ${shippingPincodeMsg.text}` : shippingPincodeMsg.text}
+                        </span>
+                      )}
+                    </div>
                     <input
                       type="text"
                       value={shippingForm.pincode}
-                      onChange={(e) => setShippingForm({ ...shippingForm, pincode: e.target.value.replace(/\D/g, '').slice(0, 6) })}
-                      placeholder="560100"
-                      className={`w-full px-3.5 py-2.5 rounded-xl border bg-white text-slate-900 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all font-mono ${
+                      onChange={(e) => handleShippingPincodeChange(e.target.value)}
+                      placeholder="e.g. 560100"
+                      maxLength={6}
+                      className={`w-full px-3.5 py-2.5 rounded-xl border bg-white text-slate-900 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all font-mono font-bold tracking-wider ${
                         errors.shipping_pincode ? 'border-red-400 bg-red-50/20' : 'border-slate-300'
                       }`}
                     />
                     {errors.shipping_pincode && <p className="text-red-500 text-[11px]">{errors.shipping_pincode}</p>}
+                  </div>
+
+                  {/* City / District (Autofilled from PIN Code, disabled) */}
+                  <div className="space-y-1">
+                    <label className="font-semibold text-slate-700 flex items-center justify-between">
+                      <span>City / District *</span>
+                      <span className="text-[10px] text-slate-400 font-normal">Auto-filled from PIN</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={shippingForm.city}
+                      readOnly
+                      disabled
+                      placeholder="Auto-filled from PIN code"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-100 text-slate-700 cursor-not-allowed outline-none font-medium text-sm"
+                    />
+                    {errors.shipping_city && <p className="text-red-500 text-[11px]">{errors.shipping_city}</p>}
+                  </div>
+
+                  {/* State (Autofilled from PIN Code, disabled) */}
+                  <div className="space-y-1">
+                    <label className="font-semibold text-slate-700 flex items-center justify-between">
+                      <span>State *</span>
+                      <span className="text-[10px] text-slate-400 font-normal">Auto-filled from PIN</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={shippingForm.state}
+                      readOnly
+                      disabled
+                      placeholder="Auto-filled from PIN code"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-100 text-slate-700 cursor-not-allowed outline-none font-medium text-sm"
+                    />
+                    {errors.shipping_state && <p className="text-red-500 text-[11px]">{errors.shipping_state}</p>}
+                  </div>
+
+                  {/* Country (India Only) */}
+                  <div className="space-y-1">
+                    <label className="font-semibold text-slate-700">Country</label>
+                    <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 font-medium text-sm select-none">
+                      <span className="text-lg">🇮🇳</span>
+                      <span>India</span>
+                      <span className="ml-auto text-[11px] text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                        Pan-India Delivery
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -972,157 +1206,242 @@ export default function CheckoutStepper() {
                   <p className="text-xs text-slate-500">Configure your invoicing entity and any special order remarks.</p>
                 </div>
 
-                {/* Same as Shipping Toggle (Default: false) */}
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-4">
-                  <div className="space-y-0.5 text-xs">
-                    <div className="font-semibold text-slate-900 flex items-center gap-2">
-                      <span>Same as shipping address</span>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                        isBillingSame ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
-                      }`}>
-                        {isBillingSame ? 'ENABLED' : 'DISABLED'}
-                      </span>
-                    </div>
-                    <div className="text-slate-500 text-[11px]">Use consignee address for invoicing</div>
+                {/* Same as Shipping Address Selection (YES / NO Buttons) */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl border border-slate-200 bg-slate-50/80">
+                  <div className="space-y-0.5">
+                    <span className="font-semibold text-slate-800 text-xs sm:text-sm">Same as shipping address?</span>
+                    <p className="text-[11px] text-slate-500">
+                      {isBillingSame
+                        ? 'Yes — Billing details match shipping address (fields below are locked).'
+                        : 'No — Specify a different billing entity or registered address below.'}
+                    </p>
                   </div>
 
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={isBillingSame}
-                    onClick={() => setIsBillingSame(!isBillingSame)}
-                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 ${
-                      isBillingSame ? 'bg-brand-600' : 'bg-slate-300'
-                    }`}
-                  >
-                    <span
-                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
-                        isBillingSame ? 'translate-x-5' : 'translate-x-0'
+                  {/* YES / NO Button Group */}
+                  <div className="inline-flex rounded-xl bg-slate-200/80 p-1 border border-slate-300/60 shrink-0 gap-1 select-none">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!isBillingSame) {
+                          setIsBillingSame(true);
+                          setBillingForm({
+                            name: shippingForm.name || '',
+                            phone: shippingForm.phone || '',
+                            email: shippingForm.email || '',
+                            addressLine1: shippingForm.addressLine1 || '',
+                            addressLine2: shippingForm.addressLine2 || '',
+                            city: shippingForm.city || '',
+                            state: shippingForm.state || '',
+                            pincode: shippingForm.pincode || '',
+                            country: 'India',
+                          });
+                          setErrors((prev) => {
+                            const next = { ...prev };
+                            Object.keys(next).forEach((k) => {
+                              if (k.startsWith('billing_')) delete next[k];
+                            });
+                            return next;
+                          });
+                        }
+                      }}
+                      className={`px-5 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center min-w-[60px] ${
+                        isBillingSame
+                          ? 'bg-brand-600 text-white shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-300/50'
                       }`}
-                    />
-                  </button>
+                    >
+                      Yes
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (isBillingSame) {
+                          setIsBillingSame(false);
+                        }
+                      }}
+                      className={`px-5 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center min-w-[60px] ${
+                        !isBillingSame
+                          ? 'bg-brand-600 text-white shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-300/50'
+                      }`}
+                    >
+                      No
+                    </button>
+                  </div>
                 </div>
 
-                {/* Separate Billing Entity Form */}
-                {!isBillingSame && (
-                  <div className="p-5 rounded-xl bg-slate-50/70 border border-slate-200 space-y-4 text-xs animate-fadeIn">
-                    <div className="font-semibold text-slate-900 text-xs">Invoicing Entity Details</div>
+                {/* Billing Form Fields */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="sm:col-span-2 space-y-1">
+                    <label className="font-semibold text-slate-700 text-xs">Customer / Company Name *</label>
+                    <input
+                      type="text"
+                      disabled={isBillingSame}
+                      readOnly={isBillingSame}
+                      value={billingForm.name}
+                      onChange={(e) => setBillingForm({ ...billingForm, name: e.target.value })}
+                      placeholder="e.g. Apex Logistics Solutions Pvt Ltd"
+                      className={`w-full px-3.5 py-2.5 rounded-xl border outline-none font-medium text-xs sm:text-sm transition-all ${
+                        isBillingSame
+                          ? 'bg-slate-100 text-slate-700 border-slate-200 cursor-not-allowed select-none'
+                          : 'bg-white text-slate-900 border-slate-300 focus:ring-2 focus:ring-brand-500 focus:border-brand-500'
+                      }`}
+                    />
+                    {errors.billing_name && <p className="text-red-500 text-[11px]">{errors.billing_name}</p>}
+                  </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="sm:col-span-2 space-y-1">
-                        <label className="font-semibold text-slate-700">Company / Firm Name *</label>
-                        <input
-                          type="text"
-                          value={billingForm.name}
-                          onChange={(e) => setBillingForm({ ...billingForm, name: e.target.value })}
-                          placeholder="e.g. Apex Logistics Solutions Pvt Ltd"
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-brand-500 outline-none"
-                        />
-                        {errors.billing_name && <p className="text-red-500 text-[11px]">{errors.billing_name}</p>}
-                      </div>
+                  <div className="space-y-1">
+                    <label className="font-semibold text-slate-700 text-xs">Billing Phone *</label>
+                    <PhoneInputField
+                      country={'in'}
+                      disabled={isBillingSame}
+                      value={billingForm.phone}
+                      onChange={(phone) => setBillingForm({ ...billingForm, phone })}
+                      inputClass={`!w-full !h-10 !text-xs !rounded-xl transition-all ${
+                        isBillingSame
+                          ? '!bg-slate-100/90 !text-slate-500 !border-slate-200 !cursor-not-allowed'
+                          : '!bg-white !text-slate-900 !border-slate-300'
+                      }`}
+                      buttonClass={`!rounded-l-xl ${isBillingSame ? '!bg-slate-100/90 !border-slate-200' : '!bg-white !border-slate-300'}`}
+                      containerClass="!w-full"
+                    />
+                    {errors.billing_phone && <p className="text-red-500 text-[11px]">{errors.billing_phone}</p>}
+                  </div>
 
-                      <div className="space-y-1">
-                        <label className="font-semibold text-slate-700">Billing Phone *</label>
-                        <PhoneInputField
-                          country={'in'}
-                          value={billingForm.phone}
-                          onChange={(phone) => setBillingForm({ ...billingForm, phone })}
-                          inputClass="!w-full !h-10 !text-xs !bg-white !rounded-xl !border-slate-300"
-                          buttonClass="!bg-white !border-slate-300 !rounded-l-xl"
-                          containerClass="!w-full"
-                        />
-                        {errors.billing_phone && <p className="text-red-500 text-[11px]">{errors.billing_phone}</p>}
-                      </div>
+                  <div className="space-y-1">
+                    <label className="font-semibold text-slate-700 text-xs">Billing Email *</label>
+                    <input
+                      type="email"
+                      disabled={isBillingSame}
+                      readOnly={isBillingSame}
+                      value={billingForm.email}
+                      onChange={(e) => setBillingForm({ ...billingForm, email: e.target.value })}
+                      placeholder="billing@apexlogistics.in"
+                      className={`w-full px-3.5 py-2.5 rounded-xl border outline-none font-medium text-xs sm:text-sm transition-all ${
+                        isBillingSame
+                          ? 'bg-slate-100/90 text-slate-500 border-slate-200 cursor-not-allowed select-none'
+                          : 'bg-white text-slate-900 border-slate-300 focus:ring-2 focus:ring-brand-500 focus:border-brand-500'
+                      }`}
+                    />
+                    {errors.billing_email && <p className="text-red-500 text-[11px]">{errors.billing_email}</p>}
+                  </div>
 
-                      <div className="space-y-1">
-                        <label className="font-semibold text-slate-700">Billing Email *</label>
-                        <input
-                          type="email"
-                          value={billingForm.email}
-                          onChange={(e) => setBillingForm({ ...billingForm, email: e.target.value })}
-                          placeholder="billing@apexlogistics.in"
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-brand-500 outline-none"
-                        />
-                        {errors.billing_email && <p className="text-red-500 text-[11px]">{errors.billing_email}</p>}
-                      </div>
+                  <div className="sm:col-span-2 space-y-1">
+                    <label className="font-semibold text-slate-700 text-xs">Address Line 1 *</label>
+                    <input
+                      type="text"
+                      disabled={isBillingSame}
+                      readOnly={isBillingSame}
+                      value={billingForm.addressLine1}
+                      onChange={(e) => setBillingForm({ ...billingForm, addressLine1: e.target.value })}
+                      placeholder="Registered corporate address"
+                      className={`w-full px-3.5 py-2.5 rounded-xl border outline-none font-medium text-xs sm:text-sm transition-all ${
+                        isBillingSame
+                          ? 'bg-slate-100/90 text-slate-500 border-slate-200 cursor-not-allowed select-none'
+                          : 'bg-white text-slate-900 border-slate-300 focus:ring-2 focus:ring-brand-500 focus:border-brand-500'
+                      }`}
+                    />
+                    {errors.billing_address1 && <p className="text-red-500 text-[11px]">{errors.billing_address1}</p>}
+                  </div>
 
-                      <div className="sm:col-span-2 space-y-1">
-                        <label className="font-semibold text-slate-700">Address Line 1 *</label>
-                        <input
-                          type="text"
-                          value={billingForm.addressLine1}
-                          onChange={(e) => setBillingForm({ ...billingForm, addressLine1: e.target.value })}
-                          placeholder="Registered corporate address"
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-brand-500 outline-none"
-                        />
-                        {errors.billing_address1 && <p className="text-red-500 text-[11px]">{errors.billing_address1}</p>}
-                      </div>
+                  <div className="sm:col-span-2 space-y-1">
+                    <label className="font-semibold text-slate-700 text-xs">Address Line 2 (Optional)</label>
+                    <input
+                      type="text"
+                      disabled={isBillingSame}
+                      readOnly={isBillingSame}
+                      value={billingForm.addressLine2}
+                      onChange={(e) => setBillingForm({ ...billingForm, addressLine2: e.target.value })}
+                      placeholder="Area, landmark (Optional)"
+                      className={`w-full px-3.5 py-2.5 rounded-xl border outline-none font-medium text-xs sm:text-sm transition-all ${
+                        isBillingSame
+                          ? 'bg-slate-100/90 text-slate-500 border-slate-200 cursor-not-allowed select-none'
+                          : 'bg-white text-slate-900 border-slate-300 focus:ring-2 focus:ring-brand-500 focus:border-brand-500'
+                      }`}
+                    />
+                  </div>
 
-                      <div className="sm:col-span-2 space-y-1">
-                        <label className="font-semibold text-slate-700">Address Line 2</label>
-                        <input
-                          type="text"
-                          value={billingForm.addressLine2}
-                          onChange={(e) => setBillingForm({ ...billingForm, addressLine2: e.target.value })}
-                          placeholder="Area, landmark (Optional)"
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-brand-500 outline-none"
-                        />
-                      </div>
+                  {/* Postal PIN Code */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <label className="font-semibold text-slate-700 text-xs">Postal PIN Code *</label>
+                      {!isBillingSame && billingPincodeLoading && (
+                        <span className="text-[11px] text-brand-600 flex items-center gap-1 font-medium">
+                          <span className="w-3 h-3 border-2 border-brand-600 border-t-transparent rounded-full animate-spin"></span>
+                          Fetching...
+                        </span>
+                      )}
+                      {!isBillingSame && billingPincodeMsg && (
+                        <span className={`text-[11px] font-medium ${billingPincodeMsg.success ? 'text-emerald-600 font-semibold' : 'text-amber-600'}`}>
+                          {billingPincodeMsg.success ? `✓ ${billingPincodeMsg.text}` : billingPincodeMsg.text}
+                        </span>
+                      )}
+                    </div>
+                    <input
+                      type="text"
+                      disabled={isBillingSame}
+                      readOnly={isBillingSame}
+                      value={billingForm.pincode}
+                      onChange={(e) => handleBillingPincodeChange(e.target.value)}
+                      placeholder="e.g. 560038"
+                      maxLength={6}
+                      className={`w-full px-3.5 py-2.5 rounded-xl border outline-none transition-all font-mono font-bold tracking-wider text-xs sm:text-sm ${
+                        isBillingSame
+                          ? 'bg-slate-100/90 text-slate-500 border-slate-200 cursor-not-allowed select-none'
+                          : errors.billing_pincode 
+                            ? 'border-red-400 bg-red-50/20 text-slate-900' 
+                            : 'border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-brand-500 focus:border-brand-500'
+                      }`}
+                    />
+                    {errors.billing_pincode && <p className="text-red-500 text-[11px]">{errors.billing_pincode}</p>}
+                  </div>
 
-                      <div className="space-y-1">
-                        <label className="font-semibold text-slate-700">Country *</label>
-                        <CountrySelect
-                          defaultValue={{ id: 101, name: billingForm.country || 'India' }}
-                          onChange={(val) => {
-                            setBillingCountryId(val.id);
-                            setBillingForm({ ...billingForm, country: val.name });
-                          }}
-                          placeHolder="Select Country"
-                        />
-                      </div>
+                  {/* City / District * */}
+                  <div className="space-y-1">
+                    <label className="font-semibold text-slate-700 text-xs flex items-center justify-between">
+                      <span>City / District *</span>
+                      <span className="text-[10px] text-slate-400 font-normal">Auto-filled</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={billingForm.city}
+                      readOnly
+                      disabled
+                      placeholder="Auto-filled from PIN"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-100/90 text-slate-500 cursor-not-allowed outline-none font-medium text-xs sm:text-sm"
+                    />
+                    {errors.billing_city && <p className="text-red-500 text-[11px]">{errors.billing_city}</p>}
+                  </div>
 
-                      <div className="space-y-1">
-                        <label className="font-semibold text-slate-700">State *</label>
-                        <StateSelect
-                          countryid={billingCountryId}
-                          defaultValue={billingForm.state ? { name: billingForm.state } : undefined}
-                          onChange={(val) => {
-                            setBillingStateId(val.id);
-                            setBillingForm({ ...billingForm, state: val.name });
-                          }}
-                          placeHolder={billingForm.state || 'Select State'}
-                        />
-                        {errors.billing_state && <p className="text-red-500 text-[11px]">{errors.billing_state}</p>}
-                      </div>
+                  {/* State * */}
+                  <div className="space-y-1">
+                    <label className="font-semibold text-slate-700 text-xs flex items-center justify-between">
+                      <span>State *</span>
+                      <span className="text-[10px] text-slate-400 font-normal">Auto-filled</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={billingForm.state}
+                      readOnly
+                      disabled
+                      placeholder="Auto-filled from PIN"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-100/90 text-slate-500 cursor-not-allowed outline-none font-medium text-xs sm:text-sm"
+                    />
+                    {errors.billing_state && <p className="text-red-500 text-[11px]">{errors.billing_state}</p>}
+                  </div>
 
-                      <div className="space-y-1">
-                        <label className="font-semibold text-slate-700">City *</label>
-                        <CitySelect
-                          countryid={billingCountryId}
-                          stateid={billingStateId}
-                          defaultValue={billingForm.city ? { name: billingForm.city } : undefined}
-                          onChange={(val) => {
-                            setBillingForm({ ...billingForm, city: val.name });
-                          }}
-                          placeHolder={billingForm.city || 'Select City'}
-                        />
-                        {errors.billing_city && <p className="text-red-500 text-[11px]">{errors.billing_city}</p>}
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="font-semibold text-slate-700">Pincode *</label>
-                        <input
-                          type="text"
-                          value={billingForm.pincode}
-                          onChange={(e) => setBillingForm({ ...billingForm, pincode: e.target.value.replace(/\D/g, '').slice(0, 6) })}
-                          placeholder="560038"
-                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-brand-500 outline-none font-mono"
-                        />
-                        {errors.billing_pincode && <p className="text-red-500 text-[11px]">{errors.billing_pincode}</p>}
-                      </div>
+                  {/* Country (India Only) */}
+                  <div className="space-y-1">
+                    <label className="font-semibold text-slate-700 text-xs">Country</label>
+                    <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 font-medium text-xs sm:text-sm select-none">
+                      <span className="text-lg">🇮🇳</span>
+                      <span>India</span>
+                      <span className="ml-auto text-[11px] text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                        Pan-India Delivery
+                      </span>
                     </div>
                   </div>
-                )}
+                </div>
 
                 {/* Order Remarks */}
                 <div className="space-y-1.5 text-xs">
@@ -1269,18 +1588,25 @@ export default function CheckoutStepper() {
                             </div>
                           </div>
 
-                          <div className="space-y-1">
-                            <label className="font-semibold text-slate-800">Bank UTR / Transaction Reference ID *</label>
+                          <div className="space-y-1.5 pt-1">
+                            <div className="flex items-center justify-between">
+                              <label className="font-semibold text-slate-800 text-xs">
+                                Bank UTR / Transaction Reference ID
+                              </label>
+                              <span className="text-[10px] font-medium text-slate-500 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">
+                                Optional
+                              </span>
+                            </div>
                             <input
                               type="text"
                               value={utrNumber}
                               onChange={(e) => setUtrNumber(e.target.value.toUpperCase())}
-                              placeholder="e.g. UTR-HDFC-98213876"
-                              className={`w-full px-3 py-2 rounded-lg border bg-white text-slate-900 font-mono text-xs focus:ring-2 focus:ring-amber-500 outline-none ${
-                                errors.utr_number ? 'border-red-400' : 'border-amber-300'
-                              }`}
+                              placeholder="e.g. UTR-HDFC-98213876 (optional)"
+                              className="w-full px-3 py-2 rounded-lg border border-amber-300 bg-white text-slate-900 font-mono text-xs focus:ring-2 focus:ring-amber-500 outline-none"
                             />
-                            {errors.utr_number && <p className="text-red-500 text-[11px]">{errors.utr_number}</p>}
+                            <p className="text-[11px] text-slate-500 leading-relaxed">
+                              You can provide your bank reference number now or add it later from your Order History after wiring the funds.
+                            </p>
                           </div>
                         </div>
                       )}
@@ -1383,7 +1709,7 @@ export default function CheckoutStepper() {
                     ) : paymentMethod === 'PartialCOD' ? (
                       <>Pay Deposit (₹{partialOnlineAmount.toFixed(2)}) <ArrowRight className="w-4 h-4" /></>
                     ) : paymentMethod === 'OfflineTransfer' ? (
-                      <>Submit Order with UTR</>
+                      <>Submit Bank Transfer Order <ArrowRight className="w-4 h-4" /></>
                     ) : (
                       <>Confirm COD Order <ArrowRight className="w-4 h-4" /></>
                     )}
@@ -1461,6 +1787,7 @@ export default function CheckoutStepper() {
                     </button>
                   </div>
                 )}
+                {renderAvailableOffers()}
               </div>
 
               {/* Financial Calculation Breakdown */}

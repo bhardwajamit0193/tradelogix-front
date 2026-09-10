@@ -35,9 +35,13 @@ export default function UserMenuDropdown() {
       );
     }
 
+    const loginUrl = typeof window !== 'undefined' && window.location.pathname !== '/login'
+      ? `/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`
+      : '/login';
+
     return (
       <a
-        href="/login"
+        href={loginUrl}
         className="px-4 py-2 text-xs font-semibold rounded-xl bg-brand-600 hover:bg-brand-500 text-white transition-all shadow-glow-primary flex items-center gap-1.5"
       >
         <User className="w-3.5 h-3.5" />
@@ -48,9 +52,13 @@ export default function UserMenuDropdown() {
 
   // If user is not logged in after hydration
   if (!user || !user.isLoggedIn) {
+    const loginUrl = typeof window !== 'undefined' && window.location.pathname !== '/login'
+      ? `/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`
+      : '/login';
+
     return (
       <a
-        href="/login"
+        href={loginUrl}
         className="px-4 py-2 text-xs font-semibold rounded-xl bg-brand-600 hover:bg-brand-500 text-white transition-all shadow-glow-primary flex items-center gap-1.5"
       >
         <User className="w-3.5 h-3.5" />

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { toast } from 'sonner';
 import { signInApi, setSession } from '../../store/authStore.js';
 import { Lock, Mail, ArrowRight, AlertCircle } from 'lucide-react';
 
@@ -21,12 +22,15 @@ export default function AdminLoginForm() {
       // Strict client-side check to ensure the user has the Admin role
       if (data.role && data.role.toLowerCase() === 'admin') {
         setSession(data);
+        toast.success('Administrator authenticated successfully');
         window.location.href = '/admin';
       } else {
         throw new Error('Access Denied: You do not have administrator privileges.');
       }
     } catch (err) {
-      setError(err.message || 'Login failed. Please check your credentials.');
+      const msg = err.message || 'Login failed. Please check your credentials.';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setIsLoading(false);
     }

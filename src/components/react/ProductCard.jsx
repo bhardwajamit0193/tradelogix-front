@@ -127,7 +127,7 @@ export default function ProductCard({ product }) {
           </>
         ) : (
           <a
-            href="/login"
+            href={typeof window !== 'undefined' ? `/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}` : (product.slug ? `/login?redirect=${encodeURIComponent(`/shop/${product.slug}`)}` : '/login')}
             className="w-full text-center py-2.5 px-4 rounded-xl border border-brand-200 text-brand-600 bg-brand-50 hover:bg-brand-100 font-semibold text-xs transition-colors"
           >
             Sign In to View Price

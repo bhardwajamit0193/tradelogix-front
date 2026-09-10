@@ -1,10 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { toast } from 'sonner';
 import {
   fetchOrderByIdApi,
   updateOrderStatus,
   verifyOfflinePayment,
+  updateOrderUtr,
   collectPartialBalance,
+  uploadOrderInvoicePdfApi,
+  updateOrderInvoicePdfApi,
 } from '../../services/orderService.js';
+import { confirmDialog } from '../../utils/dialogs.js';
 import { formatPrice } from '../../utils/formatters.js';
 import {
   ArrowLeft,
@@ -33,8 +38,20 @@ import {
   Send,
   Info,
   Ban,
+  UploadCloud,
+  Trash2,
+  ExternalLink,
+  FileCheck,
+  Eye,
+  Upload,
 } from 'lucide-react';
-import { generateAndDownloadInvoicePdf } from './InvoicePdfDocument.jsx';
+
+const getFullInvoiceUrl = (url) => {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  const baseUrl = (typeof window !== 'undefined' && window.__PUBLIC_API_URL__) || 'http://localhost:6543';
+  return `${baseUrl.replace(/\/$/, '')}${url.startsWith('/') ? url : `/${url}`}`;
+};
 
 export default function AdminOrderDetailView({ orderId: initialOrderId }) {
   const getOrderId = () => {
@@ -49,7 +66,6 @@ export default function AdminOrderDetailView({ orderId: initialOrderId }) {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
-  const [successNotice, setSuccessNotice] = useState('');
   const [adminNotesInput, setAdminNotesInput] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
 
@@ -57,6 +73,15 @@ export default function AdminOrderDetailView({ orderId: initialOrderId }) {
   const [cancelReasonInput, setCancelReasonInput] = useState('');
   const [carrierNameInput, setCarrierNameInput] = useState('');
   const [trackingNumberInput, setTrackingNumberInput] = useState('');
+  const [utrInput, setUtrInput] = useState('');
+
+  // Manual Invoice PDF Management States
+  const [invoiceNumberInput, setInvoiceNumberInput] = useState('');
+  const [isUploadingInvoice, setIsUploadingInvoice] = useState(false);
+  const [isSavingInvoiceNumber, setIsSavingInvoiceNumber] = useState(false);
+  const [selectedInvoiceFile, setSelectedInvoiceFile] = useState(null);
+  const [isDraggingInvoice, setIsDraggingInvoice] = useState(false);
+  const invoiceFileInputRef = useRef(null);
 
   const loadData = async () => {
     const idToFetch = getOrderId();
@@ -72,6 +97,8 @@ export default function AdminOrderDetailView({ orderId: initialOrderId }) {
       setCancelReasonInput(data.cancelReason || '');
       setCarrierNameInput(data.carrierName || '');
       setTrackingNumberInput(data.trackingNumber || '');
+      setUtrInput(data.offlineUtrNumber || '');
+      setInvoiceNumberInput(data.invoiceNumber || data.id || '');
     }
     setLoading(false);
   };
@@ -81,8 +108,11 @@ export default function AdminOrderDetailView({ orderId: initialOrderId }) {
   }, [initialOrderId]);
 
   const showNotification = (msg) => {
-    setSuccessNotice(msg);
-    setTimeout(() => setSuccessNotice(''), 4500);
+    if (msg.startsWith('⚠️')) {
+      toast.warning(msg.replace(/^⚠️\s*/, ''));
+    } else {
+      toast.success(msg);
+    }
   };
 
   const handleApplyStatusUpdate = async () => {
@@ -168,10 +198,37 @@ export default function AdminOrderDetailView({ orderId: initialOrderId }) {
     showNotification('Consignment marked as Dispatched & live tracking email sent to customer!');
   };
 
+  const handleSaveUtr = async () => {
+    if (!order) return;
+    if (!utrInput || !utrInput.trim()) {
+      toast.warning('Please enter a Bank UTR Transaction Reference');
+      return;
+    }
+    setIsUpdating(true);
+    try {
+      const updatedList = await updateOrderUtr(order.id, utrInput.trim());
+      const matched = updatedList.find((o) => o.id === order.id);
+      if (matched) {
+        setOrder(matched);
+      } else {
+        setOrder({ ...order, offlineUtrNumber: utrInput.trim() });
+      }
+      toast.success('Bank UTR Transaction Reference saved successfully!');
+    } catch (e) {
+      toast.error('Failed to update Bank UTR number');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   const handleVerifyOffline = async () => {
     if (!order) return;
     setIsUpdating(true);
-    const updatedList = await verifyOfflinePayment(order.id, adminNotesInput || 'NEFT bank credit verified by admin');
+    const updatedList = await verifyOfflinePayment(
+      order.id,
+      adminNotesInput || 'NEFT bank credit verified by admin',
+      utrInput.trim() || order.offlineUtrNumber || ''
+    );
     const matched = updatedList.find((o) => o.id === order.id);
     if (matched) {
       setOrder(matched);
@@ -180,6 +237,7 @@ export default function AdminOrderDetailView({ orderId: initialOrderId }) {
         ...order,
         paymentStatus: 'Paid (Verified NEFT)',
         isOfflineVerified: true,
+        offlineUtrNumber: utrInput.trim() || order.offlineUtrNumber,
         status: 'Processing',
         fulfillmentStatus: 'Processing',
       });
@@ -204,6 +262,129 @@ export default function AdminOrderDetailView({ orderId: initialOrderId }) {
     }
     setIsUpdating(false);
     showNotification('90% COD Balance collected and recorded!');
+  };
+
+  const handleSelectInvoiceFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      toast.error('Only PDF documents (.pdf) are permitted for tax invoices.');
+      return;
+    }
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error('Invoice PDF exceeds the 25 MB limit.');
+      return;
+    }
+    setSelectedInvoiceFile(file);
+  };
+
+  const handleDropInvoiceFile = (e) => {
+    e.preventDefault();
+    setIsDraggingInvoice(false);
+    const file = e.dataTransfer?.files?.[0];
+    if (!file) return;
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      toast.error('Only PDF documents (.pdf) are permitted for tax invoices.');
+      return;
+    }
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error('Invoice PDF exceeds the 25 MB limit.');
+      return;
+    }
+    setSelectedInvoiceFile(file);
+  };
+
+  const handleUploadInvoicePdf = async () => {
+    if (!selectedInvoiceFile || !order) return;
+
+    if (order.invoicePdfUrl) {
+      const confirmReplace = await confirmDialog({
+        title: 'Replace Existing Invoice?',
+        text: 'Uploading a new PDF will automatically delete the old invoice file permanently. Each order only retains one invoice. Proceed?',
+        icon: 'warning',
+        confirmButtonText: 'Yes, Replace & Delete Old',
+        confirmButtonColor: '#2563eb',
+      });
+      if (!confirmReplace) return;
+    }
+
+    setIsUploadingInvoice(true);
+    try {
+      const res = await uploadOrderInvoicePdfApi(order.id, selectedInvoiceFile);
+      setOrder((prev) => ({
+        ...prev,
+        invoicePdfUrl: res.invoicePdfUrl,
+        invoiceNumber: res.invoiceNumber || invoiceNumberInput.trim() || prev.invoiceNumber,
+      }));
+      if (res.invoiceNumber) {
+        setInvoiceNumberInput(res.invoiceNumber);
+      }
+      setSelectedInvoiceFile(null);
+      if (invoiceFileInputRef.current) {
+        invoiceFileInputRef.current.value = '';
+      }
+      toast.success('New invoice uploaded. Previous invoice file was automatically deleted!');
+    } catch (err) {
+      console.error(err);
+      toast.error(err.message || 'Failed to upload invoice PDF');
+    } finally {
+      setIsUploadingInvoice(false);
+    }
+  };
+
+  const handleSaveInvoiceNumber = async () => {
+    if (!order) return;
+    setIsSavingInvoiceNumber(true);
+    try {
+      await updateOrderInvoicePdfApi(order.id, order.invoicePdfUrl, invoiceNumberInput.trim());
+      setOrder((prev) => ({
+        ...prev,
+        invoiceNumber: invoiceNumberInput.trim(),
+      }));
+      toast.success('Invoice number updated successfully!');
+    } catch (err) {
+      toast.error(err.message || 'Failed to update invoice number');
+    } finally {
+      setIsSavingInvoiceNumber(false);
+    }
+  };
+
+  const handleDeleteInvoicePdf = async () => {
+    if (!order || !order.invoicePdfUrl) return;
+    const ok = await confirmDialog({
+      title: 'Delete Invoice PDF?',
+      text: 'This will permanently delete the invoice PDF file from the server. Are you sure?',
+      confirmButtonText: 'Yes, Delete Permanently',
+      confirmButtonColor: '#dc2626',
+    });
+    if (!ok) return;
+
+    setIsUploadingInvoice(true);
+    try {
+      await updateOrderInvoicePdfApi(order.id, null, invoiceNumberInput.trim() || null);
+      setOrder((prev) => ({
+        ...prev,
+        invoicePdfUrl: null,
+      }));
+      setSelectedInvoiceFile(null);
+      if (invoiceFileInputRef.current) {
+        invoiceFileInputRef.current.value = '';
+      }
+      toast.success('Invoice PDF file permanently deleted from server.');
+    } catch (err) {
+      toast.error(err.message || 'Failed to remove invoice PDF');
+    } finally {
+      setIsUploadingInvoice(false);
+    }
+  };
+
+  const handleDownloadInvoice = () => {
+    if (!order?.invoicePdfUrl) {
+      toast.info('No invoice PDF has been uploaded yet. Please upload the official invoice PDF using the upload field below.');
+      return;
+    }
+    const fullUrl = getFullInvoiceUrl(order.invoicePdfUrl);
+    window.open(fullUrl, '_blank');
   };
 
   if (loading) {
@@ -326,30 +507,35 @@ export default function AdminOrderDetailView({ orderId: initialOrderId }) {
           </button>
 
           <button
-            onClick={() => generateAndDownloadInvoicePdf(order)}
-            className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold transition-all inline-flex items-center gap-1.5 shadow-md shadow-brand-500/20"
+            type="button"
+            onClick={handleDownloadInvoice}
+            className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold transition-all inline-flex items-center gap-1.5 shadow-md shadow-brand-500/20 cursor-pointer"
+            title={order.invoicePdfUrl ? 'Download Official Tax Invoice PDF' : 'Upload invoice PDF first'}
           >
             <Download className="w-3.5 h-3.5" /> Download Invoice (PDF)
           </button>
 
-          <a
-            href={`/admin/orders/${order.id}/invoice`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold transition-all inline-flex items-center gap-1.5 shadow-sm"
-          >
-            <FileText className="w-3.5 h-3.5 text-slate-500" /> View Invoice
-          </a>
+          {order.invoicePdfUrl ? (
+            <a
+              href={getFullInvoiceUrl(order.invoicePdfUrl)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold transition-all inline-flex items-center gap-1.5 shadow-sm"
+            >
+              <FileText className="w-3.5 h-3.5 text-slate-500" /> View Invoice
+            </a>
+          ) : (
+            <button
+              type="button"
+              onClick={() => toast.info('No invoice PDF has been uploaded yet. Please upload it using the section below.')}
+              className="px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-slate-400 hover:bg-slate-50 text-xs font-bold transition-all inline-flex items-center gap-1.5 shadow-sm cursor-pointer"
+              title="Upload invoice PDF below"
+            >
+              <FileText className="w-3.5 h-3.5 text-slate-400" /> View Invoice
+            </button>
+          )}
         </div>
       </div>
-
-      {/* Success Notification Alert */}
-      {successNotice && (
-        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-center gap-3 animate-fadeIn text-xs font-bold shadow-sm">
-          <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-          <span>{successNotice}</span>
-        </div>
-      )}
 
       {/* Main Order Header Card */}
       <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
@@ -616,31 +802,84 @@ export default function AdminOrderDetailView({ orderId: initialOrderId }) {
               </div>
             </div>
 
-            {/* Offline Bank Transfer Verification Section */}
-            {order.paymentMethod === 'OfflineTransfer' && (
-              <div className="p-5 rounded-2xl bg-white border border-amber-200 space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-                  <div className="space-y-0.5">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700">Bank UTR Transaction Reference</span>
-                    <div className="font-mono font-bold text-slate-900 text-sm">{order.offlineUtrNumber || 'N/A'}</div>
+            {/* Bank UTR Transaction Reference Section */}
+            <div className="p-5 rounded-2xl bg-amber-50/70 border border-amber-200 space-y-3.5 shadow-2xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-amber-200/80">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-800 shrink-0">
+                    <Building2 className="w-4 h-4" />
                   </div>
-                  {order.isOfflineVerified ? (
-                    <div className="px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold inline-flex items-center gap-1.5">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                      NEFT Credit Verified by Admin
-                    </div>
+                  <div>
+                    <h4 className="font-bold text-slate-900 text-xs sm:text-sm flex items-center gap-2">
+                      <span>Bank UTR Transaction Reference</span>
+                      <span className="text-[10px] font-mono font-normal text-slate-500">(NEFT / RTGS / IMPS)</span>
+                    </h4>
+                    <p className="text-[11px] text-slate-500">
+                      Record, update, or audit the official banking transaction reference / UTR number for this order.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  {order.offlineUtrNumber ? (
+                    <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] font-bold">
+                      UTR RECORDED
+                    </span>
                   ) : (
+                    <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-bold">
+                      UTR PENDING
+                    </span>
+                  )}
+
+                  {order.isOfflineVerified && (
+                    <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-bold inline-flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                      NEFT VERIFIED
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* UTR Input & Action Buttons */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-amber-900 block">
+                  Bank UTR Reference Number
+                </label>
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+                  <div className="relative flex-1">
+                    <input
+                      type="text"
+                      value={utrInput}
+                      onChange={(e) => setUtrInput(e.target.value)}
+                      placeholder="e.g. UTR-2026-982019482 or SBIN00012345678"
+                      className="w-full px-4 py-2.5 rounded-xl border border-amber-300 bg-white text-slate-900 text-xs font-mono font-bold focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none shadow-2xs"
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleSaveUtr}
+                    disabled={isUpdating || !utrInput.trim()}
+                    className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-sm transition-all inline-flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer whitespace-nowrap"
+                  >
+                    <Save className="w-3.5 h-3.5 text-amber-400" />
+                    <span>{order.offlineUtrNumber ? 'Update UTR' : 'Save UTR'}</span>
+                  </button>
+
+                  {order.paymentMethod === 'OfflineTransfer' && !order.isOfflineVerified && (
                     <button
+                      type="button"
                       onClick={handleVerifyOffline}
                       disabled={isUpdating}
-                      className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-md inline-flex items-center gap-2"
+                      className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-md inline-flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer whitespace-nowrap"
                     >
-                      <ShieldCheck className="w-4 h-4" /> Verify NEFT Bank Payment
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      <span>Verify NEFT Payment</span>
                     </button>
                   )}
                 </div>
               </div>
-            )}
+            </div>
 
             {/* Partial COD 10%/90% Breakdown and Collection */}
             {order.paymentMethod === 'PartialCOD' && (
@@ -682,6 +921,261 @@ export default function AdminOrderDetailView({ orderId: initialOrderId }) {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+
+        {/* ================= OFFICIAL TAX INVOICE PDF (MANUAL UPLOAD) ================= */}
+        <div className="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+          <div className="bg-slate-100/90 px-6 py-3.5 border-b border-slate-200 flex items-center justify-between flex-wrap gap-2">
+            <div className="font-bold text-slate-900 text-xs flex items-center gap-2">
+              <FileText className="w-4 h-4 text-brand-600" />
+              <span>Official Tax Invoice PDF (Manual Upload)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-1 rounded-full bg-slate-200 text-slate-700 border border-slate-300 text-[10px] font-bold">
+                AUTO-GENERATE DISABLED
+              </span>
+              {order.invoicePdfUrl ? (
+                <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 text-[10px] font-bold inline-flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                  INVOICE UPLOADED
+                </span>
+              ) : (
+                <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-bold inline-flex items-center gap-1">
+                  <Clock className="w-3 h-3 text-amber-600" />
+                  INVOICE PENDING UPLOAD
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="p-6 space-y-6">
+            {/* Top Row: Invoice Number Input & Status overview */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-4 bg-white rounded-xl border border-slate-200 space-y-2">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                  Invoice / Tax Bill Reference Number
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={invoiceNumberInput}
+                    onChange={(e) => setInvoiceNumberInput(e.target.value)}
+                    placeholder={order.id || 'INV-2026-0001'}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs font-mono font-bold focus:ring-2 focus:ring-brand-500 outline-none shadow-2xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSaveInvoiceNumber}
+                    disabled={isSavingInvoiceNumber || !invoiceNumberInput.trim()}
+                    className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all shadow-sm shrink-0 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    {isSavingInvoiceNumber ? (
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Save className="w-3.5 h-3.5" />
+                    )}
+                    <span>Save No.</span>
+                  </button>
+                </div>
+                <p className="text-[10px] text-slate-400">
+                  Custom invoice or bill number issued from your accounting or ERP software.
+                </p>
+              </div>
+
+              <div className="p-4 bg-white rounded-xl border border-slate-200 flex flex-col justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                    Invoice Document Status
+                  </span>
+                  <div className="mt-1 flex items-center gap-2">
+                    {order.invoicePdfUrl ? (
+                      <div className="flex items-center gap-2 text-emerald-700 font-bold text-xs">
+                        <FileCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <span>Official PDF document uploaded and available to buyer</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-amber-700 font-medium text-xs">
+                        <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                        <span>No invoice PDF attached. Buyer sees "Invoice Pending Upload".</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-2">
+                  Allowed file format: <strong>.pdf</strong> (max 25MB). Auto-generation is disabled.
+                </p>
+              </div>
+            </div>
+
+            {/* Single Invoice Enforcement Notice */}
+            <div className="p-3.5 bg-blue-50/90 rounded-2xl border border-blue-200/80 flex items-start sm:items-center justify-between text-xs text-blue-950 gap-2 shadow-2xs">
+              <div className="flex items-center gap-2.5">
+                <Info className="w-4 h-4 text-blue-600 shrink-0" />
+                <span className="leading-relaxed">
+                  <strong>Single Active Invoice Rule:</strong> Each order can have only one official invoice PDF. When you upload a replacement or delete it, the old invoice file is permanently and automatically deleted from the server.
+                </span>
+              </div>
+            </div>
+
+            {/* If Invoice Already Uploaded: Preview & Management Card */}
+            {order.invoicePdfUrl && (
+              <div className="p-4 sm:p-5 rounded-2xl bg-emerald-50/70 border border-emerald-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-11 h-11 rounded-2xl bg-emerald-100 border border-emerald-300 flex items-center justify-center text-emerald-800 shrink-0">
+                    <FileText className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className="font-bold text-slate-900 text-sm">
+                        Official Invoice Attached
+                      </h4>
+                      {order.invoiceNumber && (
+                        <span className="px-2 py-0.5 rounded bg-emerald-200 text-emerald-900 font-mono font-bold text-[11px]">
+                          #{order.invoiceNumber}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-600 mt-0.5 font-mono break-all line-clamp-1">
+                      {order.invoicePdfUrl}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-end">
+                  <a
+                    href={getFullInvoiceUrl(order.invoicePdfUrl)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3.5 py-2 rounded-xl bg-white border border-emerald-300 text-emerald-900 hover:bg-emerald-100/50 text-xs font-bold transition-all inline-flex items-center gap-1.5 shadow-2xs"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5 text-emerald-700" /> View PDF
+                  </a>
+                  <a
+                    href={getFullInvoiceUrl(order.invoicePdfUrl)}
+                    download={`Invoice-${order.invoiceNumber || order.id}.pdf`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all inline-flex items-center gap-1.5 shadow-sm shadow-emerald-500/20"
+                  >
+                    <Download className="w-3.5 h-3.5" /> Download
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => invoiceFileInputRef.current?.click()}
+                    disabled={isUploadingInvoice}
+                    className="px-3.5 py-2 rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 text-xs font-bold transition-all inline-flex items-center gap-1.5 shadow-2xs cursor-pointer disabled:opacity-50"
+                  >
+                    <Upload className="w-3.5 h-3.5 text-slate-600" /> Replace
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDeleteInvoicePdf}
+                    disabled={isUploadingInvoice}
+                    className="px-3.5 py-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 text-xs font-bold transition-all inline-flex items-center gap-1.5 shadow-2xs cursor-pointer disabled:opacity-50"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-rose-600" /> Delete
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* File Dropzone & Upload Picker */}
+            <div
+              onDragOver={(e) => {
+                e.preventDefault();
+                setIsDraggingInvoice(true);
+              }}
+              onDragLeave={() => setIsDraggingInvoice(false)}
+              onDrop={handleDropInvoiceFile}
+              className={`border-2 border-dashed rounded-2xl p-6 sm:p-8 text-center transition-all ${
+                isDraggingInvoice
+                  ? 'border-brand-500 bg-brand-50/50 scale-[1.005]'
+                  : 'border-slate-300 hover:border-slate-400 bg-white'
+              }`}
+            >
+              <input
+                type="file"
+                ref={invoiceFileInputRef}
+                onChange={handleSelectInvoiceFile}
+                accept=".pdf,application/pdf"
+                className="hidden"
+              />
+
+              <div className="max-w-md mx-auto space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-brand-50 border border-brand-200 flex items-center justify-center text-brand-600 mx-auto shadow-2xs">
+                  <UploadCloud className="w-6 h-6" />
+                </div>
+                <div>
+                  <h5 className="font-bold text-slate-900 text-xs sm:text-sm">
+                    {order.invoicePdfUrl ? 'Upload Replacement Invoice PDF' : 'Upload Official Tax Invoice PDF'}
+                  </h5>
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Drag and drop your signed GST invoice PDF here, or click to browse.
+                  </p>
+                </div>
+
+                {selectedInvoiceFile ? (
+                  <div className="p-3 bg-brand-50/80 border border-brand-200 rounded-xl flex items-center justify-between text-left gap-3 animate-fadeIn">
+                    <div className="flex items-center gap-2.5 overflow-hidden">
+                      <FileText className="w-5 h-5 text-brand-600 shrink-0" />
+                      <div className="overflow-hidden">
+                        <div className="text-xs font-bold text-brand-950 truncate">
+                          {selectedInvoiceFile.name}
+                        </div>
+                        <div className="text-[10px] text-brand-700">
+                          {(selectedInvoiceFile.size / (1024 * 1024)).toFixed(2)} MB • Ready to upload
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedInvoiceFile(null)}
+                        disabled={isUploadingInvoice}
+                        className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                        title="Clear selected file"
+                      >
+                        <XCircle className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleUploadInvoicePdf}
+                        disabled={isUploadingInvoice}
+                        className="px-4 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold transition-all shadow-sm inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                      >
+                        {isUploadingInvoice ? (
+                          <>
+                            <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            <span>Uploading...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-3.5 h-3.5" />
+                            <span>Confirm & Upload</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => invoiceFileInputRef.current?.click()}
+                      disabled={isUploadingInvoice}
+                      className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] inline-flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                    >
+                      <Upload className="w-3.5 h-3.5 text-brand-400" />
+                      <span>Browse PDF File</span>
+                    </button>
+                    <p className="text-[10px] text-slate-400 mt-2">
+                      Accepted file: Adobe PDF (.pdf) • Maximum file size: 25 Megabytes
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { toast } from 'sonner';
 import {
   fetchOrdersApi,
 } from '../../services/orderService.js';
@@ -24,7 +25,13 @@ import {
   Download,
   Loader2,
 } from 'lucide-react';
-import { generateAndDownloadInvoicePdf } from './InvoicePdfDocument.jsx';
+
+const getFullInvoiceUrl = (url) => {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  const baseUrl = (typeof window !== 'undefined' && window.__PUBLIC_API_URL__) || 'http://localhost:6543';
+  return `${baseUrl.replace(/\/$/, '')}${url.startsWith('/') ? url : `/${url}`}`;
+};
 
 export default function OrderTable() {
   const [orders, setOrders] = useState([]);
@@ -38,17 +45,15 @@ export default function OrderTable() {
   const [pageSize, setPageSize] = useState(10);
   const [downloadingOrderId, setDownloadingOrderId] = useState(null);
 
-  const handleDownloadInvoice = async (e, order) => {
+  const handleDownloadInvoice = (e, order) => {
     e.preventDefault();
     e.stopPropagation();
-    setDownloadingOrderId(order.id);
-    try {
-      await generateAndDownloadInvoicePdf(order);
-    } catch (err) {
-      console.error('Failed to download invoice PDF', err);
-    } finally {
-      setDownloadingOrderId(null);
+    if (!order.invoicePdfUrl) {
+      toast.info(`Official invoice PDF has not been uploaded yet for order #${order.id}. You can upload it in Order Details.`);
+      return;
     }
+    const fullUrl = getFullInvoiceUrl(order.invoicePdfUrl);
+    window.open(fullUrl, '_blank');
   };
 
   const loadOrders = async () => {
@@ -315,16 +320,15 @@ export default function OrderTable() {
                           <button
                             type="button"
                             onClick={(e) => handleDownloadInvoice(e, order)}
-                            disabled={downloadingOrderId === order.id}
-                            className="px-2.5 py-1.5 rounded-xl bg-brand-50 hover:bg-brand-600 text-brand-700 hover:text-white border border-brand-200 hover:border-brand-600 text-xs font-bold transition-all inline-flex items-center gap-1 shadow-sm disabled:opacity-50"
-                            title="Download Tax Invoice PDF"
+                            className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all inline-flex items-center gap-1 shadow-sm cursor-pointer ${
+                              order.invoicePdfUrl
+                                ? 'bg-brand-50 hover:bg-brand-600 text-brand-700 hover:text-white border border-brand-200 hover:border-brand-600'
+                                : 'bg-slate-100 hover:bg-slate-200 text-slate-500 border border-slate-200'
+                            }`}
+                            title={order.invoicePdfUrl ? 'Download Official Tax Invoice PDF' : 'Invoice PDF pending upload'}
                           >
-                            {downloadingOrderId === order.id ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <Download className="w-3.5 h-3.5" />
-                            )}
-                            <span className="hidden xl:inline">PDF</span>
+                            <Download className="w-3.5 h-3.5" />
+                            <span className="hidden xl:inline">{order.invoicePdfUrl ? 'PDF' : 'Pending'}</span>
                           </button>
                           <a
                             href={orderDetailUrl}

@@ -304,7 +304,43 @@ export async function updateOrderStatus(orderId, newStatus, extraData = {}) {
   return updated;
 }
 
-export async function verifyOfflinePayment(orderId, adminNotes = '') {
+export async function updateOrderUtr(orderId, offlineUtrNumber = '') {
+  const token = getStoredToken();
+  const currentOrders = getOrders();
+  const now = new Date();
+  const updated = currentOrders.map((ord) => {
+    if (ord.id === orderId) {
+      return {
+        ...ord,
+        offlineUtrNumber,
+        updatedAt: now.toISOString(),
+      };
+    }
+    return ord;
+  });
+  ordersState = updated;
+  saveOrdersToStorage(updated);
+
+  try {
+    const res = await fetch(`${API_URL}/orders/${orderId}/utr`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ offlineUtrNumber }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return updated.map((o) => (o.id === orderId ? { ...o, ...(data.data || data) } : o));
+    }
+  } catch (e) {
+    console.warn('Update UTR API failed', e);
+  }
+  return updated;
+}
+
+export async function verifyOfflinePayment(orderId, adminNotes = '', offlineUtrNumber = '') {
   const token = getStoredToken();
   const currentOrders = getOrders();
   const now = new Date();
@@ -318,6 +354,7 @@ export async function verifyOfflinePayment(orderId, adminNotes = '') {
         status: ord.status === 'Pending' ? 'Processing' : ord.status,
         fulfillmentStatus: ord.fulfillmentStatus === 'Pending' ? 'Processing' : ord.fulfillmentStatus,
         adminNotes: adminNotes || ord.adminNotes,
+        offlineUtrNumber: offlineUtrNumber || ord.offlineUtrNumber,
         updatedAt: now.toISOString(),
       };
     }
@@ -333,7 +370,7 @@ export async function verifyOfflinePayment(orderId, adminNotes = '') {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({ adminNotes }),
+      body: JSON.stringify({ adminNotes, offlineUtrNumber }),
     });
   } catch (e) {
     console.warn('Offline verify API update failed', e);
@@ -374,4 +411,39 @@ export async function collectPartialBalance(orderId, notes = '') {
     console.warn('Collect partial balance API update failed', e);
   }
   return updated;
+}
+
+export async function uploadOrderInvoicePdfApi(orderId, file, explicitToken) {
+  const token = explicitToken || getStoredToken();
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await fetch(`${API_URL}/orders/${orderId}/invoice-upload`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || 'Failed to upload invoice PDF');
+  }
+  const data = await res.json();
+  return data.data || data;
+}
+
+export async function updateOrderInvoicePdfApi(orderId, invoicePdfUrl, invoiceNumber, explicitToken) {
+  const token = explicitToken || getStoredToken();
+  const res = await fetch(`${API_URL}/orders/${orderId}/invoice-pdf`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ invoicePdfUrl, invoiceNumber }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || 'Failed to update invoice details');
+  }
+  const data = await res.json();
+  return data.data || data;
 }

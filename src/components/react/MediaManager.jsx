@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { toast } from 'sonner';
+import { confirmDialog } from '../../utils/dialogs.js';
 import { 
   Upload, Image as ImageIcon, Search, LayoutGrid, List, Trash2, 
   Copy, Download, X, Check, RefreshCw, 
@@ -34,7 +36,6 @@ export default function MediaManager() {
   const [editTitle, setEditTitle] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
-  const [toastMessage, setToastMessage] = useState(null);
 
   // Upload Modal State
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -44,8 +45,13 @@ export default function MediaManager() {
   };
 
   const showToast = (msg, type = 'success') => {
-    setToastMessage({ text: msg, type });
-    setTimeout(() => setToastMessage(null), 3500);
+    if (type === 'error') {
+      toast.error(msg);
+    } else if (type === 'warning') {
+      toast.warning(msg);
+    } else {
+      toast.success(msg);
+    }
   };
 
   // Fetch Media Items with Auto-Refresh Auth
@@ -113,14 +119,20 @@ export default function MediaManager() {
   const handleApplyBulkAction = async () => {
     if (!bulkAction) return;
     if (selectedIds.length === 0) {
-      alert('Please select at least one media item.');
+      toast.warning('Please select at least one media item.');
       return;
     }
 
     if (bulkAction === 'delete') {
-      if (!confirm(`Are you sure you want to permanently delete ${selectedIds.length} item(s)?`)) {
-        return;
-      }
+      const ok = await confirmDialog({
+        title: 'Delete Selected Media?',
+        text: `Are you sure you want to permanently delete ${selectedIds.length} item(s)?`,
+        confirmButtonText: 'Yes, Delete',
+        confirmButtonColor: '#e11d48',
+        icon: 'warning',
+      });
+      if (!ok) return;
+
       try {
         const res = await fetchWithAuth(`${API_URL}/media/bulk-delete`, {
           method: 'POST',
@@ -131,21 +143,26 @@ export default function MediaManager() {
         });
 
         if (!res.ok) throw new Error('Failed to delete media items.');
-        showToast(`Successfully deleted ${selectedIds.length} items`);
+        toast.success(`Successfully deleted ${selectedIds.length} items`);
         setSelectedIds([]);
         setBulkAction('');
         fetchMedia();
       } catch (err) {
-        alert(err.message);
+        toast.error(err.message || 'Failed to delete media items.');
       }
     }
   };
 
   // Single Delete
   const handleDeleteSingle = async (item) => {
-    if (!confirm(`Are you sure you want to permanently delete "${item.filename || item.originalName}"?`)) {
-      return;
-    }
+    const ok = await confirmDialog({
+      title: 'Delete Media File?',
+      text: `Are you sure you want to permanently delete "${item.filename || item.originalName}"?`,
+      confirmButtonText: 'Yes, Delete',
+      confirmButtonColor: '#e11d48',
+      icon: 'warning',
+    });
+    if (!ok) return;
 
     try {
       const res = await fetchWithAuth(`${API_URL}/media/${item.id}/delete`, {
@@ -153,14 +170,14 @@ export default function MediaManager() {
       });
 
       if (!res.ok) throw new Error('Failed to delete item.');
-      showToast('Media deleted permanently');
+      toast.success('Media deleted permanently');
       if (editingItem?.id === item.id) {
         setEditingItem(null);
         setViewMode('list');
       }
       fetchMedia();
     } catch (err) {
-      alert(err.message);
+      toast.error(err.message || 'Failed to delete item.');
     }
   };
 
@@ -168,18 +185,16 @@ export default function MediaManager() {
   const handleOpenEdit = (item) => {
     setEditingItem(item);
     setEditTitle(item.filename || item.originalName || '');
-    setCopySuccess(false);
     setViewMode('edit');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Save Edit Details
-  const handleSaveEdit = async () => {
+  // Save Title Changes in Edit Mode
+  const handleSaveDetails = async () => {
     if (!editingItem) return;
     setIsUpdating(true);
     try {
-      const res = await fetchWithAuth(`${API_URL}/media/${editingItem.id}/update`, {
-        method: 'POST',
+      const res = await fetchWithAuth(`${API_URL}/media/${editingItem.id}/metadata`, {
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -187,12 +202,12 @@ export default function MediaManager() {
       });
 
       if (!res.ok) throw new Error('Failed to update media details.');
-      showToast('Media details updated successfully');
+      toast.success('Media details updated successfully');
       // Update local state
       setEditingItem(prev => prev ? { ...prev, originalName: editTitle, filename: editTitle } : null);
       fetchMedia();
     } catch (err) {
-      alert(err.message);
+      toast.error(err.message || 'Failed to update media details.');
     } finally {
       setIsUpdating(false);
     }
@@ -234,14 +249,6 @@ export default function MediaManager() {
 
     return (
       <div className="max-w-7xl mx-auto space-y-6 pb-20 animate-fade-in">
-        {/* Toast Notification */}
-        {toastMessage && (
-          <div className="fixed top-5 right-5 z-50 flex items-center gap-2.5 px-4 py-3 bg-slate-900 text-white text-xs font-semibold rounded-2xl shadow-2xl animate-fade-in">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span>{toastMessage.text}</span>
-          </div>
-        )}
-
         {/* Top Header / Navigation Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
           <div className="flex items-center gap-3">

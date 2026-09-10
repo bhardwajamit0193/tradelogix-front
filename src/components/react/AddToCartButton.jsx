@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { addToCart } from '../../store/cartStore.js';
+import React, { useState, useEffect } from 'react';
+import { addToCart, cartItems, getAvailableStock } from '../../store/cartStore.js';
 import { ShoppingCart, Check, Plus, Minus } from 'lucide-react';
 import { useStore } from '@nanostores/react';
 import { userStore } from '../../store/authStore.js';
@@ -10,10 +10,30 @@ export default function AddToCartButton({ product, showVariantSelector = false, 
   const [added, setAdded] = useState(false);
 
   const user = useStore(userStore);
+  const cart = useStore(cartItems);
   const isLoggedIn = user?.isLoggedIn;
 
+  const maxStock = getAvailableStock(product);
+  const inCart = cart.find((i) => String(i.id) === String(product?.id) && i.variant === selectedVariant)?.quantity || 0;
+  const availableToAdd = Math.max(0, maxStock - inCart);
+  const isOutOfStock = maxStock <= 0 || product?.inStock === false;
+  const isMaxInCart = inCart >= maxStock && maxStock > 0;
+  const canAdd = !isOutOfStock && !isMaxInCart && availableToAdd > 0;
+
+  // Auto-clamp quantity
+  useEffect(() => {
+    if (availableToAdd > 0 && quantity > availableToAdd) {
+      setQuantity(availableToAdd);
+    } else if (availableToAdd <= 0 && quantity !== 1) {
+      setQuantity(1);
+    }
+  }, [availableToAdd]);
+
   const handleAdd = () => {
-    addToCart(product, quantity, selectedVariant);
+    if (!canAdd) return;
+    const toAdd = Math.min(quantity, availableToAdd);
+    if (toAdd <= 0) return;
+    addToCart(product, toAdd, selectedVariant);
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
   };
@@ -32,7 +52,7 @@ export default function AddToCartButton({ product, showVariantSelector = false, 
           </div>
         )}
         <a
-          href="/login"
+          href={typeof window !== 'undefined' ? `/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}` : (product?.slug ? `/login?redirect=${encodeURIComponent(`/shop/${product.slug}`)}` : '/login')}
           className="w-full py-3 px-6 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-display font-semibold text-xs transition-all flex items-center justify-center gap-2 shadow-md hover:scale-[1.01]"
         >
           Sign In to View
@@ -45,8 +65,19 @@ export default function AddToCartButton({ product, showVariantSelector = false, 
     return (
       <button
         onClick={handleAdd}
-        className="p-2.5 rounded-xl gradient-brand text-white hover:opacity-90 transition-all shadow-sm flex items-center justify-center"
-        title="Add to Cart"
+        disabled={!canAdd}
+        className={`p-2.5 rounded-xl transition-all shadow-sm flex items-center justify-center ${
+          !canAdd
+            ? 'bg-slate-100 text-slate-300 border border-slate-200 cursor-not-allowed'
+            : 'gradient-brand text-white hover:opacity-90'
+        }`}
+        title={
+          isOutOfStock
+            ? 'Out of Stock'
+            : isMaxInCart
+            ? `Max in cart (${inCart}/${maxStock})`
+            : 'Add to Cart'
+        }
       >
         {added ? <Check className="w-4 h-4 text-emerald-200" /> : <ShoppingCart className="w-4 h-4" />}
       </button>
@@ -91,45 +122,72 @@ export default function AddToCartButton({ product, showVariantSelector = false, 
         </div>
       )}
 
-      <div className="flex items-center gap-3">
-        {/* Quantity selector */}
-        <div className="flex items-center bg-slate-100 border border-slate-200 rounded-xl p-1">
+      <div className="space-y-2">
+        <div className="flex items-center gap-3">
+          {/* Quantity selector */}
+          <div className="flex items-center bg-slate-100 border border-slate-200 rounded-xl p-1 shrink-0">
+            <button
+              type="button"
+              onClick={() => setQuantity(Math.max(1, quantity - 1))}
+              disabled={quantity <= 1 || availableToAdd <= 0}
+              className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-200 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed"
+              title="Decrease quantity"
+            >
+              <Minus className="w-4 h-4" />
+            </button>
+            <span className="w-8 text-center text-sm font-bold text-slate-900">
+              {availableToAdd <= 0 ? 0 : quantity}
+            </span>
+            <button
+              type="button"
+              onClick={() => setQuantity(Math.min(availableToAdd, quantity + 1))}
+              disabled={quantity >= availableToAdd || availableToAdd <= 0}
+              className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-200 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed"
+              title={quantity >= availableToAdd ? `Cannot add more (max ${availableToAdd} available)` : 'Increase quantity'}
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Action Button */}
           <button
             type="button"
-            onClick={() => setQuantity(Math.max(1, quantity - 1))}
-            className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-200 rounded-lg"
+            onClick={handleAdd}
+            disabled={!canAdd}
+            className={`flex-1 py-3 px-6 rounded-xl font-display font-semibold text-sm transition-all flex items-center justify-center gap-2 shadow-md ${
+              added
+                ? 'bg-emerald-600 text-white'
+                : !canAdd
+                ? 'bg-slate-200 text-slate-400 border border-slate-300 cursor-not-allowed'
+                : 'gradient-brand text-white hover:opacity-90 hover:scale-[1.01]'
+            }`}
           >
-            <Minus className="w-4 h-4" />
-          </button>
-          <span className="w-8 text-center text-sm font-bold text-slate-900">{quantity}</span>
-          <button
-            type="button"
-            onClick={() => setQuantity(quantity + 1)}
-            className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-200 rounded-lg"
-          >
-            <Plus className="w-4 h-4" />
+            {added ? (
+              <>
+                <Check className="w-4 h-4" /> Added to Cart!
+              </>
+            ) : isOutOfStock ? (
+              'Out of Stock'
+            ) : isMaxInCart ? (
+              `Max Stock in Cart (${inCart})`
+            ) : (
+              <>
+                <ShoppingCart className="w-4 h-4" /> Add to Cart - ₹{(product.price * quantity).toFixed(2)}
+              </>
+            )}
           </button>
         </div>
 
-        {/* Action Button */}
-        <button
-          type="button"
-          onClick={handleAdd}
-          className={`flex-1 py-3 px-6 rounded-xl font-display font-semibold text-sm transition-all flex items-center justify-center gap-2 shadow-md ${added
-              ? 'bg-emerald-600 text-white'
-              : 'gradient-brand text-white hover:opacity-90 hover:scale-[1.01]'
-            }`}
-        >
-          {added ? (
-            <>
-              <Check className="w-4 h-4" /> Added to Cart!
-            </>
-          ) : (
-            <>
-              <ShoppingCart className="w-4 h-4" /> Add to Cart - ₹{(product.price * quantity).toFixed(2)}
-            </>
-          )}
-        </button>
+        {inCart > 0 && availableToAdd > 0 && (
+          <p className="text-[10px] text-slate-500">
+            {inCart} in cart (can add up to {availableToAdd} more)
+          </p>
+        )}
+        {isMaxInCart && (
+          <p className="text-[10px] text-amber-600 font-semibold">
+            Max stock limit ({maxStock}) reached
+          </p>
+        )}
       </div>
     </div>
   );

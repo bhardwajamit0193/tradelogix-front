@@ -1,4 +1,5 @@
 import { atom, computed } from 'nanostores';
+import { toast } from 'sonner';
 
 // Initial cart state from localStorage if client side
 const getInitialCart = () => {
@@ -38,6 +39,22 @@ export const cartSubtotal = computed(cartItems, (items) => {
   return items.reduce((total, item) => total + (item.price * item.quantity), 0);
 });
 
+// Helper to resolve available stock for a product or cart item
+export const getAvailableStock = (product) => {
+  if (!product) return 0;
+  if (product.inStock === false) return 0;
+  if (typeof product.stockCount === 'number') return Math.max(0, product.stockCount);
+  if (typeof product.stock === 'number') return Math.max(0, product.stock);
+  if (typeof product.totalStock === 'number') return Math.max(0, product.totalStock);
+  if (typeof product.stockCount === 'string' && !isNaN(parseInt(product.stockCount, 10))) {
+    return Math.max(0, parseInt(product.stockCount, 10));
+  }
+  if (typeof product.stock === 'string' && !isNaN(parseInt(product.stock, 10))) {
+    return Math.max(0, parseInt(product.stock, 10));
+  }
+  return product.inStock !== false ? 9999 : 0;
+};
+
 // Helper to resolve the correct unit price for a given quantity based on wholesale tiers
 export const calculateTierUnitPrice = (item, quantity) => {
   const basePrice = item.basePrice ? parseFloat(item.basePrice) : (item.price || 0);
@@ -52,7 +69,7 @@ export const calculateTierUnitPrice = (item, quantity) => {
   return basePrice;
 };
 
-// Add item to cart (merges identical product + variant, automatically updates quantity & tier price)
+// Add item to cart with strict inventory/stock limit checks
 export const addToCart = (product, quantity = 1, selectedVariant = null) => {
   const variantVal = selectedVariant || product.variant || product.variants?.[0] || 'Default';
   const currentItems = cartItems.get();
@@ -61,6 +78,16 @@ export const addToCart = (product, quantity = 1, selectedVariant = null) => {
     (item) => String(item.id) === String(product.id) && item.variant === variantVal
   );
 
+  const maxStock = getAvailableStock(product);
+
+  // Out of stock guard
+  if (maxStock <= 0) {
+    toast.error(`"${product.name}" is currently out of stock.`);
+    cartNotification.set(`"${product.name}" is currently out of stock.`);
+    setTimeout(() => cartNotification.set(null), 3500);
+    return false;
+  }
+
   const fallbackImage = 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&auto=format&fit=crop&q=80';
   const img = product.featuredImage || product.image || (product.images && product.images[0]) || fallbackImage;
   const basePrice = product.pricing?.basePrice ? parseFloat(product.pricing.basePrice) : (product.price || 0);
@@ -68,8 +95,21 @@ export const addToCart = (product, quantity = 1, selectedVariant = null) => {
 
   if (existingIndex > -1) {
     const updated = [...currentItems];
-    const newQty = updated[existingIndex].quantity + quantity;
+    const currentQty = updated[existingIndex].quantity;
+    const remainingAllowed = Math.max(0, maxStock - currentQty);
+
+    if (remainingAllowed <= 0) {
+      toast.warning(`Cannot add more. All ${maxStock} available unit(s) of "${product.name}" are already in your cart.`);
+      cartNotification.set(`Cannot add more. All ${maxStock} available unit(s) of "${product.name}" are already in your cart.`);
+      setTimeout(() => cartNotification.set(null), 3500);
+      isCartOpen.set(true);
+      return false;
+    }
+
+    const addQty = Math.min(quantity, remainingAllowed);
+    const newQty = currentQty + addQty;
     updated[existingIndex].quantity = newQty;
+    updated[existingIndex].stockCount = maxStock;
     
     const existingTiers = (updated[existingIndex].tiers && updated[existingIndex].tiers.length > 0)
       ? updated[existingIndex].tiers
@@ -93,8 +133,15 @@ export const addToCart = (product, quantity = 1, selectedVariant = null) => {
       updated[existingIndex].image = img;
     }
     cartItems.set(updated);
+
+    if (quantity > remainingAllowed) {
+      toast.warning(`Added ${addQty} unit(s). Maximum available stock (${maxStock}) reached.`);
+    } else {
+      toast.success(`Added "${product.name}" to your cart.`);
+    }
   } else {
-    const initialUnitPrice = calculateTierUnitPrice({ basePrice, tiers, price: product.price }, quantity);
+    const finalQty = Math.min(quantity, maxStock);
+    const initialUnitPrice = calculateTierUnitPrice({ basePrice, tiers, price: product.price }, finalQty);
     cartItems.set([
       ...currentItems,
       {
@@ -108,32 +155,49 @@ export const addToCart = (product, quantity = 1, selectedVariant = null) => {
         featuredImage: img,
         category: product.category,
         variant: variantVal,
-        quantity,
+        quantity: finalQty,
+        stockCount: maxStock,
       },
     ]);
-  }
 
-  // Trigger quick alert/toast notification
-  cartNotification.set(`Added "${product.name}" to your cart.`);
-  setTimeout(() => {
-    cartNotification.set(null);
-  }, 3500);
+    if (quantity > maxStock) {
+      toast.warning(`Added ${finalQty} unit(s) of "${product.name}". Only ${maxStock} unit(s) in stock.`);
+    } else {
+      toast.success(`Added "${product.name}" to your cart.`);
+    }
+  }
 
   // Automatically open cart drawer
   isCartOpen.set(true);
+  return true;
 };
 
-// Update item quantity
+// Update item quantity with strict stock limit enforcement
 export const updateQuantity = (id, variant, newQuantity) => {
   if (newQuantity <= 0) {
     removeFromCart(id, variant);
     return;
   }
   const currentItems = cartItems.get();
+  const targetItem = currentItems.find((item) => String(item.id) === String(id) && item.variant === variant);
+  if (!targetItem) return;
+
+  const maxStock = getAvailableStock(targetItem);
+  let effectiveQty = newQuantity;
+
+  if (effectiveQty > maxStock) {
+    effectiveQty = maxStock;
+    toast.warning(`Maximum available stock (${maxStock}) reached for "${targetItem.name}".`);
+    cartNotification.set(`Maximum available stock (${maxStock}) reached for "${targetItem.name}".`);
+    setTimeout(() => {
+      cartNotification.set(null);
+    }, 3500);
+  }
+
   const updated = currentItems.map((item) => {
     if (String(item.id) === String(id) && item.variant === variant) {
-      const newUnitPrice = calculateTierUnitPrice(item, newQuantity);
-      return { ...item, quantity: newQuantity, price: newUnitPrice };
+      const newUnitPrice = calculateTierUnitPrice(item, effectiveQty);
+      return { ...item, quantity: effectiveQty, price: newUnitPrice, stockCount: maxStock };
     }
     return item;
   });
@@ -143,10 +207,14 @@ export const updateQuantity = (id, variant, newQuantity) => {
 // Remove item from cart
 export const removeFromCart = (id, variant) => {
   const currentItems = cartItems.get();
+  const targetItem = currentItems.find((item) => String(item.id) === String(id) && item.variant === variant);
   const updated = currentItems.filter(
     (item) => !(String(item.id) === String(id) && item.variant === variant)
   );
   cartItems.set(updated);
+  if (targetItem) {
+    toast.info(`Removed "${targetItem.name}" from cart.`);
+  }
 };
 
 // Clear all items from cart
