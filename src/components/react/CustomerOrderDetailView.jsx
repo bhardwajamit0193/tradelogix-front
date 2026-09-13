@@ -26,12 +26,8 @@ import {
   XCircle,
 } from 'lucide-react';
 
-const getFullInvoiceUrl = (url) => {
-  if (!url) return '';
-  if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  const baseUrl = (typeof window !== 'undefined' && window.__PUBLIC_API_URL__) || 'http://localhost:6543';
-  return `${baseUrl.replace(/\/$/, '')}${url.startsWith('/') ? url : `/${url}`}`;
-};
+import { getFullInvoiceUrl } from '../../utils/invoiceUtils.js';
+
 
 export default function CustomerOrderDetailView({ orderId }) {
   const user = useStore(userStore);
@@ -230,32 +226,31 @@ export default function CustomerOrderDetailView({ orderId }) {
           order.fulfillmentStatus === 'Delivered' ||
           order.carrierName ||
           order.trackingNumber) && (
-          <div className="p-4 sm:p-5 rounded-2xl bg-blue-50 border border-blue-200 text-blue-950 space-y-2 shadow-2xs">
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <div className="flex items-center gap-2 font-bold text-xs text-blue-900">
-                <Truck className="w-4 h-4 text-blue-600 shrink-0" />
-                <span>Consignment Logistics & Tracking</span>
-              </div>
-              <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
-                (order.status === 'Delivered' || order.fulfillmentStatus === 'Delivered')
+            <div className="p-4 sm:p-5 rounded-2xl bg-blue-50 border border-blue-200 text-blue-950 space-y-2 shadow-2xs">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2 font-bold text-xs text-blue-900">
+                  <Truck className="w-4 h-4 text-blue-600 shrink-0" />
+                  <span>Consignment Logistics & Tracking</span>
+                </div>
+                <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${(order.status === 'Delivered' || order.fulfillmentStatus === 'Delivered')
                   ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
                   : 'bg-blue-100 text-blue-800 border-blue-300'
-              }`}>
-                {order.status === 'Delivered' || order.fulfillmentStatus === 'Delivered' ? 'Delivered' : 'En Route'}
-              </span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
-              <div>
-                <span className="text-slate-500 text-[11px]">Logistics Carrier:</span>
-                <div className="font-bold text-slate-900">{order.carrierName || 'TradeLogix Express Air Cargo'}</div>
+                  }`}>
+                  {order.status === 'Delivered' || order.fulfillmentStatus === 'Delivered' ? 'Delivered' : 'En Route'}
+                </span>
               </div>
-              <div>
-                <span className="text-slate-500 text-[11px]">Tracking AWB No:</span>
-                <div className="font-mono font-bold text-blue-700">{order.trackingNumber || 'Available Upon Dispatch'}</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
+                <div>
+                  <span className="text-slate-500 text-[11px]">Logistics Carrier:</span>
+                  <div className="font-bold text-slate-900">{order.carrierName || 'TradeLogix Express Air Cargo'}</div>
+                </div>
+                <div>
+                  <span className="text-slate-500 text-[11px]">Tracking AWB No:</span>
+                  <div className="font-mono font-bold text-blue-700">{order.trackingNumber || 'Available Upon Dispatch'}</div>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
         {/* 3-Column Addresses & Payment Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -293,9 +288,8 @@ export default function CustomerOrderDetailView({ orderId }) {
                   <Building2 className="w-4 h-4 text-brand-600" />
                   Billing & Tax Invoicing
                 </div>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                  isSameBilling ? 'bg-slate-200 text-slate-700' : 'bg-indigo-100 text-indigo-800'
-                }`}>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${isSameBilling ? 'bg-slate-200 text-slate-700' : 'bg-indigo-100 text-indigo-800'
+                  }`}>
                   {isSameBilling ? 'Same as Shipping' : 'Separate Entity'}
                 </span>
               </div>

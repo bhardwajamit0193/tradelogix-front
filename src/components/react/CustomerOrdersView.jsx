@@ -17,12 +17,7 @@ import {
   Loader2,
 } from 'lucide-react';
 
-const getFullInvoiceUrl = (url) => {
-  if (!url) return '';
-  if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  const baseUrl = (typeof window !== 'undefined' && window.__PUBLIC_API_URL__) || 'http://localhost:6543';
-  return `${baseUrl.replace(/\/$/, '')}${url.startsWith('/') ? url : `/${url}`}`;
-};
+import { getFullInvoiceUrl } from '../../utils/invoiceUtils.js';
 
 export default function CustomerOrdersView() {
   const user = useStore(userStore);
@@ -124,11 +119,10 @@ export default function CustomerOrdersView() {
                 key={st}
                 type="button"
                 onClick={() => setStatusFilter(st)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
-                  statusFilter === st
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${statusFilter === st
                     ? 'bg-brand-600 text-white shadow-sm'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
+                  }`}
               >
                 {st}
               </button>
@@ -237,11 +231,10 @@ export default function CustomerOrdersView() {
                   <button
                     type="button"
                     onClick={(e) => handleDownloadInvoice(e, order)}
-                    className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer ${
-                      order.invoicePdfUrl
+                    className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer ${order.invoicePdfUrl
                         ? 'bg-brand-50 hover:bg-brand-600 text-brand-700 hover:text-white border border-brand-200 hover:border-brand-600'
                         : 'bg-slate-100 hover:bg-slate-200 text-slate-500 border border-slate-200'
-                    }`}
+                      }`}
                     title={order.invoicePdfUrl ? 'Download Official Tax Invoice PDF' : 'Invoice PDF pending upload'}
                   >
                     <Download className="w-3.5 h-3.5" />

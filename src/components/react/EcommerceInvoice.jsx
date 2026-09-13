@@ -16,6 +16,8 @@ import {
   DEFAULT_PLATFORM_SETTINGS,
 } from '../../services/platformSettingsService.js';
 
+import { getFullInvoiceUrl } from '../../utils/invoiceUtils.js';
+
 // Number to Words Converter (Indian Numbering Format)
 function numberToWords(num) {
   const a = [
@@ -123,12 +125,6 @@ export default function EcommerceInvoice({ orderId, initialOrder = null, onBack 
 
   const handleDownloadPdf = async () => {
     if (invoiceData?.invoicePdfUrl) {
-      const getFullInvoiceUrl = (url) => {
-        if (!url) return '';
-        if (url.startsWith('http://') || url.startsWith('https://')) return url;
-        const baseUrl = (typeof window !== 'undefined' && window.__PUBLIC_API_URL__) || 'http://localhost:6543';
-        return `${baseUrl.replace(/\/$/, '')}${url.startsWith('/') ? url : `/${url}`}`;
-      };
       const fullUrl = getFullInvoiceUrl(invoiceData.invoicePdfUrl);
       window.open(fullUrl, '_blank');
       return;

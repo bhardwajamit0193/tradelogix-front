@@ -46,12 +46,7 @@ import {
   Upload,
 } from 'lucide-react';
 
-const getFullInvoiceUrl = (url) => {
-  if (!url) return '';
-  if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  const baseUrl = (typeof window !== 'undefined' && window.__PUBLIC_API_URL__) || 'http://localhost:6543';
-  return `${baseUrl.replace(/\/$/, '')}${url.startsWith('/') ? url : `/${url}`}`;
-};
+import { getFullInvoiceUrl } from '../../utils/invoiceUtils.js';
 
 export default function AdminOrderDetailView({ orderId: initialOrderId }) {
   const getOrderId = () => {
@@ -706,61 +701,60 @@ export default function AdminOrderDetailView({ orderId: initialOrderId }) {
           order.status === 'Delivered' ||
           order.carrierName ||
           order.trackingNumber) && (
-          <div className="p-5 sm:p-6 rounded-2xl bg-blue-50 border border-blue-200 text-blue-950 space-y-4 shadow-sm animate-fadeIn">
-            <div className="flex items-center justify-between pb-3 border-b border-blue-200/80 flex-wrap gap-2">
-              <div className="flex items-center gap-2.5 font-bold text-sm text-blue-900">
-                <Truck className="w-5 h-5 text-blue-600 shrink-0" />
-                <span>Logistics & Airway Bill (AWB) Tracking Details</span>
-              </div>
-              <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${
-                (order.fulfillmentStatus === 'Delivered' || selectedStatus === 'Delivered')
-                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                  : 'bg-blue-100 text-blue-800 border-blue-300'
-              }`}>
-                Status: {order.fulfillmentStatus || order.status || selectedStatus || 'Dispatched'}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-blue-900 uppercase tracking-wider block">
-                  Carrier / Logistics Partner ({`{carrierName}`})
-                </label>
-                <input
-                  type="text"
-                  value={carrierNameInput}
-                  onChange={(e) => setCarrierNameInput(e.target.value)}
-                  placeholder="TradeLogix Express / Blue Dart / Delhivery"
-                  className="w-full px-4 py-2.5 rounded-xl border border-blue-300 bg-white text-slate-900 text-xs font-semibold focus:ring-2 focus:ring-blue-500 outline-none shadow-2xs"
-                />
+            <div className="p-5 sm:p-6 rounded-2xl bg-blue-50 border border-blue-200 text-blue-950 space-y-4 shadow-sm animate-fadeIn">
+              <div className="flex items-center justify-between pb-3 border-b border-blue-200/80 flex-wrap gap-2">
+                <div className="flex items-center gap-2.5 font-bold text-sm text-blue-900">
+                  <Truck className="w-5 h-5 text-blue-600 shrink-0" />
+                  <span>Logistics & Airway Bill (AWB) Tracking Details</span>
+                </div>
+                <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${(order.fulfillmentStatus === 'Delivered' || selectedStatus === 'Delivered')
+                    ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                    : 'bg-blue-100 text-blue-800 border-blue-300'
+                  }`}>
+                  Status: {order.fulfillmentStatus || order.status || selectedStatus || 'Dispatched'}
+                </span>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-blue-900 uppercase tracking-wider block">
-                  Airway Bill / Tracking AWB No ({`{trackingNumber}`})
-                </label>
-                <div className="flex items-center gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-blue-900 uppercase tracking-wider block">
+                    Carrier / Logistics Partner ({`{carrierName}`})
+                  </label>
                   <input
                     type="text"
-                    value={trackingNumberInput}
-                    onChange={(e) => setTrackingNumberInput(e.target.value)}
-                    placeholder="AWB-98201948201"
-                    className="w-full px-4 py-2.5 rounded-xl border border-blue-300 bg-white text-slate-900 text-xs font-mono font-bold focus:ring-2 focus:ring-blue-500 outline-none shadow-2xs"
+                    value={carrierNameInput}
+                    onChange={(e) => setCarrierNameInput(e.target.value)}
+                    placeholder="TradeLogix Express / Blue Dart / Delhivery"
+                    className="w-full px-4 py-2.5 rounded-xl border border-blue-300 bg-white text-slate-900 text-xs font-semibold focus:ring-2 focus:ring-blue-500 outline-none shadow-2xs"
                   />
-                  <button
-                    type="button"
-                    onClick={handleSaveLogisticsTracking}
-                    disabled={isUpdating || !trackingNumberInput}
-                    className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center gap-1.5 shrink-0 disabled:opacity-50 cursor-pointer whitespace-nowrap"
-                  >
-                    <Save className="w-3.5 h-3.5" />
-                    <span>{order.trackingNumber ? 'Update Tracking & Notify' : 'Save & Send Dispatch Tracking'}</span>
-                  </button>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-blue-900 uppercase tracking-wider block">
+                    Airway Bill / Tracking AWB No ({`{trackingNumber}`})
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={trackingNumberInput}
+                      onChange={(e) => setTrackingNumberInput(e.target.value)}
+                      placeholder="AWB-98201948201"
+                      className="w-full px-4 py-2.5 rounded-xl border border-blue-300 bg-white text-slate-900 text-xs font-mono font-bold focus:ring-2 focus:ring-blue-500 outline-none shadow-2xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSaveLogisticsTracking}
+                      disabled={isUpdating || !trackingNumberInput}
+                      className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center gap-1.5 shrink-0 disabled:opacity-50 cursor-pointer whitespace-nowrap"
+                    >
+                      <Save className="w-3.5 h-3.5" />
+                      <span>{order.trackingNumber ? 'Update Tracking & Notify' : 'Save & Send Dispatch Tracking'}</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
         {/* ================= PAYMENT AUDIT & META BOX ================= */}
         <div className="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
@@ -782,10 +776,10 @@ export default function AdminOrderDetailView({ orderId: initialOrderId }) {
                   {order.paymentMethod === 'Razorpay'
                     ? 'Razorpay Online Gateway (100% Paid)'
                     : order.paymentMethod === 'OfflineTransfer'
-                    ? 'Offline Bank Transfer (NEFT/RTGS)'
-                    : order.paymentMethod === 'PartialCOD'
-                    ? 'Conditional Partial COD (10%+90%)'
-                    : 'Cash On Delivery'}
+                      ? 'Offline Bank Transfer (NEFT/RTGS)'
+                      : order.paymentMethod === 'PartialCOD'
+                        ? 'Conditional Partial COD (10%+90%)'
+                        : 'Cash On Delivery'}
                 </div>
               </div>
 
@@ -1088,11 +1082,10 @@ export default function AdminOrderDetailView({ orderId: initialOrderId }) {
               }}
               onDragLeave={() => setIsDraggingInvoice(false)}
               onDrop={handleDropInvoiceFile}
-              className={`border-2 border-dashed rounded-2xl p-6 sm:p-8 text-center transition-all ${
-                isDraggingInvoice
+              className={`border-2 border-dashed rounded-2xl p-6 sm:p-8 text-center transition-all ${isDraggingInvoice
                   ? 'border-brand-500 bg-brand-50/50 scale-[1.005]'
                   : 'border-slate-300 hover:border-slate-400 bg-white'
-              }`}
+                }`}
             >
               <input
                 type="file"
@@ -1240,9 +1233,8 @@ export default function AdminOrderDetailView({ orderId: initialOrderId }) {
                     <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
                       <Building2 className="w-4 h-4 text-brand-600" /> Billing & Invoicing Address
                     </h3>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                      isSame ? 'bg-slate-200 text-slate-700' : 'bg-indigo-100 text-indigo-800'
-                    }`}>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${isSame ? 'bg-slate-200 text-slate-700' : 'bg-indigo-100 text-indigo-800'
+                      }`}>
                       {isSame ? 'Same as Shipping' : 'Separate Entity'}
                     </span>
                   </div>
