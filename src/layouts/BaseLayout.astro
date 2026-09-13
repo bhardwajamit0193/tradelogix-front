@@ -100,6 +100,18 @@ else if (finalFavicon.toLowerCase().endsWith('.webp')) iconType = 'image/webp';
       }
       syncAuthClass();
       document.addEventListener('astro:page-load', syncAuthClass);
+
+      // Safe global toast fallback before Sonner hydrates
+      if (typeof window !== 'undefined' && !window.toastMessage) {
+        window.toastMessage = function(msg, type) {
+          if (window.toast) {
+            var text = typeof msg === 'object' && msg !== null ? (msg.text || msg.message || JSON.stringify(msg)) : String(msg || '');
+            if (type === 'error' && window.toast.error) window.toast.error(text);
+            else if (type === 'warning' && window.toast.warning) window.toast.warning(text);
+            else if (window.toast.success) window.toast.success(text);
+          }
+        };
+      }
     </script>
   </head>
   <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col antialiased selection:bg-brand-500 selection:text-white">

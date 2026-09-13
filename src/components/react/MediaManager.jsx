@@ -1,16 +1,16 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { toast } from 'sonner';
 import { confirmDialog } from '../../utils/dialogs.js';
-import { 
-  Upload, Image as ImageIcon, Search, LayoutGrid, List, Trash2, 
-  Copy, Download, X, Check, RefreshCw, 
+import {
+  Upload, Image as ImageIcon, Search, LayoutGrid, List, Trash2,
+  Copy, Download, X, Check, RefreshCw,
   FileText, Calendar, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
   AlertTriangle, CheckCircle2, ArrowLeft
 } from 'lucide-react';
 import { userStore, fetchWithAuth } from '../../store/authStore.js';
 import MediaLibraryModal from './MediaLibraryModal.jsx';
 
-const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:4000';
+const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:6543';
 
 export default function MediaManager() {
   const [items, setItems] = useState([]);
@@ -111,7 +111,7 @@ export default function MediaManager() {
   };
 
   const handleToggleSelect = (id) => {
-    setSelectedIds(prev => 
+    setSelectedIds(prev =>
       prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
     );
   };
@@ -444,13 +444,6 @@ export default function MediaManager() {
   // ═══════════════════════════════════════════════════════════════════════════
   return (
     <div className="max-w-7xl mx-auto space-y-6 pb-20">
-      {/* Toast Notification */}
-      {toastMessage && (
-        <div className="fixed top-5 right-5 z-50 flex items-center gap-2.5 px-4 py-3 bg-slate-900 text-white text-xs font-semibold rounded-2xl shadow-2xl animate-fade-in">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-          <span>{toastMessage.text}</span>
-        </div>
-      )}
 
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
@@ -478,7 +471,7 @@ export default function MediaManager() {
           </div>
           <button
             type="button"
-            onClick={() => {}}
+            onClick={() => { }}
             className="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg shadow-sm"
           >
             Search Media
@@ -677,7 +670,7 @@ export default function MediaManager() {
                     {/* File Thumbnail & Name + Quick Actions */}
                     <td className="p-3.5">
                       <div className="flex items-start gap-3">
-                        <div 
+                        <div
                           onClick={() => handleOpenEdit(item)}
                           className="w-14 h-14 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center cursor-pointer hover:opacity-90"
                         >
@@ -784,9 +777,8 @@ export default function MediaManager() {
               <div
                 key={item.id}
                 onClick={() => handleOpenEdit(item)}
-                className={`relative group rounded-2xl border bg-white overflow-hidden shadow-sm hover:shadow-md transition-all cursor-pointer ${
-                  isSelected ? 'border-brand-500 ring-2 ring-brand-400' : 'border-slate-200'
-                }`}
+                className={`relative group rounded-2xl border bg-white overflow-hidden shadow-sm hover:shadow-md transition-all cursor-pointer ${isSelected ? 'border-brand-500 ring-2 ring-brand-400' : 'border-slate-200'
+                  }`}
               >
                 <div className="aspect-square bg-slate-100 flex items-center justify-center overflow-hidden">
                   {isImage ? (
@@ -801,7 +793,7 @@ export default function MediaManager() {
                 </div>
 
                 {/* Selection Checkbox */}
-                <div 
+                <div
                   className="absolute top-2 left-2 z-10"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -811,7 +803,7 @@ export default function MediaManager() {
                   <input
                     type="checkbox"
                     checked={isSelected}
-                    onChange={() => {}}
+                    onChange={() => { }}
                     className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 cursor-pointer shadow"
                   />
                 </div>
