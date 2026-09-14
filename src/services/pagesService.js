@@ -8,44 +8,7 @@ export const DEFAULT_HOME_SECTIONS = {
   },
   heroSlider: {
     enabled: true,
-    slides: [
-      {
-        id: 'slide-1',
-        badge: 'Enterprise Wholesale Exclusive',
-        title: 'Flagship 240Hz Curved OLED Displays',
-        subtitle: 'Ultra-wide workstation monitors with 0.03ms response time & 99% DCI-P3 color precision for enterprise setups.',
-        priceText: 'From ₹1,199.00',
-        ctaText: 'Explore Displays',
-        ctaLink: '/shop?category=Displays',
-        image: 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=1200&auto=format&fit=crop&q=80',
-        tagPill: '240Hz OLED • 0.03ms GTG',
-        theme: 'indigo',
-      },
-      {
-        id: 'slide-2',
-        badge: 'Titanium ANC Audio Series',
-        title: 'AeroPulse Wireless Studio ANC Headphones',
-        subtitle: 'High-fidelity audio engineered for corporate offices, remote teams, and immersive soundscapes with 45-hour battery life.',
-        priceText: 'Wholesale Tier ₹299.99',
-        ctaText: 'Shop Audio Gear',
-        ctaLink: '/shop?category=Audio',
-        image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=1200&auto=format&fit=crop&q=80',
-        tagPill: 'Adaptive Noise Cancellation • 45h Battery',
-        theme: 'brand',
-      },
-      {
-        id: 'slide-3',
-        badge: 'Custom Gasket Mechanical Series',
-        title: 'CraftKey Pro Hot-Swap Keyboards & Mice',
-        subtitle: 'CNC aluminum chassis, hot-swappable PCB switches, and lightweight 49g precision optical mice for commercial volume deployment.',
-        priceText: 'Volume Slabs from ₹189.50',
-        ctaText: 'Explore Peripherals',
-        ctaLink: '/shop?category=Peripherals',
-        image: 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=1200&auto=format&fit=crop&q=80',
-        tagPill: 'Gasket Mounted • Hot-Swap PCB',
-        theme: 'cyan',
-      },
-    ],
+    slides: [],
   },
   latestProducts: {
     enabled: true,
@@ -152,9 +115,9 @@ export function parseHomeSections(content) {
         heroSlider: {
           ...DEFAULT_HOME_SECTIONS.heroSlider,
           ...(parsed.heroSlider || {}),
-          slides: Array.isArray(parsed.heroSlider?.slides) && parsed.heroSlider.slides.length > 0
+          slides: Array.isArray(parsed.heroSlider?.slides)
             ? parsed.heroSlider.slides
-            : DEFAULT_HOME_SECTIONS.heroSlider.slides,
+            : [],
         },
         latestProducts: {
           ...DEFAULT_HOME_SECTIONS.latestProducts,

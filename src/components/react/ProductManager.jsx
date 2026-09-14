@@ -44,14 +44,9 @@ export default function ProductManager() {
         const json = await res.json();
         const data = json.data !== undefined ? json.data : json;
         if (Array.isArray(data)) {
-          if (data.length > 0) {
-            setProductList(data);
-            if (typeof window !== 'undefined') {
-              localStorage.setItem('tradelogix_products_v4', JSON.stringify(data));
-            }
-          } else {
-            const seed = getMockProducts();
-            setProductList(seed);
+          setProductList(data);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('tradelogix_products_v4', JSON.stringify(data));
           }
           setIsLoading(false);
           return;
@@ -63,10 +58,9 @@ export default function ProductManager() {
 
     try {
       const data = getMockProducts();
-      setProductList(data);
-    } catch (err) {
-      console.error(err);
-      setError(err.message || 'Error loading product data');
+      setProductList(Array.isArray(data) ? data : []);
+    } catch {
+      setProductList([]);
     } finally {
       setIsLoading(false);
     }
@@ -177,7 +171,7 @@ export default function ProductManager() {
 
   // Extract accurate product image with fallback
   const getProductImage = (product) => {
-    if (!product) return 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=150&auto=format&fit=crop&q=80';
+    if (!product) return '/placeholder-product.svg';
 
     // 1. Array of images
     if (Array.isArray(product.images) && product.images.length > 0) {
@@ -201,23 +195,10 @@ export default function ProductManager() {
 
     // 3. Single image fields
     if (product.image && typeof product.image === 'string' && product.image.trim()) return product.image;
+    if (product.featuredImage && typeof product.featuredImage === 'string' && product.featuredImage.trim()) return product.featuredImage;
     if (product.thumbnail && typeof product.thumbnail === 'string' && product.thumbnail.trim()) return product.thumbnail;
 
-    // 4. Default fallback by category/name
-    const n = (product.name || '').toLowerCase();
-    if (n.includes('headphone') || n.includes('audio') || n.includes('aeropulse')) {
-      return 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=150&auto=format&fit=crop&q=80';
-    }
-    if (n.includes('monitor') || n.includes('display') || n.includes('ultrasharp')) {
-      return 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=150&auto=format&fit=crop&q=80';
-    }
-    if (n.includes('mouse') || n.includes('master') || n.includes('logitech')) {
-      return 'https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?w=150&auto=format&fit=crop&q=80';
-    }
-    if (n.includes('key') || n.includes('board')) {
-      return 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=150&auto=format&fit=crop&q=80';
-    }
-    return 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=150&auto=format&fit=crop&q=80';
+    return '/placeholder-product.svg';
   };
 
   return (
@@ -261,9 +242,23 @@ export default function ProductManager() {
       {/* Catalog Table */}
       <div className="glass-panel rounded-3xl overflow-hidden border border-slate-200 bg-white shadow-sm">
         {isLoading ? (
-          <div className="p-16 flex flex-col items-center justify-center text-slate-400 gap-3">
-            <RefreshCw className="w-8 h-8 animate-spin text-brand-600" />
-            <div className="text-xs font-semibold">Connecting to B2B catalog...</div>
+          <div className="divide-y divide-slate-100 animate-pulse">
+            <div className="p-4 bg-slate-50/70 flex items-center justify-between">
+              <div className="h-4 w-24 bg-slate-200 rounded" />
+              <div className="h-4 w-32 bg-slate-200 rounded" />
+            </div>
+            {Array.from({ length: 5 }).map((_, idx) => (
+              <div key={`prod-skel-${idx}`} className="p-4 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-slate-200 shrink-0" />
+                <div className="flex-1 space-y-1.5">
+                  <div className="h-4 w-2/5 bg-slate-200 rounded" />
+                  <div className="h-3 w-1/4 bg-slate-100 rounded" />
+                </div>
+                <div className="h-4 w-20 bg-slate-200 rounded shrink-0" />
+                <div className="h-6 w-16 bg-slate-200 rounded-full shrink-0" />
+                <div className="h-8 w-24 bg-slate-200 rounded-xl shrink-0" />
+              </div>
+            ))}
           </div>
         ) : error ? (
           <div className="p-16 flex flex-col items-center justify-center text-slate-400 gap-3">
@@ -328,7 +323,7 @@ export default function ProductManager() {
                             className="w-12 h-12 rounded-xl object-cover border border-slate-200 bg-slate-50 shrink-0"
                             onError={(e) => {
                               e.target.onerror = null;
-                              e.target.src = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=150&auto=format&fit=crop&q=80';
+                              e.target.src = '/placeholder-product.svg';
                             }}
                           />
                           <div className="min-w-0">

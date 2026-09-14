@@ -27,9 +27,16 @@ import CartDrawer from '../components/react/CartDrawer.jsx';
       </p>
 
       <div class="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
+        <button
+          type="button"
+          id="open-cart-drawer-btn"
+          class="w-full sm:w-auto px-6 py-3.5 rounded-xl border-2 border-brand-600 text-brand-600 hover:bg-brand-50 text-xs font-bold transition-all shadow-xs cursor-pointer"
+        >
+          Open Cart Drawer
+        </button>
         <a
           href="/shop"
-          class="w-full sm:w-auto px-6 py-3 rounded-xl bg-slate-100 border border-slate-200 text-slate-700 hover:text-slate-900 text-xs font-semibold"
+          class="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-700 hover:text-slate-900 text-xs font-semibold"
         >
           Continue Shopping
         </a>
@@ -42,4 +49,13 @@ import CartDrawer from '../components/react/CartDrawer.jsx';
       </div>
     </div>
   </div>
+
+  <script>
+    import { toggleCart } from '../store/cartStore.js';
+    toggleCart(true);
+
+    document.getElementById('open-cart-drawer-btn')?.addEventListener('click', () => {
+      toggleCart(true);
+    });
+  </script>
 </ShopLayout>

@@ -135,90 +135,104 @@ export default function EcommerceInvoice({ orderId, initialOrder = null, onBack 
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 text-center space-y-4 max-w-md w-full">
-          <div className="w-10 h-10 border-4 border-brand-600 border-t-transparent rounded-full animate-spin mx-auto" />
-          <h2 className="font-bold text-slate-800 text-base">Generating Tax Invoice...</h2>
-          <p className="text-xs text-slate-500">Retrieving GST audit records, dispatch parameters, and itemized accounts.</p>
+      <div className="min-h-screen bg-slate-100 py-6 sm:py-10 px-4 sm:px-6 lg:px-8 animate-pulse">
+        {/* Top bar skeleton */}
+        <div className="max-w-4xl mx-auto flex items-center justify-between pb-4">
+          <div className="h-8 w-32 bg-slate-200 rounded-xl" />
+          <div className="h-9 w-40 bg-slate-200 rounded-xl" />
+        </div>
+
+        {/* Invoice Paper Canvas Skeleton */}
+        <div className="max-w-4xl mx-auto bg-white rounded-2xl border border-slate-200 shadow-lg p-6 sm:p-8 space-y-6">
+          {/* Header row */}
+          <div className="flex flex-col sm:flex-row justify-between gap-4 pb-4 border-b border-slate-200">
+            <div className="space-y-2">
+              <div className="h-8 w-44 bg-slate-200 rounded-lg" />
+              <div className="h-3 w-56 bg-slate-100 rounded" />
+              <div className="h-3 w-40 bg-slate-100 rounded" />
+            </div>
+            <div className="space-y-2 text-right">
+              <div className="h-7 w-40 bg-slate-200 rounded-lg ml-auto" />
+              <div className="h-3 w-32 bg-slate-100 rounded ml-auto" />
+              <div className="h-3 w-28 bg-slate-100 rounded ml-auto" />
+            </div>
+          </div>
+
+          {/* Seller / Buyer grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 p-4 rounded-xl bg-slate-50 border border-slate-100">
+            <div className="space-y-2">
+              <div className="h-4 w-28 bg-slate-200 rounded" />
+              <div className="h-3 w-48 bg-slate-100 rounded" />
+              <div className="h-3 w-36 bg-slate-100 rounded" />
+            </div>
+            <div className="space-y-2">
+              <div className="h-4 w-28 bg-slate-200 rounded" />
+              <div className="h-3 w-48 bg-slate-100 rounded" />
+              <div className="h-3 w-36 bg-slate-100 rounded" />
+            </div>
+          </div>
+
+          {/* Items Table skeleton */}
+          <div className="border border-slate-200 rounded-xl overflow-hidden">
+            <div className="h-9 bg-slate-100 border-b border-slate-200" />
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex items-center justify-between p-3 border-b border-slate-100">
+                <div className="h-3 w-48 bg-slate-200 rounded" />
+                <div className="h-3 w-16 bg-slate-100 rounded" />
+                <div className="h-3 w-20 bg-slate-200 rounded" />
+              </div>
+            ))}
+          </div>
+
+          {/* Totals skeleton */}
+          <div className="flex justify-end pt-2">
+            <div className="w-64 space-y-2.5">
+              <div className="flex justify-between">
+                <div className="h-3 w-24 bg-slate-100 rounded" />
+                <div className="h-3 w-20 bg-slate-100 rounded" />
+              </div>
+              <div className="flex justify-between">
+                <div className="h-3 w-24 bg-slate-100 rounded" />
+                <div className="h-3 w-20 bg-slate-100 rounded" />
+              </div>
+              <div className="flex justify-between pt-2 border-t border-slate-200">
+                <div className="h-4 w-28 bg-slate-200 rounded" />
+                <div className="h-4 w-24 bg-slate-200 rounded" />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
-  // Fallback / Demo data if order is null
-  const invoiceData = order || {
-    id: 'TLX-ORD-2026-8941',
-    createdAt: new Date().toISOString(),
-    customerName: 'TechVision Enterprise LLP',
-    customerEmail: 'procurement@techvision.co.in',
-    customerPhone: '+91 98201 45892',
-    paymentMethod: 'OfflineTransfer',
-    status: 'Paid',
-    offlineUtrNumber: 'CMS98201948201',
-    billingAddress: {
-      name: 'TechVision Enterprise LLP',
-      address: 'Plot 42, Electronics Zone, MIDC Industrial Area, Mahape',
-      city: 'Navi Mumbai',
-      state: 'Maharashtra',
-      pincode: '400710',
-      gstin: '27AAACT1234A1Z5',
-    },
-    shippingAddress: {
-      name: 'TechVision Enterprise Logistics Hub',
-      address: 'Warehouse #4B, Logistics Park, Mumbai-Pune Expressway, Khalapur',
-      city: 'Raigad',
-      state: 'Maharashtra',
-      pincode: '410203',
-      phone: '+91 98201 45892',
-    },
-    warehouse: 'Mumbai Central Hub (WH-01)',
-    items: [
-      {
-        id: '1',
-        title: 'Industrial Heavy Duty Drill Machine 850W Pro',
-        sku: 'TLX-PWR-850',
-        hsn: '84672100',
-        quantity: 10,
-        price: 3499,
-        gstRate: 18,
-      },
-      {
-        id: '2',
-        title: 'Precision Digital Vernier Caliper 150mm Stainless Steel',
-        sku: 'TLX-MSR-150',
-        hsn: '90173010',
-        quantity: 25,
-        price: 899,
-        gstRate: 18,
-      },
-      {
-        id: '3',
-        title: 'Safety Helmet High-Density Polyethylene Ratchet Fit (Pack of 50)',
-        sku: 'TLX-SAF-HLM50',
-        hsn: '65061010',
-        quantity: 4,
-        price: 4250,
-        gstRate: 18,
-      },
-    ],
-    subtotal: 74465,
-    discount: 1500,
-    shippingFee: 0,
-    tax: 13133.7,
-    total: 86098.7,
-  };
+  if (!order) {
+    return (
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
+        <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 text-center space-y-4 max-w-md w-full">
+          <div className="w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mx-auto">
+            <Building2 className="w-6 h-6" />
+          </div>
+          <h2 className="font-bold text-slate-800 text-base">Invoice Not Found</h2>
+          <p className="text-xs text-slate-500">The requested tax invoice or order could not be located in the database.</p>
+          <div className="pt-2">
+            <a
+              href="/orders"
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 transition-all"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Return to Orders</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const invoiceData = order;
 
   // Financial Calculations
-  const rawItems = invoiceData.items && invoiceData.items.length > 0 ? invoiceData.items : [
-    {
-      id: 'item-1',
-      name: 'Enterprise Hardware Line Item',
-      sku: 'SKU-ENT-101',
-      hsn: '84716000',
-      qty: 1,
-      price: parseFloat(invoiceData.totalAmount || invoiceData.total || 45000),
-    }
-  ];
+  const rawItems = Array.isArray(invoiceData.items) ? invoiceData.items : [];
 
   const itemsWithTaxes = rawItems.map((item, idx) => {
     const qty = parseInt(item.qty || item.quantity || 1, 10);

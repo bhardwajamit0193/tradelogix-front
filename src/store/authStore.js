@@ -48,7 +48,7 @@ export const setSession = (session) => {
     role: session.role || 'Customer',
     accessToken: session.accessToken,
     refreshToken: session.refreshToken,
-    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+    avatar: session.avatar || '',
   };
   userStore.set(userPayload);
   return userPayload;
@@ -128,7 +128,7 @@ export const loginUser = (email, password, role = 'customer') => {
     name: email.split('@')[0].replace('.', ' ').toUpperCase(),
     email,
     role,
-    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+    avatar: '',
   };
   userStore.set(newUser);
   return newUser;
@@ -160,8 +160,11 @@ export const refreshAccessToken = async () => {
 
   refreshPromise = (async () => {
     try {
-      const currentUser = userStore.get();
-      if (!currentUser || !currentUser.refreshToken || !currentUser.id) {
+      const currentUser = userStore.get() || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('tradelogix_user') || '{}') : {});
+      const userId = currentUser.id || currentUser.userId;
+      const refreshToken = currentUser.refreshToken;
+
+      if (!refreshToken || !userId) {
         throw new Error('No refresh token available');
       }
 
@@ -169,29 +172,34 @@ export const refreshAccessToken = async () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: currentUser.id,
-          refreshToken: currentUser.refreshToken,
+          userId,
+          refreshToken,
         }),
       });
 
       if (!res.ok) {
-        logoutUser();
+        if (res.status === 401 || res.status === 403) {
+          logoutUser();
+        }
         throw new Error('Session expired. Please log in again.');
       }
 
       const json = await res.json();
-      const tokens = json.data;
+      const tokens = json.data || json;
 
       const updatedUser = {
         ...currentUser,
+        id: userId,
         accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
+        refreshToken: tokens.refreshToken || refreshToken,
       };
       userStore.set(updatedUser);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('tradelogix_user', JSON.stringify(updatedUser));
+      }
 
       return tokens.accessToken;
     } catch (e) {
-      logoutUser();
       throw e;
     } finally {
       refreshPromise = null;
@@ -199,6 +207,34 @@ export const refreshAccessToken = async () => {
   })();
 
   return refreshPromise;
+};
+
+/**
+ * Ensures a valid (non-expired) access token is returned.
+ * If expired or expiring within 60s, automatically refreshes it using refreshToken.
+ */
+export const getValidAuthToken = async () => {
+  const currentUser = userStore.get() || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('tradelogix_user') || '{}') : {});
+  let token = currentUser?.accessToken;
+
+  if (token) {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const exp = payload.exp * 1000;
+      if (Date.now() > exp - 60000) {
+        // Expired or expiring within 60 seconds
+        token = await refreshAccessToken();
+      }
+    } catch {
+      if (currentUser?.refreshToken) {
+        token = await refreshAccessToken();
+      }
+    }
+  } else if (currentUser?.refreshToken) {
+    token = await refreshAccessToken();
+  }
+
+  return token || '';
 };
 
 /**

@@ -1,6 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 @import 'react-country-state-city/dist/react-country-state-city.css';
 @import 'react-phone-input-2/lib/style.css';
+@import 'sweetalert2/dist/sweetalert2.min.css';
+@import 'sonner/dist/styles.css';
 
 @tailwind base;
 @tailwind components;

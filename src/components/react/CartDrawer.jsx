@@ -10,6 +10,7 @@ import {
   getAvailableStock,
 } from '../../store/cartStore.js';
 import { X, ShoppingCart, Plus, Minus, Trash2, ArrowRight } from 'lucide-react';
+import Image from './common/Image.jsx';
 
 export default function CartDrawer() {
   const isOpen = useStore(isCartOpen);
@@ -73,13 +74,9 @@ export default function CartDrawer() {
                     key={`${item.id}-${item.variant}`}
                     className="glass-panel p-3.5 rounded-2xl flex items-center gap-3 border border-slate-200 bg-slate-50/80 hover:border-slate-300 transition-all"
                   >
-                    <img
-                      src={item.image || item.featuredImage || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&auto=format&fit=crop&q=80'}
+                    <Image
+                      src={item.image || item.featuredImage}
                       alt={item.name}
-                      onError={(e) => {
-                        e.target.onerror = null;
-                        e.target.src = 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&auto=format&fit=crop&q=80';
-                      }}
                       className="w-16 h-16 rounded-xl object-cover border border-slate-200 shrink-0 bg-white"
                     />
                     <div className="flex-1 min-w-0">

@@ -1,4 +1,7 @@
 ---
+import { Image } from 'astro:assets';
+import logoImg from '../../assets/logo.jpeg';
+
 const { currentPath = '/dashboard' } = Astro.props;
 
 const navItems = [
@@ -46,9 +49,10 @@ const navItems = [
     <!-- Brand Header with Close Button on Mobile -->
     <div class="flex items-center justify-between">
       <a href="/dashboard" class="flex items-center gap-3">
-        <img
-          src="/logo.jpeg"
+        <Image
+          src={logoImg}
           alt="TradeLogix Logo"
+          loading="eager"
           class="h-12 w-auto object-contain rounded-lg hover:scale-105 transition-transform"
         />
       </a>

@@ -239,9 +239,26 @@ export default function AdminPagesView() {
       {/* Pages Table */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
         {loading ? (
-          <div className="p-12 text-center space-y-3">
-            <div className="w-8 h-8 border-3 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-            <p className="text-xs font-semibold text-slate-500">Loading database pages...</p>
+          <div className="divide-y divide-slate-100 animate-pulse">
+            <div className="p-4 bg-slate-50/70 flex items-center justify-between">
+              <div className="h-4 w-28 bg-slate-200 rounded" />
+              <div className="h-4 w-24 bg-slate-200 rounded" />
+            </div>
+            {Array.from({ length: 5 }).map((_, idx) => (
+              <div key={`page-skel-${idx}`} className="p-4 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-slate-200 shrink-0" />
+                  <div className="space-y-1">
+                    <div className="h-4 w-36 bg-slate-200 rounded" />
+                    <div className="h-3 w-24 bg-slate-100 rounded" />
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="h-6 w-16 bg-slate-200 rounded-full" />
+                  <div className="h-8 w-20 bg-slate-200 rounded-xl" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : filteredPages.length === 0 ? (
           <div className="p-12 text-center space-y-4">

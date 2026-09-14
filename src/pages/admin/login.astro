@@ -1,4 +1,6 @@
 ---
+import { Image } from 'astro:assets';
+import logoImg from '../../assets/logo.jpeg';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import AdminLoginForm from '../../components/react/AdminLoginForm.jsx';
 ---
@@ -28,9 +30,10 @@ import AdminLoginForm from '../../components/react/AdminLoginForm.jsx';
 
       <div class="glass-panel bg-white/90 p-8 sm:p-12 rounded-3xl max-w-md w-full border border-slate-200/80 shadow-2xl space-y-6 z-10">
         <div class="text-center space-y-3">
-          <img
-            src="/logo.jpeg"
+          <Image
+            src={logoImg}
             alt="TradeLogix Logo"
+            loading="eager"
             class="h-12 w-auto object-contain rounded-lg mx-auto shadow-sm"
           />
           <div>

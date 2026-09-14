@@ -1,162 +1,15 @@
-const SEED_PRODUCTS = [
-  {
-    id: "prod-1",
-    name: "Logitech MX Master 3S",
-    description: "Ergonomic wireless mouse with custom options, 8K DPI tracking, and quiet clicks.",
-    slug: "logitech-mx-master-3s",
-    images: ["https://images.unsplash.com/photo-1527866990279-b0651f66ca1d?w=300&auto=format&fit=crop&q=60"],
-    category: "Electronics, Office Supplies",
-    tags: ["mouse", "wireless", "logitech", "ergonomic"],
-    isActive: true,
-    sku: "LOGI-MX3S-BLK",
-    productWeight: "0.14",
-    countryOfOrigin: "Switzerland",
-    hsCode: "8471.60.60",
-    specifications: [
-      { key: "Sensor Resolution", value: "8,000 DPI Darkfield" },
-      { key: "Connectivity", value: "Bluetooth Low Energy & Logi Bolt USB" },
-      { key: "Battery Life", value: "Up to 70 days on a full charge" },
-      { key: "Scroll Wheel", value: "MagSpeed Electromagnetic SmartShift" },
-      { key: "Customizable Buttons", value: "7 buttons (Left/Right-click, Back/Forward, App-Switch, Wheel mode-shift, Middle click)" }
-    ],
-    pricingConfigurations: [
-      {
-        totalStock: 120,
-        warehouseStocks: [
-          { warehouseId: "w-1", warehouseCode: "MUM-01", warehouseName: "Mumbai Central", stock: 50 },
-          { warehouseId: "w-2", warehouseCode: "DEL-01", warehouseName: "Delhi Hub", stock: 40 },
-          { warehouseId: "w-3", warehouseCode: "BLR-01", warehouseName: "Bengaluru Depot", stock: 30 }
-        ],
-        pricestiers: [
-          { priceGroup: "Default", price: "7999.00", compare_at_price: "9999.00", tiers: [{ minQuantity: 5, price: "7499.00" }, { minQuantity: 10, price: "6999.00" }] },
-          { priceGroup: "Dealer", price: "7199.00", tiers: [] },
-          { priceGroup: "Distributor", price: "6799.00", tiers: [] },
-          { priceGroup: "Special", price: "6399.00", tiers: [] }
-        ]
-      }
-    ]
-  },
-  {
-    id: "prod-2",
-    name: "Dell UltraSharp 34 Curved Monitor",
-    description: "34-inch WQHD curved monitor with IPS Black technology, USB-C Hub, and KVM switch.",
-    slug: "dell-ultrasharp-34",
-    images: ["https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=300&auto=format&fit=crop&q=60"],
-    category: "Electronics, Displays",
-    tags: ["monitor", "dell", "curved", "4k"],
-    isActive: true,
-    sku: "DELL-U3425WE",
-    productWeight: "11.2",
-    countryOfOrigin: "Malaysia",
-    hsCode: "8528.52.00",
-    specifications: [
-      { key: "Screen Size", value: "34.14 inches Curved 1900R" },
-      { key: "Resolution", value: "WQHD 3440 x 1440 at 60 Hz" },
-      { key: "Panel Technology", value: "IPS Black (2000:1 Contrast Ratio)" },
-      { key: "Color Gamut", value: "98% DCI-P3, 100% sRGB" },
-      { key: "Ports", value: "Thunderbolt 4 (90W PD), HDMI 2.1, DP 1.4, RJ45 Ethernet" }
-    ],
-    pricingConfigurations: [
-      {
-        totalStock: 35,
-        warehouseStocks: [
-          { warehouseId: "w-1", warehouseCode: "MUM-01", warehouseName: "Mumbai Central", stock: 15 },
-          { warehouseId: "w-2", warehouseCode: "DEL-01", warehouseName: "Delhi Hub", stock: 10 },
-          { warehouseId: "w-3", warehouseCode: "BLR-01", warehouseName: "Bengaluru Depot", stock: 10 }
-        ],
-        pricestiers: [
-          { priceGroup: "Default", price: "84999.00", compare_at_price: "99999.00", tiers: [{ minQuantity: 2, price: "81999.00" }, { minQuantity: 5, price: "78999.00" }] },
-          { priceGroup: "Dealer", price: "79999.00", tiers: [] },
-          { priceGroup: "Distributor", price: "76999.00", tiers: [] },
-          { priceGroup: "Special", price: "74999.00", tiers: [] }
-        ]
-      }
-    ]
-  },
-  {
-    id: "prod-3",
-    name: "Keychron K2 Wireless Keyboard",
-    description: "75% layout compact mechanical keyboard with Gateron switches, RGB backlight, and Mac layout.",
-    slug: "keychron-k2-wireless",
-    images: ["https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=300&auto=format&fit=crop&q=60"],
-    category: "Electronics, Office Supplies",
-    tags: ["keyboard", "mechanical", "wireless", "keychron"],
-    isActive: true,
-    sku: "KEYC-K2-RGB-BR",
-    productWeight: "0.79",
-    countryOfOrigin: "China",
-    hsCode: "8471.60.20",
-    specifications: [
-      { key: "Layout", value: "75% Compact (84 keys)" },
-      { key: "Switches", value: "Gateron G Pro Brown (Tactile, Hot-Swappable)" },
-      { key: "Connectivity", value: "Bluetooth 5.1 & Type-C Cable" },
-      { key: "Battery", value: "4000mAh rechargeable Li-polymer" },
-      { key: "Operating System", value: "macOS / Windows / iOS / Android" }
-    ],
-    pricingConfigurations: [
-      {
-        totalStock: 80,
-        warehouseStocks: [
-          { warehouseId: "w-1", warehouseCode: "MUM-01", warehouseName: "Mumbai Central", stock: 30 },
-          { warehouseId: "w-2", warehouseCode: "DEL-01", warehouseName: "Delhi Hub", stock: 30 },
-          { warehouseId: "w-3", warehouseCode: "BLR-01", warehouseName: "Bengaluru Depot", stock: 20 }
-        ],
-        pricestiers: [
-          { priceGroup: "Default", price: "6999.00", compare_at_price: "8499.00", tiers: [{ minQuantity: 10, price: "6499.00" }] },
-          { priceGroup: "Dealer", price: "6299.00", tiers: [] },
-          { priceGroup: "Distributor", price: "5999.00", tiers: [] },
-          { priceGroup: "Special", price: "5699.00", tiers: [] }
-        ]
-      }
-    ]
-  },
-  {
-    id: "prod-4",
-    name: "Sony WH-1000XM5 Wireless Headphones",
-    description: "Industry-leading noise cancelling headphones with Auto NC Optimizer, crystal clear hands-free calling, and up to 30-hour battery life.",
-    slug: "sony-wh-1000xm5",
-    images: ["https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=300&auto=format&fit=crop&q=60"],
-    category: "Electronics, Audio",
-    tags: ["headphones", "sony", "noise-cancelling", "wireless"],
-    isActive: true,
-    sku: "SONY-WH1000XM5-BLK",
-    productWeight: "0.25",
-    countryOfOrigin: "Japan",
-    hsCode: "8518.30.00",
-    specifications: [
-      { key: "Acoustic Driver", value: "30mm precision carbon fiber composite dome" },
-      { key: "Noise Cancellation", value: "HD Noise Cancelling Processor QN1 + Integrated Processor V1 (8 Mics)" },
-      { key: "Battery Life", value: "Up to 30 hours (NC ON) / 40 hours (NC OFF)" },
-      { key: "Fast Charging", value: "3 mins charge = 3 hours playback (USB-PD)" },
-      { key: "Audio Formats", value: "LDAC, AAC, SBC (Hi-Res Audio Wireless)" }
-    ],
-    pricingConfigurations: [
-      {
-        totalStock: 60,
-        warehouseStocks: [
-          { warehouseId: "w-1", warehouseCode: "MUM-01", warehouseName: "Mumbai Central", stock: 25 },
-          { warehouseId: "w-2", warehouseCode: "DEL-01", warehouseName: "Delhi Hub", stock: 20 },
-          { warehouseId: "w-3", warehouseCode: "BLR-01", warehouseName: "Bengaluru Depot", stock: 15 }
-        ],
-        pricestiers: [
-          { priceGroup: "Default", price: "29999.00", compare_at_price: "34990.00", tiers: [{ minQuantity: 3, price: "28499.00" }, { minQuantity: 10, price: "26999.00" }] },
-          { priceGroup: "Dealer", price: "27499.00", tiers: [] },
-          { priceGroup: "Distributor", price: "25999.00", tiers: [] },
-          { priceGroup: "Special", price: "24499.00", tiers: [] }
-        ]
-      }
-    ]
-  }
-];
+const SEED_PRODUCTS = [];
 
 export const getMockProducts = () => {
-  if (typeof window === 'undefined') return SEED_PRODUCTS;
+  if (typeof window === 'undefined') return [];
   const stored = localStorage.getItem('tradelogix_products_v4');
   if (stored) {
-    return JSON.parse(stored);
+    try {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {}
   }
-  localStorage.setItem('tradelogix_products_v4', JSON.stringify(SEED_PRODUCTS));
-  return SEED_PRODUCTS;
+  return [];
 };
 
 export const saveMockProduct = (product) => {
@@ -243,19 +96,18 @@ export const deleteMockProduct = (productId) => {
 
 // ─── Category Storage ────────────────────────────────────────────────────────
 
-const SEED_CATEGORIES = [
-  { id: 'cat-1', name: 'Electronics', slug: 'electronics', parentId: null, description: 'Electronic gadgets and devices.' },
-  { id: 'cat-2', name: 'Office Supplies', slug: 'office-supplies', parentId: null, description: 'Products for your office and workspace.' },
-  { id: 'cat-3', name: 'Audio', slug: 'audio', parentId: 'cat-1', description: 'Headphones, speakers and audio equipment.' },
-  { id: 'cat-4', name: 'Displays', slug: 'displays', parentId: 'cat-1', description: 'Monitors and display screens.' },
-];
+const SEED_CATEGORIES = [];
 
 export const getCategories = () => {
-  if (typeof window === 'undefined') return SEED_CATEGORIES;
+  if (typeof window === 'undefined') return [];
   const stored = localStorage.getItem('tradelogix_categories_v1');
-  if (stored) return JSON.parse(stored);
-  localStorage.setItem('tradelogix_categories_v1', JSON.stringify(SEED_CATEGORIES));
-  return SEED_CATEGORIES;
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {}
+  }
+  return [];
 };
 
 export const saveCategory = (cat) => {
@@ -280,21 +132,18 @@ export const deleteCategory = (catId) => {
 
 // ─── Tag Storage ─────────────────────────────────────────────────────────────
 
-const SEED_TAGS = [
-  { id: 'tag-1', name: 'Wireless', slug: 'wireless', description: 'Products with wireless connectivity.' },
-  { id: 'tag-2', name: 'Ergonomic', slug: 'ergonomic', description: 'Designed for comfort and efficiency.' },
-  { id: 'tag-3', name: 'Noise Cancelling', slug: 'noise-cancelling', description: 'Active noise cancellation technology.' },
-  { id: 'tag-4', name: 'Mechanical', slug: 'mechanical', description: 'Mechanical switch keyboards and devices.' },
-  { id: 'tag-5', name: 'USB-C', slug: 'usb-c', description: 'Products with USB-C connectivity.' },
-  { id: 'tag-6', name: '4K', slug: '4k', description: 'Ultra HD 4K resolution displays.' },
-];
+const SEED_TAGS = [];
 
 export const getTags = () => {
-  if (typeof window === 'undefined') return SEED_TAGS;
+  if (typeof window === 'undefined') return [];
   const stored = localStorage.getItem('tradelogix_tags_v1');
-  if (stored) return JSON.parse(stored);
-  localStorage.setItem('tradelogix_tags_v1', JSON.stringify(SEED_TAGS));
-  return SEED_TAGS;
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {}
+  }
+  return [];
 };
 
 export const saveTag = (tag) => {
@@ -319,18 +168,18 @@ export const deleteTag = (tagId) => {
 
 // ─── Warehouse Storage ───────────────────────────────────────────────────────
 
-const SEED_WAREHOUSES = [
-  { id: 'wh-1', name: 'Mumbai Central', code: 'MUM-01', city: 'Mumbai', state: 'Maharashtra', createdAt: new Date().toISOString() },
-  { id: 'wh-2', name: 'Delhi Hub', code: 'DEL-01', city: 'Delhi', state: 'Delhi', createdAt: new Date().toISOString() },
-  { id: 'wh-3', name: 'Bengaluru Depot', code: 'BLR-01', city: 'Bengaluru', state: 'Karnataka', createdAt: new Date().toISOString() },
-];
+const SEED_WAREHOUSES = [];
 
 export const getWarehouses = () => {
-  if (typeof window === 'undefined') return SEED_WAREHOUSES;
+  if (typeof window === 'undefined') return [];
   const stored = localStorage.getItem('tradelogix_warehouses_v1');
-  if (stored) return JSON.parse(stored);
-  localStorage.setItem('tradelogix_warehouses_v1', JSON.stringify(SEED_WAREHOUSES));
-  return SEED_WAREHOUSES;
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {}
+  }
+  return [];
 };
 
 export const saveWarehouse = (wh) => {
@@ -356,20 +205,18 @@ export const deleteWarehouse = (whId) => {
 
 // ─── Brand Storage ──────────────────────────────────────────────────────────
 
-const SEED_BRANDS = [
-  { id: 'brand-1', name: 'Logitech', slug: 'logitech', description: 'Swiss manufacturer of computer peripherals and software.' },
-  { id: 'brand-2', name: 'Sony', slug: 'sony', description: 'Japanese multinational conglomerate corporation.' },
-  { id: 'brand-3', name: 'Samsung', slug: 'samsung', description: 'Global electronics and display technology manufacturer.' },
-  { id: 'brand-4', name: 'Dell', slug: 'dell', description: 'American multinational technology company.' },
-  { id: 'brand-5', name: 'Apple', slug: 'apple', description: 'Premium consumer electronics and workstations.' },
-];
+const SEED_BRANDS = [];
 
 export const getBrands = () => {
-  if (typeof window === 'undefined') return SEED_BRANDS;
+  if (typeof window === 'undefined') return [];
   const stored = localStorage.getItem('tradelogix_brands_v1');
-  if (stored) return JSON.parse(stored);
-  localStorage.setItem('tradelogix_brands_v1', JSON.stringify(SEED_BRANDS));
-  return SEED_BRANDS;
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed)) return parsed;
+    } catch {}
+  }
+  return [];
 };
 
 export const saveBrand = (brand) => {
@@ -391,5 +238,6 @@ export const deleteBrand = (brandId) => {
   const brands = getBrands().filter(b => b.id !== brandId);
   localStorage.setItem('tradelogix_brands_v1', JSON.stringify(brands));
 };
+
 
 

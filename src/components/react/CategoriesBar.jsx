@@ -46,8 +46,8 @@ export default function CategoriesBar({ mode = 'all', selectedCategoryIds = [], 
       }
     }
 
-    // If we didn't have initial categories or mode/selection changed, fetch
-    if (!categories.length || mode === 'custom') {
+    // Only fetch if categories are empty and initialCategories were not provided via SSR
+    if (!categories.length && (!initialCategories || initialCategories.length === 0)) {
       loadCategories();
     } else {
       setLoading(false);

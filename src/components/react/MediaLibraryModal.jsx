@@ -3,7 +3,8 @@ import Uppy from '@uppy/core';
 import Dashboard from '@uppy/react/dashboard';
 import XHRUpload from '@uppy/xhr-upload';
 import { X, Upload, Image as ImageIcon, Search, CheckCircle2, RefreshCw, Loader2, FileImage } from 'lucide-react';
-import { userStore, fetchWithAuth } from '../../store/authStore.js';
+import { userStore, fetchWithAuth, refreshAccessToken, getValidAuthToken } from '../../store/authStore.js';
+import { attachUppyImageCompressor } from '../../utils/imageCompressor.js';
 
 // Uppy CSS
 import '@uppy/core/css/style.min.css';
@@ -24,7 +25,6 @@ const API_URL = import.meta.env.PUBLIC_API_URL || (typeof window !== 'undefined'
  */
 export default function MediaLibraryModal({ isOpen, onClose, onSelect, onSelectMedia, multiple = false, authToken = '' }) {
   const selectHandler = onSelect || onSelectMedia;
-  const effectiveToken = authToken || userStore.get()?.accessToken || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('tradelogix_user') || '{}')?.accessToken : '') || '';
   const [activeTab, setActiveTab] = useState('upload'); // 'upload' | 'library'
   const [library, setLibrary]     = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -32,7 +32,7 @@ export default function MediaLibraryModal({ isOpen, onClose, onSelect, onSelectM
   const [selected, setSelected]   = useState([]); // array of { id, url, filename }
   const [search, setSearch]       = useState('');
 
-  // ── Uppy instance ────────────────────────────────────────────────────────
+  // ── Uppy instance with proactive & reactive token refresh and WebP compression ───────────────
   const uppy = useMemo(() => {
     const instance = new Uppy({
       id: 'media-library-uppy',
@@ -43,15 +43,57 @@ export default function MediaLibraryModal({ isOpen, onClose, onSelect, onSelectM
       autoProceed: true,
     });
 
+    // 1. Client-side Image Compression (auto convert to WebP)
+    attachUppyImageCompressor(instance);
+
+    // 2. Proactively ensure token is valid before upload begins
+    instance.addPreProcessor(async () => {
+      try {
+        const freshToken = await getValidAuthToken();
+        const xhr = instance.getPlugin('XHRUpload');
+        if (xhr && freshToken) {
+          xhr.setOptions({
+            headers: { Authorization: `Bearer ${freshToken}` },
+          });
+        }
+      } catch (err) {
+        console.warn('Pre-upload token refresh notice:', err);
+      }
+    });
+
     instance.use(XHRUpload, {
       endpoint: `${API_URL}/media/upload`,
       fieldName: 'file',
-      headers: effectiveToken ? { Authorization: `Bearer ${effectiveToken}` } : {},
+      headers: () => {
+        const currentUser = userStore.get() || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('tradelogix_user') || '{}') : {});
+        const token = authToken || currentUser?.accessToken || currentUser?.refreshToken || '';
+        return token ? { Authorization: `Bearer ${token}` } : {};
+      },
       formData: true,
     });
 
+    // 2. Catch 401/403 during upload, refresh token using refresh token, and retry
+    instance.on('upload-error', async (file, error, response) => {
+      if (response && (response.status === 401 || response.status === 403)) {
+        try {
+          const newToken = await refreshAccessToken();
+          if (newToken && file) {
+            const xhr = instance.getPlugin('XHRUpload');
+            if (xhr) {
+              xhr.setOptions({
+                headers: { Authorization: `Bearer ${newToken}` },
+              });
+            }
+            instance.retryUpload(file.id);
+          }
+        } catch (refreshErr) {
+          console.error('Automatic token refresh failed after 401:', refreshErr);
+        }
+      }
+    });
+
     return instance;
-  }, [effectiveToken]);
+  }, [authToken]);
 
   // Clean up Uppy on unmount
   useEffect(() => {
@@ -264,9 +306,10 @@ export default function MediaLibraryModal({ isOpen, onClose, onSelect, onSelectM
 
               {/* Loading */}
               {isLoading ? (
-                <div className="flex items-center justify-center py-16 text-slate-400">
-                  <Loader2 className="w-6 h-6 animate-spin mr-2" />
-                  <span className="text-xs font-semibold">Loading media…</span>
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 animate-pulse">
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((i) => (
+                    <div key={i} className="aspect-square rounded-xl bg-slate-200" />
+                  ))}
                 </div>
               ) : filtered.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-slate-400">

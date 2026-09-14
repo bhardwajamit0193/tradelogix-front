@@ -542,11 +542,38 @@ export default function AdminPageEditor({ pageId = null, isNew = false }) {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-3xl p-16 border border-slate-200 text-center space-y-4 max-w-5xl mx-auto shadow-xs">
-        <div className="w-10 h-10 border-3 border-brand-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-        <div className="space-y-1">
-          <h3 className="text-base font-bold text-slate-800">Loading Page Details...</h3>
-          <p className="text-xs text-slate-500">Retrieving content and metadata from the database</p>
+      <div className="space-y-6 max-w-6xl mx-auto pb-20 animate-pulse">
+        {/* Header Bar Placeholder */}
+        <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-slate-200" />
+            <div className="space-y-1">
+              <div className="h-5 w-44 bg-slate-200 rounded" />
+              <div className="h-3 w-32 bg-slate-100 rounded" />
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="h-9 w-24 bg-slate-200 rounded-xl" />
+            <div className="h-9 w-32 bg-slate-200 rounded-xl" />
+          </div>
+        </div>
+
+        {/* Form Body Placeholder */}
+        <div className="bg-white p-8 rounded-3xl border border-slate-200/80 shadow-xs space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <div className="h-4 w-28 bg-slate-200 rounded" />
+              <div className="h-10 w-full bg-slate-100 rounded-xl" />
+            </div>
+            <div className="space-y-2">
+              <div className="h-4 w-28 bg-slate-200 rounded" />
+              <div className="h-10 w-full bg-slate-100 rounded-xl" />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <div className="h-4 w-32 bg-slate-200 rounded" />
+            <div className="h-64 w-full bg-slate-100 rounded-2xl" />
+          </div>
         </div>
       </div>
     );
@@ -895,7 +922,7 @@ export default function AdminPageEditor({ pageId = null, isNew = false }) {
                   priceText: 'From ₹499.00',
                   ctaText: 'Explore Hardware',
                   ctaLink: '/shop',
-                  image: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=1200&auto=format&fit=crop&q=80',
+                  image: '',
                   tagPill: 'Verified OEM • Bulk Ready',
                   theme: 'indigo',
                 };

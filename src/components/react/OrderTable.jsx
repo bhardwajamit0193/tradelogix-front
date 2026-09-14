@@ -237,12 +237,33 @@ export default function OrderTable() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr>
-                  <td colSpan="7" className="p-12 text-center text-slate-400">
-                    <div className="w-6 h-6 border-2 border-brand-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                    Loading database orders...
-                  </td>
-                </tr>
+                Array.from({ length: 5 }).map((_, idx) => (
+                  <tr key={`order-skel-${idx}`} className="animate-pulse">
+                    <td className="p-4 pl-6">
+                      <div className="h-4 w-28 bg-slate-200 rounded mb-1" />
+                      <div className="h-3 w-16 bg-slate-100 rounded" />
+                    </td>
+                    <td className="p-4">
+                      <div className="h-4 w-32 bg-slate-200 rounded mb-1" />
+                      <div className="h-3 w-40 bg-slate-100 rounded" />
+                    </td>
+                    <td className="p-4">
+                      <div className="h-4 w-20 bg-slate-200 rounded" />
+                    </td>
+                    <td className="p-4">
+                      <div className="h-6 w-16 bg-slate-200 rounded-full" />
+                    </td>
+                    <td className="p-4">
+                      <div className="h-4 w-20 bg-slate-200 rounded" />
+                    </td>
+                    <td className="p-4">
+                      <div className="h-6 w-20 bg-slate-200 rounded-full" />
+                    </td>
+                    <td className="p-4 pr-6 text-right">
+                      <div className="h-8 w-20 bg-slate-200 rounded-xl ml-auto" />
+                    </td>
+                  </tr>
+                ))
               ) : paginatedOrders.length === 0 ? (
                 <tr>
                   <td colSpan="7" className="p-12 text-center text-slate-400">

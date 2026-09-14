@@ -48,7 +48,7 @@ const resolveMediaUrl = (url) => {
     {/* ========================================================================= */}
     {/* 1. SHOW ALL CATEGORIES BELOW SEARCH                                       */}
     {/* ========================================================================= */}
-    {sections.categoriesBar?.enabled && (
+    {sections.categoriesBar?.enabled && liveCategories.length > 0 && (
       <CategoriesBar
         client:load
         mode={sections.categoriesBar?.mode || 'all'}
@@ -60,7 +60,7 @@ const resolveMediaUrl = (url) => {
     {/* ========================================================================= */}
     {/* 2. CLICKABLE SLIDER BANNER                                                */}
     {/* ========================================================================= */}
-    {sections.heroSlider?.enabled && (
+    {sections.heroSlider?.enabled && sections.heroSlider?.slides?.length > 0 && (
       <section>
         <HeroBannerSlider client:load slides={sections.heroSlider?.slides} />
       </section>
@@ -69,7 +69,7 @@ const resolveMediaUrl = (url) => {
     {/* ========================================================================= */}
     {/* 3. LATEST PRODUCTS                                                        */}
     {/* ========================================================================= */}
-    {sections.latestProducts?.enabled && (
+    {sections.latestProducts?.enabled && latestProducts.length > 0 && (
       <section class="space-y-6">
         <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-b border-slate-200 pb-4">
           <div class="space-y-1">
@@ -107,7 +107,7 @@ const resolveMediaUrl = (url) => {
     {/* ========================================================================= */}
     {/* 4. FEATURED PRODUCTS                                                      */}
     {/* ========================================================================= */}
-    {sections.featuredProducts?.enabled && (
+    {sections.featuredProducts?.enabled && featuredProducts.length > 0 && (
       <section class="space-y-6">
         <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-b border-slate-200 pb-4">
           <div class="space-y-1">
@@ -224,7 +224,7 @@ const resolveMediaUrl = (url) => {
     {/* ========================================================================= */}
     {/* 6. TOP SELLING PRODUCTS                                                   */}
     {/* ========================================================================= */}
-    {sections.topSellingProducts?.enabled && (
+    {sections.topSellingProducts?.enabled && topSellingProducts.length > 0 && (
       <section class="space-y-6">
         <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-b border-slate-200 pb-4">
           <div class="space-y-1">
@@ -262,7 +262,7 @@ const resolveMediaUrl = (url) => {
     {/* ========================================================================= */}
     {/* 7. TRENDING PRODUCTS                                                      */}
     {/* ========================================================================= */}
-    {sections.trendingProducts?.enabled && (
+    {sections.trendingProducts?.enabled && trendingProducts.length > 0 && (
       <section class="space-y-6">
         <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-b border-slate-200 pb-4">
           <div class="space-y-1">
@@ -295,6 +295,28 @@ const resolveMediaUrl = (url) => {
           ))}
         </div>
       </section>
+    )}
+
+    {/* Empty state when no live catalog products exist */}
+    {latestProducts.length === 0 && featuredProducts.length === 0 && topSellingProducts.length === 0 && trendingProducts.length === 0 && (
+      <div class="py-16 text-center space-y-4 max-w-md mx-auto bg-white rounded-3xl p-8 border border-slate-200/80 shadow-sm">
+        <div class="w-16 h-16 mx-auto rounded-2xl bg-brand-50 flex items-center justify-center text-brand-600">
+          <span class="material-symbols-outlined text-3xl">inventory_2</span>
+        </div>
+        <div class="space-y-1">
+          <h3 class="text-base font-bold text-slate-900 font-display">Catalog is Being Updated</h3>
+          <p class="text-xs text-slate-500 leading-relaxed">
+            Wholesale hardware and OEM product releases will appear here once published in the catalog.
+          </p>
+        </div>
+        <a
+          href="/shop"
+          class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-brand-600 text-white font-semibold text-xs hover:bg-brand-700 transition-all shadow-sm"
+        >
+          <span>Explore Catalog</span>
+          <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+        </a>
+      </div>
     )}
 
     {/* ========================================================================= */}

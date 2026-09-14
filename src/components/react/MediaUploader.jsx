@@ -3,25 +3,20 @@ import Uppy from '@uppy/core';
 import Dashboard from '@uppy/react/dashboard';
 import XHRUpload from '@uppy/xhr-upload';
 import { Upload, ArrowLeft, CheckCircle2, FileImage, ExternalLink } from 'lucide-react';
-import { userStore } from '../../store/authStore.js';
+import { userStore, refreshAccessToken, getValidAuthToken } from '../../store/authStore.js';
+import { attachUppyImageCompressor } from '../../utils/imageCompressor.js';
 
 // Uppy CSS
 import '@uppy/core/css/style.min.css';
 import '@uppy/dashboard/css/style.min.css';
 import '../../styles/uppy-overrides.css';
 
-const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:4000';
+const API_URL = import.meta.env.PUBLIC_API_URL || (typeof window !== 'undefined' && window.__PUBLIC_API_URL__) || 'http://localhost:6543';
 
 export default function MediaUploader() {
   const [uploadedFiles, setUploadedFiles] = useState([]);
 
-  const getAuthToken = () => {
-    return userStore.get()?.accessToken || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('tradelogix_user') || '{}')?.accessToken : '') || '';
-  };
-
-  const authToken = getAuthToken();
-
-  // Uppy instance
+  // Uppy instance with proactive & reactive token refresh and client-side WebP compression
   const uppy = useMemo(() => {
     const instance = new Uppy({
       id: 'media-page-uppy',
@@ -32,15 +27,57 @@ export default function MediaUploader() {
       autoProceed: true,
     });
 
+    // 1. Client-side Image Compression (auto convert to WebP)
+    attachUppyImageCompressor(instance);
+
+    // 2. Proactively ensure token is valid before upload starts
+    instance.addPreProcessor(async () => {
+      try {
+        const freshToken = await getValidAuthToken();
+        const xhr = instance.getPlugin('XHRUpload');
+        if (xhr && freshToken) {
+          xhr.setOptions({
+            headers: { Authorization: `Bearer ${freshToken}` },
+          });
+        }
+      } catch (err) {
+        console.warn('Pre-upload token refresh notice:', err);
+      }
+    });
+
     instance.use(XHRUpload, {
       endpoint: `${API_URL}/media/upload`,
       fieldName: 'file',
-      headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+      headers: () => {
+        const currentUser = userStore.get() || (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('tradelogix_user') || '{}') : {});
+        const token = currentUser?.accessToken || currentUser?.refreshToken || '';
+        return token ? { Authorization: `Bearer ${token}` } : {};
+      },
       formData: true,
     });
 
+    // 2. Catch 401/403 during upload, refresh token using refresh token, and retry
+    instance.on('upload-error', async (file, error, response) => {
+      if (response && (response.status === 401 || response.status === 403)) {
+        try {
+          const newToken = await refreshAccessToken();
+          if (newToken && file) {
+            const xhr = instance.getPlugin('XHRUpload');
+            if (xhr) {
+              xhr.setOptions({
+                headers: { Authorization: `Bearer ${newToken}` },
+              });
+            }
+            instance.retryUpload(file.id);
+          }
+        } catch (refreshErr) {
+          console.error('Automatic token refresh failed after 401:', refreshErr);
+        }
+      }
+    });
+
     return instance;
-  }, [authToken]);
+  }, []);
 
   // Clean up Uppy
   useEffect(() => {

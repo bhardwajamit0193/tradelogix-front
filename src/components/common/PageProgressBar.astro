@@ -1,0 +1,170 @@
+---
+// PageProgressBar.astro - Smooth top navigation progress bar for Astro ViewTransitions & page changes
+---
+
+<div
+  id="page-nav-progress-container"
+  class="fixed top-0 left-0 right-0 z-[99999] pointer-events-none transition-opacity duration-300 opacity-0"
+  aria-hidden="true"
+  transition:persist
+>
+  <div
+    id="page-nav-progress-bar"
+    class="h-[3px] w-0 bg-gradient-to-r from-brand-600 via-purple-500 to-pink-500 shadow-[0_0_12px_rgba(99,102,241,0.85),0_0_6px_rgba(236,72,153,0.7)] transition-all duration-200 ease-out relative"
+  >
+    <!-- Glowing Peg / Leading Edge Flare -->
+    <div class="absolute right-0 top-1/2 -translate-y-1/2 w-28 h-[6px] bg-gradient-to-r from-transparent via-white to-pink-300 blur-[2px] opacity-80 rounded-full"></div>
+  </div>
+</div>
+
+<script is:inline>
+  (function () {
+    if (typeof window === 'undefined') return;
+    if (window.__pageNavProgressBarInitialized__) return;
+    window.__pageNavProgressBarInitialized__ = true;
+
+    var container = null;
+    var bar = null;
+    var progress = 0;
+    var timer = null;
+    var isNavigating = false;
+    var finishTimeout = null;
+
+    function getElements() {
+      if (!container || !container.isConnected) {
+        container = document.getElementById('page-nav-progress-container');
+      }
+      if (!bar || !bar.isConnected) {
+        bar = document.getElementById('page-nav-progress-bar');
+      }
+      return Boolean(container && bar);
+    }
+
+    function setProgress(val) {
+      if (!getElements()) return;
+      progress = Math.min(Math.max(val, 0), 100);
+      bar.style.width = progress + '%';
+    }
+
+    function start() {
+      if (!getElements()) return;
+
+      if (timer) {
+        clearInterval(timer);
+        timer = null;
+      }
+      if (finishTimeout) {
+        clearTimeout(finishTimeout);
+        finishTimeout = null;
+      }
+
+      isNavigating = true;
+      container.style.opacity = '1';
+      bar.style.transition = 'width 180ms ease-out';
+      setProgress(18);
+
+      // Trickle progress smoothly towards 88%
+      timer = setInterval(function () {
+        if (!isNavigating) return;
+        if (progress < 60) {
+          setProgress(progress + Math.max(2, Math.floor(Math.random() * 8)));
+        } else if (progress < 85) {
+          setProgress(progress + Math.max(1, Math.floor(Math.random() * 3)));
+        } else if (progress < 94) {
+          setProgress(progress + 0.4);
+        }
+      }, 200);
+    }
+
+    function finish() {
+      if (!getElements()) return;
+
+      if (timer) {
+        clearInterval(timer);
+        timer = null;
+      }
+
+      setProgress(100);
+      bar.style.transition = 'width 140ms ease-out';
+
+      finishTimeout = setTimeout(function () {
+        if (container) container.style.opacity = '0';
+        setTimeout(function () {
+          if (!isNavigating && bar) {
+            bar.style.transition = 'none';
+            setProgress(0);
+          }
+        }, 250);
+      }, 180);
+
+      isNavigating = false;
+    }
+
+    window.topProgressBar = {
+      start: start,
+      finish: finish,
+      set: setProgress,
+    };
+
+    // 1. Astro ViewTransitions Lifecycle Events
+    document.addEventListener('astro:before-preparation', function () {
+      start();
+    });
+
+    document.addEventListener('astro:after-preparation', function () {
+      setProgress(75);
+    });
+
+    document.addEventListener('astro:before-swap', function () {
+      setProgress(90);
+    });
+
+    document.addEventListener('astro:after-swap', function () {
+      setProgress(98);
+    });
+
+    document.addEventListener('astro:page-load', function () {
+      finish();
+    });
+
+    // 2. Click Interception on Internal Links for 0ms Instant Feedback
+    document.addEventListener(
+      'click',
+      function (e) {
+        if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) {
+          return;
+        }
+
+        var target = e.target;
+        var anchor = target && target.closest ? target.closest('a') : null;
+        if (!anchor || !anchor.href) return;
+
+        var href = anchor.getAttribute('href');
+        if (!href || href.startsWith('#') || href.startsWith('javascript:') || href.startsWith('mailto:') || href.startsWith('tel:')) {
+          return;
+        }
+        if (anchor.getAttribute('target') === '_blank' || anchor.hasAttribute('download')) {
+          return;
+        }
+
+        try {
+          var url = new URL(anchor.href, window.location.href);
+          if (url.origin !== window.location.origin) return; // External link
+          if (url.pathname === window.location.pathname && url.search === window.location.search && url.hash) return; // Same page anchor
+
+          start();
+        } catch (err) {}
+      },
+      true
+    );
+
+    // 3. Fallback for hard reloads / browser navigation
+    window.addEventListener('beforeunload', function () {
+      start();
+    });
+
+    window.addEventListener('pageshow', function () {
+      finish();
+    });
+  })();
+</script>

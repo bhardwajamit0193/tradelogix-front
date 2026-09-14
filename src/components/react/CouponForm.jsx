@@ -654,11 +654,50 @@ export default function CouponForm({ couponId }) {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-28 text-slate-500 gap-3">
-        <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
-        <span className="text-xs font-semibold tracking-wide uppercase text-slate-400">
-          Loading Coupon Workspace...
-        </span>
+      <div className="space-y-6 max-w-7xl mx-auto pb-16 animate-pulse">
+        {/* App bar skeleton */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-slate-200" />
+            <div className="space-y-1.5">
+              <div className="h-5 w-48 bg-slate-200 rounded" />
+              <div className="h-3 w-72 bg-slate-100 rounded" />
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="h-9 w-20 bg-slate-100 rounded-xl" />
+            <div className="h-9 w-28 bg-slate-200 rounded-xl" />
+          </div>
+        </div>
+
+        {/* Hero Code Banner Skeleton */}
+        <div className="rounded-2xl p-6 sm:p-8 bg-slate-200 h-44" />
+
+        {/* Form Body Skeleton Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-6">
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
+              <div className="h-4 w-32 bg-slate-200 rounded" />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="h-10 bg-slate-100 rounded-xl" />
+                <div className="h-10 bg-slate-100 rounded-xl" />
+              </div>
+              <div className="h-20 bg-slate-100 rounded-xl" />
+            </div>
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
+              <div className="h-4 w-40 bg-slate-200 rounded" />
+              <div className="h-10 bg-slate-100 rounded-xl" />
+              <div className="h-10 bg-slate-100 rounded-xl" />
+            </div>
+          </div>
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
+              <div className="h-4 w-28 bg-slate-200 rounded" />
+              <div className="h-10 bg-slate-100 rounded-xl" />
+              <div className="h-10 bg-slate-100 rounded-xl" />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }

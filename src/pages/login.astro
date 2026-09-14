@@ -1,4 +1,6 @@
 ---
+import { Image } from 'astro:assets';
+import logoImg from '../assets/logo.jpeg';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import UserAuthForm from '../components/react/UserAuthForm.jsx';
 ---
@@ -12,7 +14,7 @@ import UserAuthForm from '../components/react/UserAuthForm.jsx';
           const user = JSON.parse(saved);
           if (user && user.isLoggedIn) {
             const params = new URLSearchParams(window.location.search);
-            const redirectUrl = params.get('redirect') || (user.role && user.role.toLowerCase() === 'admin' ? '/admin' : '/dashboard');
+            const redirectUrl = params.get('redirect') || (user.role && user.role.toLowerCase() === 'admin' ? '/admin' : '/');
             window.location.replace(redirectUrl);
           }
         }
@@ -30,11 +32,11 @@ import UserAuthForm from '../components/react/UserAuthForm.jsx';
     <!-- Top Navigation Header -->
     <header class="w-full max-w-lg mx-auto flex items-center justify-between mb-4">
       <a href="/" class="inline-flex items-center group">
-        <img
-          src="/logo.jpeg"
+        <Image
+          src={logoImg}
           alt="TradeLogix Logo"
+          loading="eager"
           class="h-10 sm:h-12 w-auto object-contain rounded-xl group-hover:scale-105 transition-transform"
-          onerror="this.style.display='none'; const fb = document.getElementById('login-logo-fallback'); if(fb) fb.classList.remove('hidden');"
         />
         <div id="login-logo-fallback" class="hidden flex-col">
           <span class="text-lg font-extrabold tracking-tight font-display text-slate-900 group-hover:text-brand-600 transition-colors">TradeLogix</span>

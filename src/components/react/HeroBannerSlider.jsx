@@ -9,6 +9,7 @@ import {
   Percent,
   Zap,
 } from 'lucide-react';
+import Image from './common/Image.jsx';
 
 const API_URL = import.meta.env.PUBLIC_API_URL || (typeof window !== 'undefined' && window.__PUBLIC_API_URL__) || 'http://localhost:6543';
 
@@ -20,51 +21,6 @@ const resolveMediaUrl = (url) => {
   return url;
 };
 
-const DEFAULT_SLIDES = [
-  {
-    id: 'slide-1',
-    badge: 'Enterprise Wholesale Exclusive',
-    title: 'Flagship 240Hz Curved OLED Displays',
-    subtitle: 'Ultra-wide workstation monitors with 0.03ms response time & 99% DCI-P3 color precision for enterprise setups.',
-    priceText: 'From ₹1,199.00',
-    ctaText: 'Explore Displays',
-    ctaLink: '/shop?category=Displays',
-    image: 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=1200&auto=format&fit=crop&q=80',
-    bgGradient: 'from-slate-950 via-slate-900 to-indigo-950',
-    accentColor: 'text-indigo-400',
-    tagPill: '240Hz OLED • 0.03ms GTG',
-    theme: 'indigo',
-  },
-  {
-    id: 'slide-2',
-    badge: 'Titanium ANC Audio Series',
-    title: 'AeroPulse Wireless Studio ANC Headphones',
-    subtitle: 'High-fidelity audio engineered for corporate offices, remote teams, and immersive soundscapes with 45-hour battery life.',
-    priceText: 'Wholesale Tier ₹299.99',
-    ctaText: 'Shop Audio Gear',
-    ctaLink: '/shop?category=Audio',
-    image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=1200&auto=format&fit=crop&q=80',
-    bgGradient: 'from-slate-950 via-brand-950 to-slate-900',
-    accentColor: 'text-brand-300',
-    tagPill: 'Adaptive Noise Cancellation • 45h Battery',
-    theme: 'brand',
-  },
-  {
-    id: 'slide-3',
-    badge: 'Custom Gasket Mechanical Series',
-    title: 'CraftKey Pro Hot-Swap Keyboards & Mice',
-    subtitle: 'CNC aluminum chassis, hot-swappable PCB switches, and lightweight 49g precision optical mice for commercial volume deployment.',
-    priceText: 'Volume Slabs from ₹189.50',
-    ctaText: 'Explore Peripherals',
-    ctaLink: '/shop?category=Peripherals',
-    image: 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=1200&auto=format&fit=crop&q=80',
-    bgGradient: 'from-slate-950 via-cyan-950 to-slate-900',
-    accentColor: 'text-cyan-300',
-    tagPill: 'Gasket Mounted • Hot-Swap PCB',
-    theme: 'cyan',
-  },
-];
-
 const THEME_GRADIENTS = {
   indigo: 'from-slate-950 via-slate-900 to-indigo-950',
   brand: 'from-slate-950 via-brand-950 to-slate-900',
@@ -75,7 +31,10 @@ const THEME_GRADIENTS = {
 };
 
 export default function HeroBannerSlider({ slides = [] }) {
-  const activeSlides = Array.isArray(slides) && slides.length > 0 ? slides : DEFAULT_SLIDES;
+  if (!Array.isArray(slides) || slides.length === 0) {
+    return null;
+  }
+  const activeSlides = slides;
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const autoPlayRef = useRef(null);
@@ -171,9 +130,10 @@ export default function HeroBannerSlider({ slides = [] }) {
                 href={slide.ctaLink}
                 className="flex-1 relative min-h-[220px] sm:min-h-[280px] lg:min-h-full overflow-hidden block cursor-pointer group/img"
               >
-                <img
-                  src={resolveMediaUrl(slide.image)}
+                <Image
+                  src={slide.image}
                   alt={slide.title}
+                  priority={idx === 0}
                   className="w-full h-full object-cover object-center group-hover/img:scale-105 transition-transform duration-700"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent lg:bg-gradient-to-l lg:from-transparent lg:to-slate-950/90" />

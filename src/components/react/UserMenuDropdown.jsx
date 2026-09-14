@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useStore } from '@nanostores/react';
 import { userStore, logoutUser } from '../../store/authStore.js';
 import { User, LogOut, ChevronDown, LayoutDashboard, Package, Building, MapPin, ShieldCheck, Phone } from 'lucide-react';
+import Image from './common/Image.jsx';
 
 export default function UserMenuDropdown() {
   const user = useStore(userStore);
@@ -74,11 +75,17 @@ export default function UserMenuDropdown() {
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2 p-1.5 pr-3 rounded-xl bg-slate-100 border border-slate-200 hover:border-slate-300 transition-all text-xs font-medium"
       >
-        <img
-          src={user.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'}
-          alt={user.name}
-          className="w-7 h-7 rounded-lg object-cover border border-slate-200"
-        />
+        {user.avatar ? (
+          <Image
+            src={user.avatar}
+            alt={user.name}
+            className="w-7 h-7 rounded-lg object-cover border border-slate-200"
+          />
+        ) : (
+          <div className="w-7 h-7 rounded-lg bg-brand-600 text-white flex items-center justify-center font-bold text-xs uppercase shadow-sm">
+            {(user.name || 'U').charAt(0)}
+          </div>
+        )}
         <span className="hidden sm:inline-block font-semibold text-slate-800">{user.name}</span>
         <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
       </button>

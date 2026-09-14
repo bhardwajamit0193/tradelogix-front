@@ -38,7 +38,7 @@ export default function UserAuthForm() {
         const user = JSON.parse(saved);
         if (user && user.isLoggedIn) {
           const params = new URLSearchParams(window.location.search);
-          const redirectUrl = params.get('redirect') || (user.role && user.role.toLowerCase() === 'admin' ? '/admin' : '/dashboard');
+          const redirectUrl = params.get('redirect') || (user.role && user.role.toLowerCase() === 'admin' ? '/admin' : '/');
           window.location.replace(redirectUrl);
         }
       }
@@ -131,7 +131,7 @@ export default function UserAuthForm() {
           setSession(data);
           toast.success('Signed in successfully');
           const params = new URLSearchParams(window.location.search);
-          const redirectUrl = params.get('redirect') || (data.role && data.role.toLowerCase() === 'admin' ? '/admin' : '/dashboard');
+          const redirectUrl = params.get('redirect') || (data.role && data.role.toLowerCase() === 'admin' ? '/admin' : '/');
           window.location.replace(redirectUrl);
         } else {
           // Account exists but is not approved

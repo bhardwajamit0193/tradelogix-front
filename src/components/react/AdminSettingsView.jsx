@@ -109,7 +109,6 @@ export default function AdminSettingsView({ initialSection = 'platform' }) {
   // Global State
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [toast, setToast] = useState(null); // { type: 'success' | 'error', message: string }
 
   // Detect section from URL query or path
   useEffect(() => {
@@ -187,14 +186,16 @@ export default function AdminSettingsView({ initialSection = 'platform' }) {
 
   // Toast notification trigger using Sonner (top-center)
   const showToast = (type, message) => {
+    const notify = toast || (typeof window !== 'undefined' && window.toast);
+    if (!notify) return;
     if (type === 'error') {
-      toast.error(message);
+      notify.error(message);
     } else if (type === 'warning') {
-      toast.warning(message);
+      notify.warning(message);
     } else if (type === 'info') {
-      toast.info(message);
+      notify.info(message);
     } else {
-      toast.success(message);
+      notify.success(message);
     }
   };
 
@@ -460,24 +461,6 @@ export default function AdminSettingsView({ initialSection = 'platform' }) {
 
   return (
     <div className="w-full space-y-6 max-w-7xl mx-auto pb-12">
-      {/* Toast Alert Notification */}
-      {toast && (
-        <div
-          className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl border transition-all animate-bounceIn ${
-            toast.type === 'success'
-              ? 'bg-slate-900 text-white border-emerald-500/50 shadow-emerald-500/10'
-              : 'bg-rose-950 text-white border-rose-500/50 shadow-rose-500/10'
-          }`}
-        >
-          {toast.type === 'success' ? (
-            <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-          ) : (
-            <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
-          )}
-          <span className="text-xs font-semibold">{toast.message}</span>
-        </div>
-      )}
-
       {/* Top Header & Tab Navigation Bar */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
         {/* Navigation Tabs */}
@@ -557,9 +540,29 @@ export default function AdminSettingsView({ initialSection = 'platform' }) {
       {/* Main Settings Card */}
       <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 lg:p-10 relative">
         {loading ? (
-          <div className="h-96 flex flex-col items-center justify-center space-y-3">
-            <div className="w-9 h-9 border-3 border-brand-600 border-t-transparent rounded-full animate-spin" />
-            <p className="text-xs text-slate-500 font-semibold">Retrieving system configuration from database...</p>
+          <div className="space-y-6 animate-pulse">
+            <div className="flex items-center justify-between pb-6 border-b border-slate-100">
+              <div className="space-y-2">
+                <div className="h-6 w-48 bg-slate-200 rounded-lg" />
+                <div className="h-3 w-64 bg-slate-100 rounded" />
+              </div>
+              <div className="h-10 w-28 bg-slate-200 rounded-xl" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <div className="h-4 w-28 bg-slate-200 rounded" />
+                <div className="h-10 w-full bg-slate-100 rounded-xl" />
+              </div>
+              <div className="space-y-2">
+                <div className="h-4 w-28 bg-slate-200 rounded" />
+                <div className="h-10 w-full bg-slate-100 rounded-xl" />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
+              <div className="h-28 bg-slate-100 rounded-2xl" />
+              <div className="h-28 bg-slate-100 rounded-2xl" />
+              <div className="h-28 bg-slate-100 rounded-2xl" />
+            </div>
           </div>
         ) : (
           <>

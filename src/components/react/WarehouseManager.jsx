@@ -499,12 +499,18 @@ export default function WarehouseManager() {
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs">
                 {isLoading ? (
-                  <tr>
-                    <td colSpan={5} className="p-12 text-center text-slate-400">
-                      <RefreshCw className="w-6 h-6 animate-spin mx-auto text-brand-600 mb-2" />
-                      Loading warehouses...
-                    </td>
-                  </tr>
+                  Array.from({ length: 4 }).map((_, idx) => (
+                    <tr key={`wh-skel-${idx}`} className="animate-pulse">
+                      <td className="p-3.5"><div className="h-4 w-4 bg-slate-200 rounded" /></td>
+                      <td className="p-3.5">
+                        <div className="h-4 w-32 bg-slate-200 rounded mb-1" />
+                        <div className="h-3 w-16 bg-slate-100 rounded" />
+                      </td>
+                      <td className="p-3.5"><div className="h-4 w-28 bg-slate-200 rounded" /></td>
+                      <td className="p-3.5"><div className="h-4 w-20 bg-slate-200 rounded" /></td>
+                      <td className="p-3.5 text-right"><div className="h-7 w-16 bg-slate-200 rounded-lg ml-auto" /></td>
+                    </tr>
+                  ))
                 ) : filtered.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="p-12 text-center text-slate-400">

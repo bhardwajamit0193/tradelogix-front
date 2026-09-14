@@ -442,12 +442,20 @@ export default function WarehouseInventoryManager() {
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs">
               {isLoading ? (
-                <tr>
-                  <td colSpan={4 + warehouses.length} className="p-16 text-center text-slate-400">
-                    <RefreshCw className="w-8 h-8 animate-spin mx-auto text-brand-600 mb-2" />
-                    Loading inventory across warehouses...
-                  </td>
-                </tr>
+                Array.from({ length: 5 }).map((_, idx) => (
+                  <tr key={`inv-skel-${idx}`} className="animate-pulse">
+                    <td className="p-3.5">
+                      <div className="h-4 w-36 bg-slate-200 rounded mb-1" />
+                      <div className="h-3 w-20 bg-slate-100 rounded" />
+                    </td>
+                    <td className="p-3.5"><div className="h-4 w-20 bg-slate-200 rounded" /></td>
+                    <td className="p-3.5"><div className="h-4 w-16 bg-slate-200 rounded" /></td>
+                    {warehouses.map(w => (
+                      <td key={w.id} className="p-3.5"><div className="h-8 w-16 bg-slate-100 rounded-lg mx-auto" /></td>
+                    ))}
+                    <td className="p-3.5 text-right"><div className="h-7 w-16 bg-slate-200 rounded-lg ml-auto" /></td>
+                  </tr>
+                ))
               ) : filteredProducts.length === 0 ? (
                 <tr>
                   <td colSpan={4 + warehouses.length} className="p-16 text-center text-slate-400">

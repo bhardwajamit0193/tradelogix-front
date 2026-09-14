@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { useStore } from '@nanostores/react';
 import { cartItems, cartSubtotal, clearCart } from '../../store/cartStore.js';
 import { userStore } from '../../store/authStore.js';
@@ -410,7 +411,7 @@ export default function CheckoutStepper() {
     setIsProcessingPayment(true);
     const scriptId = 'razorpay-checkout-script';
     let script = document.getElementById(scriptId);
-    const keyId = paymentSettings.razorpayKeyId || 'rzp_test_tradelogixDemoKey';
+    const keyId = paymentSettings.razorpayKeyId || '';
 
     const launchModal = () => {
       if (window.Razorpay) {
@@ -513,9 +514,10 @@ export default function CheckoutStepper() {
       }, user?.accessToken);
     }
 
-    const effectiveItems = items.length > 0 ? items : [
-      { id: 'demo-1', name: 'Standard Wholesale Item', sku: 'WHL-001', quantity: 1, price: subtotal || 5000 },
-    ];
+    if (!items || items.length === 0) {
+      toast.error('Your cart is empty. Please add items before placing an order.');
+      return;
+    }
 
     if (paymentMethod === 'Razorpay') {
       triggerRazorpayCheckout(grandTotal, false, async (rzpData) => {
@@ -534,7 +536,7 @@ export default function CheckoutStepper() {
           razorpayPaymentId: rzpData.razorpayPaymentId,
           couponCode: appliedCoupon ? appliedCoupon.code : null,
           discountAmount: discountAmount,
-          items: effectiveItems,
+          items: items,
           subtotal: subtotal,
           taxAmount: taxAmount,
           total: grandTotal,
@@ -564,7 +566,7 @@ export default function CheckoutStepper() {
           razorpayPaymentId: rzpData.razorpayPaymentId,
           couponCode: appliedCoupon ? appliedCoupon.code : null,
           discountAmount: discountAmount,
-          items: effectiveItems,
+          items: items,
           subtotal: subtotal,
           taxAmount: taxAmount,
           total: grandTotal,
@@ -590,7 +592,7 @@ export default function CheckoutStepper() {
         offlineUtrNumber: utrNumber.trim() ? utrNumber.trim().toUpperCase() : null,
         couponCode: appliedCoupon ? appliedCoupon.code : null,
         discountAmount: discountAmount,
-        items: effectiveItems,
+        items: items,
         subtotal: subtotal,
         taxAmount: taxAmount,
         total: grandTotal,
@@ -614,7 +616,7 @@ export default function CheckoutStepper() {
         paymentStatus: 'COD Confirmed',
         couponCode: appliedCoupon ? appliedCoupon.code : null,
         discountAmount: discountAmount,
-        items: effectiveItems,
+        items: items,
         subtotal: subtotal,
         taxAmount: taxAmount,
         total: grandTotal,

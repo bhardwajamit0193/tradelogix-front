@@ -3,6 +3,7 @@ import {
   fetchFooterSettingsApi,
   DEFAULT_FOOTER_SETTINGS,
 } from '../../services/platformSettingsService.js';
+import Image from './common/Image.jsx';
 
 const API_URL = import.meta.env.PUBLIC_API_URL || (typeof window !== 'undefined' && window.__PUBLIC_API_URL__) || 'http://localhost:6543';
 
@@ -14,6 +15,11 @@ export default function FooterView({ initialData = null }) {
 
   useEffect(() => {
     async function loadFooter() {
+      // If initial footer data was already provided via SSR, avoid duplicate network call
+      if (unwrappedInitial && (unwrappedInitial.columns || unwrappedInitial.copyright)) {
+        setLoaded(true);
+        return;
+      }
       try {
         const json = await fetchFooterSettingsApi();
         const data = (json && json.data) ? json.data : json;
@@ -142,11 +148,10 @@ export default function FooterView({ initialData = null }) {
               {(hasBrandLogo || hasBrandName) && (
                 <a className="font-display font-bold text-2xl text-white flex items-center gap-3 inline-flex" href="/">
                   {hasBrandLogo ? (
-                    <img
-                      src={formatLogoUrl(footer.brandLogo)}
+                    <Image
+                      src={footer.brandLogo}
                       alt={footer.brandName || 'Store Logo'}
                       className="h-12 w-auto object-contain rounded-lg brightness-110"
-                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
                     />
                   ) : hasBrandName ? (
                     <span className="text-xl font-black text-white tracking-tight">{footer.brandName}</span>

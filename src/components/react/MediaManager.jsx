@@ -54,12 +54,18 @@ export default function MediaManager() {
     }
   };
 
-  // Fetch Media Items with Auto-Refresh Auth
+  // Fetch Media Items with Auto-Refresh Auth & Cache Busting
   const fetchMedia = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetchWithAuth(`${API_URL}/media?page=${page}&limit=${limit}`);
+      const res = await fetchWithAuth(`${API_URL}/media?page=${page}&limit=${limit}&_t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+        },
+      });
 
       if (res.status === 401) {
         throw new Error('Authentication required. Please sign in as an Admin.');
@@ -72,7 +78,7 @@ export default function MediaManager() {
       const data = json?.data || json;
       const mediaList = data?.items || [];
       setItems(mediaList);
-      setTotalCount(data?.total || mediaList.length);
+      setTotalCount(data?.total !== undefined ? data.total : mediaList.length);
     } catch (err) {
       setError(err.message);
       setItems([]);
@@ -143,10 +149,20 @@ export default function MediaManager() {
         });
 
         if (!res.ok) throw new Error('Failed to delete media items.');
-        toast.success(`Successfully deleted ${selectedIds.length} items`);
+        const json = await res.json().catch(() => ({}));
+        if (json.success === false) {
+          throw new Error(json.message || 'Failed to delete media items.');
+        }
+
+        const count = selectedIds.length;
+        // Optimistically remove from state immediately
+        setItems(prev => prev.filter(i => !selectedIds.includes(i.id)));
+        setTotalCount(prev => Math.max(0, prev - count));
         setSelectedIds([]);
         setBulkAction('');
-        fetchMedia();
+
+        toast.success(`Successfully deleted ${count} items`);
+        await fetchMedia();
       } catch (err) {
         toast.error(err.message || 'Failed to delete media items.');
       }
@@ -170,12 +186,21 @@ export default function MediaManager() {
       });
 
       if (!res.ok) throw new Error('Failed to delete item.');
+      const json = await res.json().catch(() => ({}));
+      if (json.success === false) {
+        throw new Error(json.message || 'Failed to delete item.');
+      }
+
+      // Optimistically remove from state immediately
+      setItems(prev => prev.filter(i => i.id !== item.id));
+      setTotalCount(prev => Math.max(0, prev - 1));
+
       toast.success('Media deleted permanently');
       if (editingItem?.id === item.id) {
         setEditingItem(null);
         setViewMode('list');
       }
-      fetchMedia();
+      await fetchMedia();
     } catch (err) {
       toast.error(err.message || 'Failed to delete item.');
     }
@@ -189,7 +214,7 @@ export default function MediaManager() {
   };
 
   // Save Title Changes in Edit Mode
-  const handleSaveDetails = async () => {
+  const handleSaveEdit = async () => {
     if (!editingItem) return;
     setIsUpdating(true);
     try {
@@ -212,6 +237,7 @@ export default function MediaManager() {
       setIsUpdating(false);
     }
   };
+  const handleSaveDetails = handleSaveEdit;
 
   const copyToClipboard = (url) => {
     const fullUrl = url.startsWith('http') ? url : `${API_URL}${url}`;
@@ -605,10 +631,37 @@ export default function MediaManager() {
 
       {/* Loading state */}
       {isLoading ? (
-        <div className="p-20 bg-white rounded-2xl border border-slate-200 flex flex-col items-center justify-center gap-3 shadow-sm text-slate-400">
-          <RefreshCw className="w-8 h-8 animate-spin text-brand-600" />
-          <span className="text-xs font-semibold">Loading media library...</span>
-        </div>
+        viewMode === 'list' ? (
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-pulse">
+            <div className="h-11 bg-slate-50 border-b border-slate-200" />
+            <div className="divide-y divide-slate-100">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="p-3.5 flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-lg bg-slate-200 shrink-0" />
+                  <div className="space-y-1.5 flex-1">
+                    <div className="h-3.5 w-48 bg-slate-200 rounded" />
+                    <div className="h-2.5 w-24 bg-slate-100 rounded" />
+                  </div>
+                  <div className="h-3 w-16 bg-slate-100 rounded hidden sm:block" />
+                  <div className="h-3 w-12 bg-slate-100 rounded hidden sm:block" />
+                  <div className="h-3 w-20 bg-slate-100 rounded" />
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 animate-pulse">
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((i) => (
+              <div key={i} className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+                <div className="aspect-square bg-slate-200" />
+                <div className="p-2 space-y-1">
+                  <div className="h-2.5 bg-slate-200 rounded w-3/4" />
+                  <div className="h-2 bg-slate-100 rounded w-1/2" />
+                </div>
+              </div>
+            ))}
+          </div>
+        )
       ) : filteredItems.length === 0 ? (
         /* Empty state */
         <div className="p-16 bg-white rounded-2xl border border-slate-200 flex flex-col items-center justify-center gap-3 shadow-sm text-center">

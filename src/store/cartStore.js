@@ -88,7 +88,7 @@ export const addToCart = (product, quantity = 1, selectedVariant = null) => {
     return false;
   }
 
-  const fallbackImage = 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&auto=format&fit=crop&q=80';
+  const fallbackImage = '/placeholder-product.svg';
   const img = product.featuredImage || product.image || (product.images && product.images[0]) || fallbackImage;
   const basePrice = product.pricing?.basePrice ? parseFloat(product.pricing.basePrice) : (product.price || 0);
   const tiers = product.pricing?.tiers || product.tiers || [];

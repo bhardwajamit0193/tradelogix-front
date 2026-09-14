@@ -249,9 +249,60 @@ export default function CustomerManager() {
 
       {/* Loading state */}
       {isLoading && (
-        <div className="glass-panel p-12 rounded-3xl border border-slate-200 bg-white text-center space-y-4 shadow-sm">
-          <div className="w-10 h-10 border-4 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="text-slate-500">Querying real-time customer directory database...</p>
+        <div className="glass-panel rounded-3xl overflow-hidden border border-slate-200 bg-white shadow-sm animate-pulse">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200 uppercase tracking-wider text-[10px]">
+                <tr>
+                  <th className="p-4 pl-6">Company / Buyer Details</th>
+                  <th className="p-4">Contact Profile</th>
+                  <th className="p-4">Registered Date</th>
+                  <th className="p-4">Price Group</th>
+                  {statusFilter === 'All' && <th className="p-4">Approval Status</th>}
+                  <th className="p-4 pr-6 text-right">Administrative Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {[1, 2, 3, 4, 5].map((idx) => (
+                  <tr key={idx}>
+                    <td className="p-4 pl-6">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-lg bg-slate-200 shrink-0" />
+                        <div className="space-y-1.5">
+                          <div className="h-3.5 w-32 bg-slate-200 rounded" />
+                          <div className="h-2.5 w-20 bg-slate-100 rounded" />
+                        </div>
+                      </div>
+                    </td>
+                    <td className="p-4">
+                      <div className="space-y-1.5">
+                        <div className="h-3 w-28 bg-slate-200 rounded" />
+                        <div className="h-2.5 w-36 bg-slate-100 rounded" />
+                        <div className="h-2 w-20 bg-slate-100 rounded" />
+                      </div>
+                    </td>
+                    <td className="p-4">
+                      <div className="h-3 w-20 bg-slate-200 rounded" />
+                    </td>
+                    <td className="p-4">
+                      <div className="h-4 w-16 bg-slate-200 rounded-md" />
+                    </td>
+                    {statusFilter === 'All' && (
+                      <td className="p-4">
+                        <div className="h-5 w-20 bg-slate-200 rounded-full" />
+                      </td>
+                    )}
+                    <td className="p-4 pr-6 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <div className="h-8 w-16 bg-slate-100 rounded-xl" />
+                        <div className="h-8 w-8 bg-slate-100 rounded-xl" />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

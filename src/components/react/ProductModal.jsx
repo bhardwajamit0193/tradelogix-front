@@ -5,13 +5,13 @@ export default function ProductModal({ isOpen, onClose, onSave, initialProduct =
   const [formData, setFormData] = useState(
     initialProduct || {
       name: '',
-      category: 'Audio',
-      price: 199.99,
-      originalPrice: 249.99,
-      stockCount: 25,
-      badge: 'New Arrival',
-      image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&auto=format&fit=crop&q=80',
-      description: 'High performance audio gear with premium build quality.',
+      category: '',
+      price: '',
+      originalPrice: '',
+      stockCount: 0,
+      badge: '',
+      image: '',
+      description: '',
     }
   );
 

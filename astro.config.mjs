@@ -24,6 +24,13 @@ export default defineConfig({
       applyBaseStyles: false,
     }),
   ],
+  image: {
+    domains: ['localhost', 'peachpuff-turkey-402264.hostingersite.com'],
+    remotePatterns: [
+      { protocol: 'http', hostname: 'localhost' },
+      { protocol: 'https', hostname: '**.hostingersite.com' },
+    ],
+  },
   vite: {
     optimizeDeps: {
       include: [

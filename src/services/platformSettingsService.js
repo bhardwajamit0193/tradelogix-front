@@ -1,3 +1,6 @@
+import { fetchWithAuth } from '../store/authStore.js';
+import { compressImageToWebP } from '../utils/imageCompressor.js';
+
 const API_URL = import.meta.env.PUBLIC_API_URL || (typeof window !== 'undefined' && window.__PUBLIC_API_URL__) || 'http://localhost:6543';
 
 export const DEFAULT_PLATFORM_SETTINGS = {
@@ -253,6 +256,133 @@ export const DEFAULT_EMAIL_TEMPLATES = [
     variables: ['otpCode', 'customerName', 'companyName'],
     enabled: true,
   },
+  {
+    templateKey: 'customer_pending_approval',
+    name: 'Customer Account Pending Approval',
+    description: 'Sent to customer upon registering their account or when status is set to Pending Approval.',
+    category: 'customer',
+    subject: 'Your {companyName} Wholesale Account is Pending Approval',
+    bodyHtml: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
+  <div style="border-bottom: 2px solid #f59e0b; padding-bottom: 16px; margin-bottom: 20px;">
+    <h2 style="color: #0f172a; margin: 0; font-size: 20px;">Wholesale Registration Under Review</h2>
+    <span style="color: #b45309; font-size: 13px; font-weight: bold;">Status: Pending Administrative Approval</span>
+  </div>
+  <p style="font-size: 14px; color: #334155;">Dear <strong>{customerName}</strong>,</p>
+  <p style="font-size: 14px; color: #334155; line-height: 1.6;">Thank you for registering with <strong>{companyName}</strong>. Your wholesale B2B account onboarding application has been successfully submitted and is currently being vetted by our trade compliance team.</p>
+  <div style="background: #fffbeb; border: 1px solid #fef3c7; border-radius: 8px; padding: 16px; margin: 20px 0;">
+    <p style="margin: 4px 0; font-size: 13px; color: #92400e;"><strong>Account Status:</strong> Pending Approval</p>
+    <p style="margin: 4px 0; font-size: 13px; color: #92400e;"><strong>Next Step:</strong> Verification of GST / business documentation and pricing assignment.</p>
+  </div>
+  <p style="font-size: 13px; color: #475569; line-height: 1.6;">You will receive an automated notification as soon as your account credentials and tiered pricing have been approved.</p>
+  <div style="margin-top: 28px; padding-top: 16px; border-top: 1px solid #f1f5f9; color: #64748b; font-size: 12px;">
+    <p style="margin: 0;">Warm regards,<br><strong>{companyName}</strong> Onboarding Desk<br>Email: {supportEmail} | Phone: {companyPhone}</p>
+  </div>
+</div>`,
+    variables: ['customerName', 'companyName', 'supportEmail', 'companyPhone'],
+    enabled: true,
+  },
+  {
+    templateKey: 'customer_approved',
+    name: 'Customer Account Approved',
+    description: 'Sent to customer when their wholesale account is reviewed and approved by an administrator.',
+    category: 'customer',
+    subject: 'Congratulations! Your {companyName} Wholesale Account is Approved',
+    bodyHtml: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
+  <div style="border-bottom: 2px solid #10b981; padding-bottom: 16px; margin-bottom: 20px;">
+    <h2 style="color: #0f172a; margin: 0; font-size: 20px;">Account Approved & Wholesale Pricing Unlocked</h2>
+    <span style="color: #047857; font-size: 13px; font-weight: bold;">Status: Approved</span>
+  </div>
+  <p style="font-size: 14px; color: #334155;">Dear <strong>{customerName}</strong>,</p>
+  <p style="font-size: 14px; color: #334155; line-height: 1.6;">We are pleased to inform you that your wholesale B2B account with <strong>{companyName}</strong> has been <strong>Approved</strong>!</p>
+  <div style="background: #f0fdf4; border: 1px solid #dcfce7; border-radius: 8px; padding: 16px; margin: 20px 0;">
+    <p style="margin: 4px 0; font-size: 13px; color: #166534;"><strong>Account Status:</strong> Active & Approved</p>
+    <p style="margin: 4px 0; font-size: 13px; color: #166534;"><strong>Assigned Price Tier:</strong> {priceGroup}</p>
+    <p style="margin: 4px 0; font-size: 13px; color: #166534;"><strong>Fulfillment Hub:</strong> {warehouse}</p>
+  </div>
+  <p style="font-size: 13px; color: #475569; line-height: 1.6;">You can now log in, browse wholesale catalogs, view tier discounts, and book purchase orders directly.</p>
+  <div style="margin: 24px 0; text-align: center;">
+    <a href="{portalUrl}" style="display: inline-block; background: #2563eb; color: #ffffff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 14px;">Access Wholesale Storefront</a>
+  </div>
+  <div style="margin-top: 28px; padding-top: 16px; border-top: 1px solid #f1f5f9; color: #64748b; font-size: 12px;">
+    <p style="margin: 0;">Warm regards,<br><strong>{companyName}</strong> Accounts & Merchant Support<br>Email: {supportEmail}</p>
+  </div>
+</div>`,
+    variables: ['customerName', 'companyName', 'priceGroup', 'warehouse', 'portalUrl', 'supportEmail'],
+    enabled: true,
+  },
+  {
+    templateKey: 'customer_rejected',
+    name: 'Customer Account Rejected',
+    description: 'Sent to customer when their wholesale application cannot be approved.',
+    category: 'customer',
+    subject: 'Update regarding your {companyName} Account Application',
+    bodyHtml: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
+  <div style="border-bottom: 2px solid #e11d48; padding-bottom: 16px; margin-bottom: 20px;">
+    <h2 style="color: #0f172a; margin: 0; font-size: 20px;">Wholesale Application Status Update</h2>
+    <span style="color: #be123c; font-size: 13px; font-weight: bold;">Status: Rejected</span>
+  </div>
+  <p style="font-size: 14px; color: #334155;">Dear <strong>{customerName}</strong>,</p>
+  <p style="font-size: 14px; color: #334155; line-height: 1.6;">Thank you for your interest in partnering with <strong>{companyName}</strong>. Following a review of your business registration credentials, we regret to inform you that we are unable to approve your wholesale account at this time.</p>
+  <div style="background: #fff1f2; border: 1px solid #ffe4e6; border-radius: 8px; padding: 16px; margin: 20px 0;">
+    <p style="margin: 4px 0; font-size: 13px; color: #9f1239;"><strong>Account Status:</strong> Application Rejected</p>
+    <p style="margin: 4px 0; font-size: 13px; color: #9f1239;">If you believe this decision was made in error or if you have updated GSTIN/business certificates to provide, please contact our support desk.</p>
+  </div>
+  <div style="margin-top: 28px; padding-top: 16px; border-top: 1px solid #f1f5f9; color: #64748b; font-size: 12px;">
+    <p style="margin: 0;">Warm regards,<br><strong>{companyName}</strong> Compliance Desk<br>Email: {supportEmail}</p>
+  </div>
+</div>`,
+    variables: ['customerName', 'companyName', 'supportEmail'],
+    enabled: true,
+  },
+  {
+    templateKey: 'customer_suspended',
+    name: 'Customer Account Suspended',
+    description: 'Sent to customer when their wholesale account is temporarily suspended.',
+    category: 'customer',
+    subject: 'Notice: Your {companyName} Account has been Suspended',
+    bodyHtml: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
+  <div style="border-bottom: 2px solid #f97316; padding-bottom: 16px; margin-bottom: 20px;">
+    <h2 style="color: #0f172a; margin: 0; font-size: 20px;">Account Suspended Notice</h2>
+    <span style="color: #c2410c; font-size: 13px; font-weight: bold;">Status: Suspended</span>
+  </div>
+  <p style="font-size: 14px; color: #334155;">Dear <strong>{customerName}</strong>,</p>
+  <p style="font-size: 14px; color: #334155; line-height: 1.6;">Please be advised that your wholesale customer account with <strong>{companyName}</strong> has been temporarily suspended.</p>
+  <div style="background: #fff7ed; border: 1px solid #ffedd5; border-radius: 8px; padding: 16px; margin: 20px 0;">
+    <p style="margin: 4px 0; font-size: 13px; color: #9a3412;"><strong>Account Status:</strong> Suspended</p>
+    <p style="margin: 4px 0; font-size: 13px; color: #9a3412;">Wholesale catalog pricing and order placement privileges have been temporarily paused.</p>
+  </div>
+  <p style="font-size: 13px; color: #475569; line-height: 1.6;">To restore your account standing or discuss pending matters, please contact your account representative.</p>
+  <div style="margin-top: 28px; padding-top: 16px; border-top: 1px solid #f1f5f9; color: #64748b; font-size: 12px;">
+    <p style="margin: 0;">Warm regards,<br><strong>{companyName}</strong> Credit & Operations Team<br>Email: {supportEmail}</p>
+  </div>
+</div>`,
+    variables: ['customerName', 'companyName', 'supportEmail'],
+    enabled: true,
+  },
+  {
+    templateKey: 'customer_blocked',
+    name: 'Customer Account Blocked',
+    description: 'Sent to customer when their account access is blocked by an administrator.',
+    category: 'customer',
+    subject: 'Notice: Your {companyName} Account Access Blocked',
+    bodyHtml: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
+  <div style="border-bottom: 2px solid #64748b; padding-bottom: 16px; margin-bottom: 20px;">
+    <h2 style="color: #0f172a; margin: 0; font-size: 20px;">Account Access Revoked</h2>
+    <span style="color: #475569; font-size: 13px; font-weight: bold;">Status: Blocked</span>
+  </div>
+  <p style="font-size: 14px; color: #334155;">Dear <strong>{customerName}</strong>,</p>
+  <p style="font-size: 14px; color: #334155; line-height: 1.6;">Notice is hereby given that access to your account on <strong>{companyName}</strong> has been blocked by our administrative team.</p>
+  <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 20px 0;">
+    <p style="margin: 4px 0; font-size: 13px; color: #334155;"><strong>Account Status:</strong> Blocked</p>
+    <p style="margin: 4px 0; font-size: 13px; color: #334155;">All login sessions and transaction privileges have been deactivated.</p>
+  </div>
+  <div style="margin-top: 28px; padding-top: 16px; border-top: 1px solid #f1f5f9; color: #64748b; font-size: 12px;">
+    <p style="margin: 0;">Warm regards,<br><strong>{companyName}</strong> Administration<br>Email: {supportEmail}</p>
+  </div>
+</div>`,
+    variables: ['customerName', 'companyName', 'supportEmail'],
+    enabled: true,
+  },
 ];
 
 /**
@@ -360,10 +490,12 @@ export async function sendTestSmtpEmailApi(targetEmail, smtpConfig = {}) {
  * Upload Company Logo Image
  */
 export async function uploadCompanyLogoApi(file) {
-  const formData = new FormData();
-  formData.append('file', file);
   try {
-    const res = await fetch(`${API_URL}/api/media/upload`, {
+    const processedFile = await compressImageToWebP(file);
+    const formData = new FormData();
+    formData.append('file', processedFile);
+
+    const res = await fetchWithAuth(`${API_URL}/media/upload`, {
       method: 'POST',
       body: formData,
     });

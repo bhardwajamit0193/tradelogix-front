@@ -9,6 +9,11 @@ if (!slug || slug === 'index' || slug === 'shop' || slug === 'admin' || slug ===
   return Astro.redirect('/');
 }
 
+// Ignore browser devtools, system queries, and static file requests
+if (slug.startsWith('.well-known') || slug.includes('.')) {
+  return new Response(null, { status: 404 });
+}
+
 let page = null;
 try {
   page = await fetchPageBySlugApi(slug);

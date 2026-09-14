@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { Toaster, toast } from 'sonner';
+import 'sonner/dist/styles.css';
 
 /**
  * Global Sonner Toaster container configured for top-center placement

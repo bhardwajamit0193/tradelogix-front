@@ -2,6 +2,7 @@
 import '../styles/global.css';
 import { ViewTransitions } from 'astro:transitions';
 import SonnerToaster from '../components/react/SonnerToaster.jsx';
+import PageProgressBar from '../components/common/PageProgressBar.astro';
 import { fetchPlatformSettingsApi } from '../services/platformSettingsService.js';
 
 export interface Props {
@@ -83,8 +84,129 @@ else if (finalFavicon.toLowerCase().endsWith('.webp')) iconType = 'image/webp';
     <!-- Astro View Transitions for SPA-like Instant Transitions -->
     <ViewTransitions fallback="animate" />
 
-    <!-- Instant Auth State Detection to Eliminate Pre-Hydration Sign In Button Flash -->
+    <!-- Universal API Request Deduplication & In-Memory Response Caching Engine -->
     <script is:inline>
+      (function() {
+        if (typeof window === 'undefined' || window.__tradelogix_fetch_intercepted__) return;
+        var nativeFetch = window.fetch;
+        window.__nativeFetch__ = nativeFetch;
+        var inFlight = new Map();
+        var cache = new Map();
+        var DEFAULT_TTL = 30000;
+        var LONG_TTL_ENDPOINTS = [
+          '/api/all-categories',
+          '/api/settings/footer',
+          '/api/admin/settings/footer',
+          '/api/admin/settings/platform',
+          '/api/pages'
+        ];
+
+        function getTtl(url) {
+          var str = String(url || '');
+          for (var i = 0; i < LONG_TTL_ENDPOINTS.length; i++) {
+            if (str.indexOf(LONG_TTL_ENDPOINTS[i]) !== -1) return 60000;
+          }
+          return DEFAULT_TTL;
+        }
+
+        function getCacheKey(url, opts) {
+          var method = (opts && opts.method ? opts.method : 'GET').toUpperCase();
+          var urlStr = typeof url === 'string' ? url : (url && url.url ? url.url : String(url));
+          var authKey = '';
+          if (opts && opts.headers) {
+            var h = opts.headers;
+            var auth = typeof h.get === 'function' ? h.get('Authorization') : (h.Authorization || h.authorization);
+            if (auth) authKey = ':' + String(auth).slice(-16);
+          }
+          return method + ':' + urlStr + authKey;
+        }
+
+        function invalidate(urlStr) {
+          if (!urlStr) return;
+          var clean = String(urlStr).split('?')[0];
+          cache.forEach(function(val, key) {
+            if (key.indexOf(clean) !== -1) cache.delete(key);
+          });
+        }
+
+        window.fetch = function(url, options) {
+          var opts = options || {};
+          var method = (opts.method || 'GET').toUpperCase();
+
+          // Mutations (POST, PUT, PATCH, DELETE) bypass cache and invalidate matching resources
+          if (method !== 'GET' && method !== 'HEAD') {
+            invalidate(typeof url === 'string' ? url : (url && url.url ? url.url : ''));
+            return nativeFetch(url, options);
+          }
+
+          // Opt-out if requested
+          if (opts.cache === 'no-store' || opts.cache === 'reload' || (opts.headers && opts.headers['x-no-cache'])) {
+            return nativeFetch(url, options);
+          }
+
+          var key = getCacheKey(url, opts);
+          var ttl = getTtl(url);
+
+          // 1. Fresh cache hit -> return cloned Response immediately with 0 network calls
+          var cached = cache.get(key);
+          if (cached && (Date.now() - cached.timestamp < ttl)) {
+            return Promise.resolve(new Response(cached.bodyText, {
+              status: cached.status,
+              statusText: cached.statusText,
+              headers: new Headers(cached.headers)
+            }));
+          }
+
+          // 2. Coalesce onto active in-flight request if already running
+          if (inFlight.has(key)) {
+            return inFlight.get(key).then(function(snap) {
+              return new Response(snap.bodyText, {
+                status: snap.status,
+                statusText: snap.statusText,
+                headers: new Headers(snap.headers)
+              });
+            });
+          }
+
+          // 3. Initiate single physical network fetch
+          var p = nativeFetch(url, options).then(function(res) {
+            return res.text().then(function(bodyText) {
+              var headersObj = {};
+              if (res.headers && typeof res.headers.forEach === 'function') {
+                res.headers.forEach(function(v, k) { headersObj[k] = v; });
+              }
+              var snap = {
+                bodyText: bodyText,
+                status: res.status,
+                statusText: res.statusText,
+                headers: headersObj,
+                timestamp: Date.now()
+              };
+              if (res.ok && res.status >= 200 && res.status < 300) {
+                cache.set(key, snap);
+              }
+              return snap;
+            });
+          }).finally(function() {
+            inFlight.delete(key);
+          });
+
+          inFlight.set(key, p);
+
+          return p.then(function(snap) {
+            return new Response(snap.bodyText, {
+              status: snap.status,
+              statusText: snap.statusText,
+              headers: new Headers(snap.headers)
+            });
+          });
+        };
+
+        window.__tradelogix_fetch_intercepted__ = true;
+        window.__clearApiCache__ = function() { cache.clear(); inFlight.clear(); };
+        window.__apiCache__ = cache;
+      })();
+
       function syncAuthClass() {
         try {
           var saved = localStorage.getItem('tradelogix_user');
@@ -115,6 +237,9 @@ else if (finalFavicon.toLowerCase().endsWith('.webp')) iconType = 'image/webp';
     </script>
   </head>
   <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col antialiased selection:bg-brand-500 selection:text-white">
+    <!-- Top Header Navigation Progress Bar -->
+    <PageProgressBar />
+
     <!-- Ambient Background Glow Accents (Light Theme Pastels) -->
     <div class="fixed top-0 left-1/4 w-96 h-96 bg-brand-500/10 rounded-full blur-3xl pointer-events-none -z-10 animate-pulse-slow"></div>
     <div class="fixed bottom-0 right-1/4 w-96 h-96 bg-accent-cyan/15 rounded-full blur-3xl pointer-events-none -z-10 animate-pulse-slow"></div>

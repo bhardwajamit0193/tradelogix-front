@@ -338,14 +338,40 @@ export default function CouponsManager() {
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
               {loading ? (
-                <tr>
-                  <td colSpan="9" className="text-center py-12 text-slate-400">
-                    <div className="inline-flex items-center gap-2 text-xs font-medium">
-                      <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                      Loading coupons...
-                    </div>
-                  </td>
-                </tr>
+                [1, 2, 3, 4, 5].map((idx) => (
+                  <tr key={idx} className="animate-pulse">
+                    <td className="w-10 px-4 py-3">
+                      <div className="w-4 h-4 bg-slate-200 rounded" />
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="h-5 w-24 bg-blue-100 rounded" />
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="h-4 w-28 bg-slate-200 rounded" />
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="h-4 w-16 bg-slate-200 rounded" />
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="h-4 w-36 bg-slate-100 rounded" />
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="h-4 w-12 bg-slate-100 rounded" />
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="h-4 w-16 bg-slate-100 rounded" />
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="h-4 w-20 bg-slate-100 rounded" />
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <div className="h-7 w-7 bg-slate-100 rounded-md" />
+                        <div className="h-7 w-7 bg-slate-100 rounded-md" />
+                      </div>
+                    </td>
+                  </tr>
+                ))
               ) : coupons.length === 0 ? (
                 <tr>
                   <td colSpan="9" className="text-center py-12 text-slate-500">

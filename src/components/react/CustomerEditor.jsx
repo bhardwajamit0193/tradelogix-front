@@ -112,9 +112,28 @@ export default function CustomerEditor({ customerId }) {
 
   if (isLoading) {
     return (
-      <div className="bg-white p-16 rounded-2xl border border-slate-200 text-center space-y-4 shadow-sm max-w-xl mx-auto">
-        <div className="w-10 h-10 border-4 border-brand-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-        <p className="text-slate-500 text-xs font-semibold">Querying full customer profile & addresses...</p>
+      <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm max-w-xl mx-auto space-y-6 animate-pulse">
+        <div className="flex items-center gap-4 pb-4 border-b border-slate-100">
+          <div className="w-14 h-14 rounded-2xl bg-slate-200 shrink-0" />
+          <div className="space-y-2 flex-1">
+            <div className="h-5 w-40 bg-slate-200 rounded" />
+            <div className="h-3.5 w-28 bg-slate-100 rounded" />
+          </div>
+        </div>
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <div className="h-3 w-20 bg-slate-200 rounded" />
+            <div className="h-10 w-full bg-slate-100 rounded-xl" />
+          </div>
+          <div className="space-y-1.5">
+            <div className="h-3 w-20 bg-slate-200 rounded" />
+            <div className="h-10 w-full bg-slate-100 rounded-xl" />
+          </div>
+          <div className="space-y-1.5">
+            <div className="h-3 w-24 bg-slate-200 rounded" />
+            <div className="h-20 w-full bg-slate-100 rounded-xl" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -178,32 +197,41 @@ export default function CustomerEditor({ customerId }) {
                 <p className="text-slate-500 text-[11px] mt-0.5">Assign classification tiers, pricing groups, and approval status.</p>
               </div>
               <span className={`px-3 py-1 rounded-full text-xs font-bold border ${
-                customer.status === 'Approved'
+                status === 'Approved'
                   ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                  : customer.status === 'Pending Approval'
-                  ? 'bg-amber-50 text-amber-700 border-amber-200'
-                  : 'bg-rose-50 text-rose-700 border-rose-200'
+                  : status === 'Pending Approval'
+                  ? 'bg-amber-50 text-amber-700 border-amber-200 animate-pulse'
+                  : status === 'Rejected'
+                  ? 'bg-rose-50 text-rose-700 border-rose-200'
+                  : status === 'Suspended'
+                  ? 'bg-orange-50 text-orange-700 border-orange-200'
+                  : 'bg-red-50 text-red-700 border-red-200'
               }`}>
-                {customer.status || 'Pending Approval'}
+                {status || customer.status || 'Pending Approval'}
               </span>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {customer.status !== 'Pending Approval' && (
-                  <div className="space-y-1.5 sm:col-span-2">
+                <div className="space-y-1.5 sm:col-span-2">
+                  <div className="flex items-center justify-between">
                     <label className="text-slate-700 font-bold">Account Status</label>
-                    <select
-                      value={status}
-                      onChange={(e) => setStatus(e.target.value)}
-                      className="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 focus:bg-white focus:ring-2 focus:ring-brand-500 outline-none text-xs font-medium"
-                    >
-                      <option value="Approved">Approved</option>
-                      <option value="Suspended">Suspended</option>
-                      <option value="Blocked">Blocked</option>
-                    </select>
+                    <span className="text-[10px] text-slate-400 font-normal">
+                      Status updates automatically trigger customer email notification
+                    </span>
                   </div>
-                )}
+                  <select
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 focus:bg-white focus:ring-2 focus:ring-brand-500 outline-none text-xs font-medium cursor-pointer"
+                  >
+                    <option value="Pending Approval">Pending Approval</option>
+                    <option value="Approved">Approved</option>
+                    <option value="Rejected">Rejected</option>
+                    <option value="Suspended">Suspended</option>
+                    <option value="Blocked">Blocked</option>
+                  </select>
+                </div>
 
                 <div className="space-y-1.5">
                   <label className="text-slate-700 font-bold">Price Group</label>
@@ -243,7 +271,7 @@ export default function CustomerEditor({ customerId }) {
                 >
                   Cancel
                 </a>
-                {customer.status === 'Pending Approval' ? (
+                {customer.status === 'Pending Approval' && (
                   <>
                     <button
                       type="button"
@@ -262,23 +290,22 @@ export default function CustomerEditor({ customerId }) {
                       {isSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : 'Approve Application'}
                     </button>
                   </>
-                ) : (
-                  <button
-                    type="submit"
-                    disabled={isSaving}
-                    className="px-5 py-2.5 bg-brand-600 hover:bg-brand-500 text-white rounded-xl font-bold shadow transition-all flex items-center gap-2 disabled:opacity-50 text-xs"
-                  >
-                    {isSaving ? (
-                      <>
-                        <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="w-3.5 h-3.5" /> Save Changes
-                      </>
-                    )}
-                  </button>
                 )}
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="px-5 py-2.5 bg-brand-600 hover:bg-brand-500 text-white rounded-xl font-bold shadow transition-all flex items-center gap-2 disabled:opacity-50 text-xs"
+                >
+                  {isSaving ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-3.5 h-3.5" /> Save Changes
+                    </>
+                  )}
+                </button>
               </div>
             </form>
           </div>
