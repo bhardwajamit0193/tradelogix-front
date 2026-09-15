@@ -17,6 +17,9 @@ export const DEFAULT_PLATFORM_SETTINGS = {
   supportEmail: 'support@tradelogix.in',
   websiteUrl: 'https://tradelogix.in',
   currencySymbol: '₹',
+  hideOutOfStock: true,
+  minOrderAmountEnabled: true,
+  minOrderAmount: 5000,
 };
 
 export const DEFAULT_SMTP_SETTINGS = {

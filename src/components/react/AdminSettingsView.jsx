@@ -995,6 +995,149 @@ export default function AdminSettingsView({ initialSection = 'platform' }) {
                     </div>
                   </div>
 
+                  {/* CARD 5: WHOLESALE ORDERING & INVENTORY RULES */}
+                  <div className="p-6 sm:p-7 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-6">
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                      <div>
+                        <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                          <SlidersHorizontal className="w-4 h-4 text-brand-600" /> Wholesale Ordering & Inventory Rules
+                        </h3>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          Control storefront visibility for out-of-stock products and set minimum order purchase thresholds.
+                        </p>
+                      </div>
+                      <span className="text-[11px] font-semibold text-slate-400">Commerce Policies</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* RULE 1: HIDE OUT OF STOCK PRODUCTS */}
+                      <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col justify-between gap-4">
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold text-slate-800 flex items-center gap-2 cursor-pointer">
+                              <EyeOff className="w-4 h-4 text-slate-600" /> Hide Out of Stock Products
+                            </label>
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              platformData.hideOutOfStock !== false
+                                ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                                : 'bg-slate-200 text-slate-600'
+                            }`}>
+                              {platformData.hideOutOfStock !== false ? 'Enabled (Hidden)' : 'Disabled (Visible)'}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 leading-relaxed">
+                            When enabled, products with zero available warehouse stock will not be displayed on the storefront catalog, categories, and search results.
+                          </p>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-2 border-t border-slate-200/70">
+                          <span className="text-xs font-semibold text-slate-700">Storefront Visibility</span>
+                          <button
+                            type="button"
+                            onClick={() => setPlatformData(prev => ({
+                              ...prev,
+                              hideOutOfStock: prev.hideOutOfStock === false ? true : false,
+                            }))}
+                            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                              platformData.hideOutOfStock !== false ? 'bg-brand-600' : 'bg-slate-300'
+                            }`}
+                          >
+                            <span
+                              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                platformData.hideOutOfStock !== false ? 'translate-x-5' : 'translate-x-0'
+                              }`}
+                            />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* RULE 2: MINIMUM ORDER AMOUNT */}
+                      <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col justify-between gap-4">
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold text-slate-800 flex items-center gap-2 cursor-pointer">
+                              <Coins className="w-4 h-4 text-amber-600" /> Minimum Order Amount
+                            </label>
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              platformData.minOrderAmountEnabled !== false
+                                ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                                : 'bg-slate-200 text-slate-600'
+                            }`}>
+                              {platformData.minOrderAmountEnabled !== false ? 'Enabled (Required)' : 'Disabled'}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 leading-relaxed">
+                            Enforce a minimum checkout order amount (e.g. ₹5,000/- or greater) before wholesale buyers can complete an order.
+                          </p>
+                        </div>
+
+                        <div className="space-y-3 pt-2 border-t border-slate-200/70">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-semibold text-slate-700">Enforce Requirement</span>
+                            <button
+                              type="button"
+                              onClick={() => setPlatformData(prev => ({
+                                ...prev,
+                                minOrderAmountEnabled: prev.minOrderAmountEnabled === false ? true : false,
+                              }))}
+                              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                platformData.minOrderAmountEnabled !== false ? 'bg-brand-600' : 'bg-slate-300'
+                              }`}
+                            >
+                              <span
+                                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                  platformData.minOrderAmountEnabled !== false ? 'translate-x-5' : 'translate-x-0'
+                                }`}
+                              />
+                            </button>
+                          </div>
+
+                          {platformData.minOrderAmountEnabled !== false && (
+                            <div className="pt-2 border-t border-slate-200/50 space-y-2">
+                              <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
+                                <span>Minimum Order Value ({platformData.currencySymbol || '₹'})</span>
+                              </label>
+                              <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">
+                                  {platformData.currencySymbol || '₹'}
+                                </span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="100"
+                                  value={platformData.minOrderAmount ?? 5000}
+                                  onChange={(e) => setPlatformData({
+                                    ...platformData,
+                                    minOrderAmount: parseFloat(e.target.value) || 0,
+                                  })}
+                                  placeholder="5000"
+                                  className="w-full pl-8 pr-3 py-2 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs font-bold focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"
+                                />
+                              </div>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-[10px] text-slate-400 font-medium">Presets:</span>
+                                {[5000, 10000, 25000, 50000].map((preset) => (
+                                  <button
+                                    key={preset}
+                                    type="button"
+                                    onClick={() => setPlatformData({ ...platformData, minOrderAmount: preset })}
+                                    className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition-all cursor-pointer ${
+                                      Number(platformData.minOrderAmount ?? 5000) === preset
+                                        ? 'bg-brand-100 text-brand-700 border border-brand-300'
+                                        : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
+                                    }`}
+                                  >
+                                    ₹{preset.toLocaleString('en-IN')}{preset === 5000 ? ' (Default)' : ''}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* BOTTOM ACTION BAR */}
                   <div className="pt-6 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-2 text-xs text-slate-500">

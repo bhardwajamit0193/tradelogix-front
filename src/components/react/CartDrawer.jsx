@@ -8,14 +8,31 @@ import {
   removeFromCart,
   cartSubtotal,
   getAvailableStock,
+  enrichCartItemsWithTiers,
 } from '../../store/cartStore.js';
-import { X, ShoppingCart, Plus, Minus, Trash2, ArrowRight } from 'lucide-react';
+import { X, ShoppingCart, Plus, Minus, Trash2, ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react';
 import Image from './common/Image.jsx';
+import { fetchPlatformSettingsApi } from '../../services/platformSettingsService.js';
 
 export default function CartDrawer() {
   const isOpen = useStore(isCartOpen);
   const items = useStore(cartItems);
   const subtotal = useStore(cartSubtotal);
+
+  const [platformSettings, setPlatformSettings] = React.useState(null);
+
+  React.useEffect(() => {
+    fetchPlatformSettingsApi().then((data) => {
+      if (data) setPlatformSettings(data);
+    });
+    enrichCartItemsWithTiers();
+  }, [isOpen]);
+
+  const minOrderEnabled = platformSettings ? platformSettings.minOrderAmountEnabled !== false : true;
+  const minOrderAmount = platformSettings ? (parseFloat(platformSettings.minOrderAmount) || 5000) : 5000;
+  const isBelowMinOrder = minOrderEnabled && subtotal < minOrderAmount;
+  const remainingAmount = Math.max(0, minOrderAmount - subtotal);
+  const minProgressPct = Math.min(100, Math.round((subtotal / minOrderAmount) * 100));
 
   if (!isOpen) return null;
 
@@ -81,10 +98,41 @@ export default function CartDrawer() {
                     />
                     <div className="flex-1 min-w-0">
                       <h4 className="text-sm font-semibold text-slate-900 truncate">{item.name}</h4>
-                      <p className="text-[11px] text-slate-500">Variant: {item.variant}</p>
-                      <p className="text-xs font-bold text-brand-600 mt-1">
-                        ₹{typeof item.price === 'number' ? item.price.toLocaleString('en-IN') : item.price} <span className="text-[10px] text-slate-400 font-normal">/ unit</span>
-                      </p>
+                      {item.variant && item.variant.toLowerCase() !== 'default' && (
+                        <p className="text-[11px] text-slate-500">Variant: {item.variant}</p>
+                      )}
+                      <div className="flex items-baseline gap-1.5 mt-1 flex-wrap">
+                        <span className="text-xs font-bold text-brand-600">
+                          ₹{typeof item.price === 'number' ? item.price.toLocaleString('en-IN') : item.price}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-normal">/ unit</span>
+                        {item.basePrice && Number(item.price) < Number(item.basePrice) && (
+                          <>
+                            <span className="text-[10px] text-slate-400 line-through">
+                              ₹{Number(item.basePrice).toLocaleString('en-IN')}
+                            </span>
+                            <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                              Wholesale Tier Applied
+                            </span>
+                          </>
+                        )}
+                      </div>
+                      {(() => {
+                        const tiers = item.tiers || item.pricing?.tiers || [];
+                        if (Array.isArray(tiers) && tiers.length > 0) {
+                          const nextTier = [...tiers]
+                            .filter((t) => Number(t.minQuantity) > Number(item.quantity))
+                            .sort((a, b) => Number(a.minQuantity) - Number(b.minQuantity))[0];
+                          if (nextTier && Number(nextTier.minQuantity) <= maxStock) {
+                            return (
+                              <p className="text-[10px] text-brand-600 font-medium mt-0.5">
+                                Add {Number(nextTier.minQuantity) - Number(item.quantity)} more for ₹{parseFloat(nextTier.price).toLocaleString('en-IN')}/unit
+                              </p>
+                            );
+                          }
+                        }
+                        return null;
+                      })()}
                       {maxStock < 9999 && isMaxReached && (
                         <p className="text-[10px] text-amber-600 font-bold mt-0.5 flex items-center gap-1">
                           Max stock ({maxStock}) in cart
@@ -110,11 +158,10 @@ export default function CartDrawer() {
                       <button
                         onClick={() => updateQuantity(item.id, item.variant, item.quantity + 1)}
                         disabled={isMaxReached}
-                        className={`p-1 rounded-lg transition-colors ${
-                          isMaxReached
+                        className={`p-1 rounded-lg transition-colors ${isMaxReached
                             ? 'text-slate-300 bg-slate-50 cursor-not-allowed'
                             : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
-                        }`}
+                          }`}
                         title={isMaxReached ? `Only ${maxStock} available in stock` : 'Increase quantity'}
                       >
                         <Plus className="w-3.5 h-3.5" />
@@ -154,15 +201,63 @@ export default function CartDrawer() {
                 </div>
               </div>
 
+              {/* Minimum Order Amount Threshold Alert & Progress */}
+              {minOrderEnabled && items.length > 0 && (
+                <div className={`p-3 rounded-xl border text-xs ${isBelowMinOrder
+                    ? 'bg-amber-50/90 border-amber-200 text-amber-900'
+                    : 'bg-emerald-50/90 border-emerald-200 text-emerald-900'
+                  }`}>
+                  <div className="flex items-center justify-between font-bold mb-1.5">
+                    <span className="flex items-center gap-1.5">
+                      {isBelowMinOrder ? (
+                        <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+                      ) : (
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      )}
+                      <span>Minimum Wholesale Order: ₹{minOrderAmount.toLocaleString('en-IN')}</span>
+                    </span>
+                    <span className="text-[11px] font-mono">
+                      {isBelowMinOrder ? `${minProgressPct}%` : '✓ Met'}
+                    </span>
+                  </div>
+                  <div className="w-full h-1.5 rounded-full bg-slate-200 overflow-hidden mb-2">
+                    <div
+                      className={`h-full transition-all duration-300 ${isBelowMinOrder ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                      style={{ width: `${minProgressPct}%` }}
+                    />
+                  </div>
+                  {isBelowMinOrder ? (
+                    <p className="text-[11px] text-amber-800">
+                      Add products worth <strong>₹{remainingAmount.toLocaleString('en-IN')}</strong> more to meet the wholesale order requirement.
+                    </p>
+                  ) : (
+                    <p className="text-[11px] text-emerald-700 font-semibold">
+                      Order requirement met! You can proceed to checkout.
+                    </p>
+                  )}
+                </div>
+              )}
+
               {/* Action CTAs */}
               <div className="pt-2">
-                <a
-                  href="/checkout"
-                  onClick={() => toggleCart(false)}
-                  className="w-full py-3.5 text-center rounded-xl gradient-brand text-white text-xs font-bold shadow-md hover:opacity-90 transition-all flex items-center justify-center gap-2"
-                >
-                  Proceed to Checkout <ArrowRight className="w-4 h-4" />
-                </a>
+                {isBelowMinOrder ? (
+                  <button
+                    type="button"
+                    disabled
+                    className="w-full py-3.5 text-center rounded-xl bg-slate-200 text-slate-400 text-xs font-bold cursor-not-allowed flex items-center justify-center gap-2"
+                    title={`The minimum order amount must be ₹${minOrderAmount.toLocaleString('en-IN')} or greater.`}
+                  >
+                    <span>Min. Order ₹{minOrderAmount.toLocaleString('en-IN')} (Add ₹{remainingAmount.toLocaleString('en-IN')} more)</span>
+                  </button>
+                ) : (
+                  <a
+                    href="/checkout"
+                    onClick={() => toggleCart(false)}
+                    className="w-full py-3.5 text-center rounded-xl gradient-brand text-white text-xs font-bold shadow-md hover:opacity-90 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    Proceed to Checkout <ArrowRight className="w-4 h-4" />
+                  </a>
+                )}
               </div>
             </div>
           )}

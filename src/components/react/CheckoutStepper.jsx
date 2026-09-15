@@ -6,6 +6,7 @@ import { userStore } from '../../store/authStore.js';
 import { createOrder } from '../../services/orderService.js';
 import { saveAddress, fetchCustomerAddressesApi } from '../../services/addressService.js';
 import { getPaymentSettings, fetchPaymentSettingsApi } from '../../services/paymentSettingsService.js';
+import { fetchPlatformSettingsApi } from '../../services/platformSettingsService.js';
 import { validateCouponApi, fetchAvailableCouponsApi } from '../../services/couponService.js';
 import { formatPrice } from '../../utils/formatters.js';
 import PhoneInputField from './PhoneInputField.jsx';
@@ -119,6 +120,19 @@ export default function CheckoutStepper() {
   // Payment Gateway Settings
   const [paymentSettings, setPaymentSettings] = useState(getPaymentSettings());
   const [isPartialCodAllowed, setIsPartialCodAllowed] = useState(true);
+
+  // Platform & Commerce Policy Settings
+  const [platformSettings, setPlatformSettings] = useState(null);
+  useEffect(() => {
+    fetchPlatformSettingsApi().then((data) => {
+      if (data) setPlatformSettings(data);
+    });
+  }, []);
+
+  const minOrderEnabled = platformSettings ? platformSettings.minOrderAmountEnabled !== false : true;
+  const minOrderAmount = platformSettings ? (parseFloat(platformSettings.minOrderAmount) || 5000) : 5000;
+  const isBelowMinOrder = minOrderEnabled && (rawSubtotal || 0) < minOrderAmount;
+  const minOrderRemaining = Math.max(0, minOrderAmount - (rawSubtotal || 0));
 
   // Client Hydration
   const [isHydrated, setIsHydrated] = useState(false);
@@ -516,6 +530,11 @@ export default function CheckoutStepper() {
 
     if (!items || items.length === 0) {
       toast.error('Your cart is empty. Please add items before placing an order.');
+      return;
+    }
+
+    if (minOrderEnabled && subtotal < minOrderAmount) {
+      toast.error(`The minimum order amount must be ₹${minOrderAmount.toLocaleString('en-IN')}/- or greater to place an order.`);
       return;
     }
 
@@ -1030,6 +1049,32 @@ export default function CheckoutStepper() {
           {/* Form Wizard Column (7 Cols) */}
           <div className="lg:col-span-7 space-y-6">
 
+            {/* Minimum Order Amount Threshold Alert */}
+            {minOrderEnabled && isBelowMinOrder && (
+              <div className="p-4 rounded-2xl border border-amber-300 bg-amber-50 text-amber-900 shadow-sm flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <div className="text-xs space-y-1.5 flex-1">
+                  <div className="flex items-center justify-between font-bold">
+                    <span className="text-amber-950 font-display text-sm">
+                      Minimum Order Amount: ₹{minOrderAmount.toLocaleString('en-IN')}/-
+                    </span>
+                    <span className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-amber-200/70 text-amber-900">
+                      Required
+                    </span>
+                  </div>
+                  <p className="text-amber-800 leading-relaxed">
+                    The minimum wholesale order amount must be ₹{minOrderAmount.toLocaleString('en-IN')}/- or greater. Your current order subtotal is <strong>₹{subtotal.toLocaleString('en-IN')}</strong>. Please add items worth <strong>₹{minOrderRemaining.toLocaleString('en-IN')}</strong> more to checkout.
+                  </p>
+                  <a
+                    href="/shop"
+                    className="inline-flex items-center gap-1 font-bold text-brand-700 hover:text-brand-900 hover:underline pt-0.5"
+                  >
+                    <span>← Browse hardware catalog to add items</span>
+                  </a>
+                </div>
+              </div>
+            )}
+
             {/* ----------------- STEP 1: SHIPPING ----------------- */}
             {step === 1 && (
               <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200/90 shadow-2xs space-y-6">
@@ -1187,15 +1232,26 @@ export default function CheckoutStepper() {
                 </div>
 
                 <div className="pt-4 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (validateShipping()) setStep(2);
-                    }}
-                    className="w-full sm:w-auto px-8 py-3.5 rounded-xl gradient-brand text-white font-display font-bold text-xs shadow-md hover:scale-[1.01] hover:opacity-95 transition-all flex items-center justify-center gap-2"
-                  >
-                    Continue to Billing <ArrowRight className="w-4 h-4" />
-                  </button>
+                  {isBelowMinOrder ? (
+                    <button
+                      type="button"
+                      onClick={() => toast.error(`The minimum order amount must be ₹${minOrderAmount.toLocaleString('en-IN')}/- or greater. Please add ₹${minOrderRemaining.toLocaleString('en-IN')} more to your cart.`)}
+                      className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-slate-200 text-slate-400 font-display font-bold text-xs cursor-not-allowed flex items-center justify-center gap-2"
+                      title={`Add ₹${minOrderRemaining.toLocaleString('en-IN')} more to qualify for checkout`}
+                    >
+                      <span>Min. Order ₹{minOrderAmount.toLocaleString('en-IN')} (Add ₹{minOrderRemaining.toLocaleString('en-IN')} more)</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (validateShipping()) setStep(2);
+                      }}
+                      className="w-full sm:w-auto px-8 py-3.5 rounded-xl gradient-brand text-white font-display font-bold text-xs shadow-md hover:scale-[1.01] hover:opacity-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      Continue to Billing <ArrowRight className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </div>
             )}

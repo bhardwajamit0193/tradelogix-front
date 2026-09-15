@@ -224,11 +224,11 @@ export default function ProductDetailView({ initialSlug, initialData = null }) {
   );
 
   // Calculate live volume pricing based on quantity using customer's assigned tiers
-  const customerTiers = product.pricing?.tiers || [];
+  const customerTiers = product.pricing?.tiers || product.tiers || [];
   let currentUnitPrice = product.price || 0;
   if (customerTiers.length > 0) {
-    const sortedTiers = [...customerTiers].sort((a, b) => b.minQuantity - a.minQuantity);
-    const matchedTier = sortedTiers.find((t) => quantity >= t.minQuantity);
+    const sortedTiers = [...customerTiers].sort((a, b) => Number(b.minQuantity) - Number(a.minQuantity));
+    const matchedTier = sortedTiers.find((t) => Number(quantity) >= Number(t.minQuantity));
     if (matchedTier) {
       currentUnitPrice = parseFloat(matchedTier.price);
     }
@@ -243,7 +243,7 @@ export default function ProductDetailView({ initialSlug, initialData = null }) {
       ...product,
       stockCount: maxStock,
       inStock: maxStock > 0,
-      basePrice: product.pricing?.basePrice ? parseFloat(product.pricing.basePrice) : product.price,
+      basePrice: product.pricing?.basePrice ? parseFloat(product.pricing.basePrice) : (product.basePrice ? parseFloat(product.basePrice) : product.price),
       tiers: customerTiers,
       pricing: product.pricing,
       price: product.price,
@@ -266,6 +266,20 @@ export default function ProductDetailView({ initialSlug, initialData = null }) {
   const primaryCategory = (Array.isArray(product?.categories) && product.categories.length > 0)
     ? (resolveCategoryName(product.categories[0]) || 'Hardware')
     : (typeof product?.category === 'string' ? product.category.split(',')[0].trim() : resolveCategoryName(product?.category)) || 'Hardware';
+
+  const resolvedTags = React.useMemo(() => {
+    if (!product) return [];
+    if (Array.isArray(product.tagsList) && product.tagsList.length > 0) {
+      return product.tagsList.map(t => (typeof t === 'object' && t ? (t.name || t.slug) : String(t))).filter(Boolean);
+    }
+    if (Array.isArray(product.tags) && product.tags.length > 0) {
+      return product.tags.map(t => (typeof t === 'object' && t ? (t.name || t.slug) : String(t))).filter(Boolean);
+    }
+    if (typeof product.tags === 'string' && product.tags.trim()) {
+      return product.tags.split(',').map(s => s.trim()).filter(Boolean);
+    }
+    return [];
+  }, [product]);
 
   const relatedList = (Array.isArray(product?.relatedProducts) ? product.relatedProducts : [])
     .filter((rel) => rel && typeof rel === 'object' && (rel.name || rel.title || rel.slug || rel.id));
@@ -354,6 +368,16 @@ export default function ProductDetailView({ initialSlug, initialData = null }) {
                   SKU: {product.sku}
                 </span>
               )}
+              {resolvedTags.map((t, idx) => (
+                <a
+                  key={idx}
+                  href={`/shop?tag=${encodeURIComponent(t)}`}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-brand-50 hover:bg-brand-100 border border-brand-200/70 text-brand-700 text-[10px] sm:text-[11px] font-medium transition-colors"
+                >
+                  <Tag className="w-2.5 h-2.5" />
+                  {t}
+                </a>
+              ))}
             </div>
 
             <h1 className="font-display font-extrabold text-xl sm:text-2xl lg:text-3xl text-slate-900 tracking-tight leading-snug">
@@ -393,9 +417,14 @@ export default function ProductDetailView({ initialSlug, initialData = null }) {
                       </span>
                       <span className="text-[11px] sm:text-xs text-slate-500 font-semibold uppercase tracking-wider">/ pc</span>
                       {product.originalPrice && product.originalPrice > currentUnitPrice && (
-                        <span className="text-xs sm:text-sm text-slate-400 line-through ml-1">
-                          {formatPrice(product.originalPrice)}
-                        </span>
+                        <>
+                          <span className="text-xs sm:text-sm text-slate-400 line-through ml-1">
+                            {formatPrice(product.originalPrice)}
+                          </span>
+                          <span className="text-[10px] sm:text-xs font-bold text-rose-600 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded-md">
+                            {Math.round(((product.originalPrice - currentUnitPrice) / product.originalPrice) * 100)}% OFF
+                          </span>
+                        </>
                       )}
                     </div>
                     <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 text-[10px] sm:text-xs font-medium text-slate-600">
@@ -432,8 +461,8 @@ export default function ProductDetailView({ initialSlug, initialData = null }) {
                         <div className="text-xs sm:text-sm font-bold text-slate-900">{formatPrice(product.price)}</div>
                       </button>
                       {customerTiers.map((tier, idx) => {
-                        const isTierActive = quantity >= tier.minQuantity;
-                        const exceedsStock = tier.minQuantity > maxStock;
+                        const isTierActive = Number(quantity) >= Number(tier.minQuantity);
+                        const exceedsStock = Number(tier.minQuantity) > maxStock;
                         return (
                           <button
                             key={idx}
@@ -441,7 +470,7 @@ export default function ProductDetailView({ initialSlug, initialData = null }) {
                             disabled={exceedsStock || availableToAdd <= 0}
                             onClick={() => {
                               if (!exceedsStock) {
-                                setQuantity(Math.min(tier.minQuantity, availableToAdd));
+                                setQuantity(Math.min(Number(tier.minQuantity), availableToAdd));
                               }
                             }}
                             className={`p-2 sm:p-2.5 rounded-xl border text-center transition-all ${exceedsStock
@@ -658,6 +687,27 @@ export default function ProductDetailView({ initialSlug, initialData = null }) {
               <p className="text-slate-600 text-xs sm:text-sm leading-relaxed">
                 Enterprise-grade hardware designed for maximum reliability and high-throughput workflows.
               </p>
+            )}
+
+            {/* Product Tags list below overview */}
+            {resolvedTags.length > 0 && (
+              <div className="pt-2 flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-bold text-slate-500 flex items-center gap-1">
+                  <Tag className="w-3 h-3 text-brand-600" />
+                  Tags:
+                </span>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {resolvedTags.map((t, idx) => (
+                    <a
+                      key={idx}
+                      href={`/shop?tag=${encodeURIComponent(t)}`}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-brand-50 hover:text-brand-700 hover:border-brand-200 border border-slate-200 text-slate-700 text-xs font-medium transition-all"
+                    >
+                      #{t}
+                    </a>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
 

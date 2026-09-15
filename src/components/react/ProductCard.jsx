@@ -98,6 +98,13 @@ function ProductCardInner({ product }) {
 
   const displaySlug = product.slug || product.id || '';
   const displayBadge = typeof product.badge === 'string' ? product.badge : (typeof product.badge?.name === 'string' ? product.badge.name : null);
+  const numPrice = typeof product.price === 'number' ? product.price : parseFloat(product.price) || 0;
+  const numOriginalPrice = typeof product.originalPrice === 'number'
+    ? product.originalPrice
+    : (product.originalPrice ? parseFloat(product.originalPrice) : null);
+  const discountPercent = numOriginalPrice && numOriginalPrice > numPrice
+    ? Math.round(((numOriginalPrice - numPrice) / numOriginalPrice) * 100)
+    : 0;
 
   const loginRedirect = typeof window !== 'undefined'
     ? (window.location.pathname + window.location.search)
@@ -106,7 +113,7 @@ function ProductCardInner({ product }) {
   return (
     <div className="glass-panel glass-panel-hover rounded-2xl sm:rounded-3xl p-3 sm:p-4 flex flex-col justify-between group border border-slate-200/80 bg-white/90 shadow-sm hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-300">
       <div>
-        {/* Product Image Container with High-Contrast Badge */}
+        {/* Product Image Container with High-Contrast Badge & Discount Badge */}
         <a
           href={`/shop/${displaySlug}`}
           className="block relative overflow-hidden rounded-xl sm:rounded-2xl mb-2.5 sm:mb-4 bg-slate-50 group"
@@ -118,6 +125,13 @@ function ProductCardInner({ product }) {
               )}`}
             >
               {displayBadge}
+            </span>
+          )}
+          {discountPercent > 0 && (
+            <span
+              className="absolute top-2 right-2 sm:top-3 sm:right-3 z-10 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-wider bg-rose-600 text-white shadow-sm border border-rose-500"
+            >
+              {discountPercent}% OFF
             </span>
           )}
           <Image
@@ -155,7 +169,19 @@ function ProductCardInner({ product }) {
                 </span>
               )}
             </div>
-            <AddToCartButton product={{ ...product, name: displayName, slug: displaySlug, image: displayImage, category: displayCategory }} compact={true} />
+            <AddToCartButton
+              product={{
+                ...product,
+                name: displayName,
+                slug: displaySlug,
+                image: displayImage,
+                category: displayCategory,
+                pricing: product.pricing || null,
+                tiers: product.tiers || product.pricing?.tiers || [],
+                basePrice: product.basePrice !== undefined ? product.basePrice : (product.pricing?.basePrice ? parseFloat(product.pricing.basePrice) : product.price),
+              }}
+              compact={true}
+            />
           </>
         ) : (
           <a

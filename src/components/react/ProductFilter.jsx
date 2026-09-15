@@ -27,6 +27,7 @@ export default function ProductFilter({ initialCategory = 'All' }) {
   const [selectedProcessors, setSelectedProcessors] = useState([]);
   const [selectedRams, setSelectedRams] = useState([]);
   const [selectedStorages, setSelectedStorages] = useState([]);
+  const [selectedTag, setSelectedTag] = useState('');
 
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -58,6 +59,7 @@ export default function ProductFilter({ initialCategory = 'All' }) {
       const processor = params.get('processor');
       const ram = params.get('ram');
       const storage = params.get('storage');
+      const tag = params.get('tag');
 
       if (cat && cat !== 'All' && cat !== 'all') {
         setSelectedCategories(cat.split(',').map(s => s.trim()).filter(Boolean));
@@ -65,6 +67,9 @@ export default function ProductFilter({ initialCategory = 'All' }) {
       if (search) {
         setSearchQuery(search);
         setDebouncedSearch(search);
+      }
+      if (tag && tag !== 'All') {
+        setSelectedTag(tag.trim());
       }
       if (brand && brand !== 'All') {
         setSelectedBrands(brand.split(',').map(s => s.trim()).filter(Boolean));
@@ -159,6 +164,9 @@ export default function ProductFilter({ initialCategory = 'All' }) {
       if (inStockOnly) {
         params.set('inStockOnly', 'true');
       }
+      if (selectedTag && selectedTag !== 'All') {
+        params.set('tag', selectedTag);
+      }
 
       const token = user?.accessToken;
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
@@ -191,7 +199,7 @@ export default function ProductFilter({ initialCategory = 'All' }) {
   }, [
     page, limit, debouncedSearch, selectedCategories,
     selectedBrands, selectedProcessors, selectedRams, selectedStorages,
-    sortBy, maxPrice, inStockOnly, user?.accessToken
+    sortBy, maxPrice, inStockOnly, selectedTag, user?.accessToken
   ]);
 
   useEffect(() => {
@@ -470,6 +478,7 @@ export default function ProductFilter({ initialCategory = 'All' }) {
     setSelectedProcessors([]);
     setSelectedRams([]);
     setSelectedStorages([]);
+    setSelectedTag('');
     setSearchQuery('');
     setDebouncedSearch('');
     setMaxPrice(250000);
@@ -491,6 +500,7 @@ export default function ProductFilter({ initialCategory = 'All' }) {
     selectedProcessors.length +
     selectedRams.length +
     selectedStorages.length +
+    (selectedTag ? 1 : 0) +
     (debouncedSearch.trim() ? 1 : 0) +
     (maxPrice < 250000 ? 1 : 0) +
     (inStockOnly ? 1 : 0);
@@ -1059,6 +1069,26 @@ export default function ProductFilter({ initialCategory = 'All' }) {
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
                 Search: &ldquo;{debouncedSearch}&rdquo;
                 <button onClick={() => { setSearchQuery(''); setDebouncedSearch(''); }} className="hover:text-slate-900 cursor-pointer">
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+            {selectedTag && (
+              <span key="chip-tag" className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-brand-50 text-brand-700 border border-brand-200">
+                Tag: #{selectedTag}
+                <button
+                  onClick={() => {
+                    setSelectedTag('');
+                    setPage(1);
+                    if (typeof window !== 'undefined') {
+                      const url = new URL(window.location.href);
+                      url.searchParams.delete('tag');
+                      window.history.replaceState({}, '', url.toString());
+                    }
+                  }}
+                  className="hover:text-brand-900 cursor-pointer"
+                  title="Remove tag filter"
+                >
                   <X className="w-3 h-3" />
                 </button>
               </span>

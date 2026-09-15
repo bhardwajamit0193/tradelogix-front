@@ -483,9 +483,14 @@ export default function ProductForm({ productId }) {
             });
           }
 
-          const tagNames = Array.isArray(product.tagsList) && product.tagsList.length > 0
-            ? product.tagsList.map(t => (typeof t === 'object' && t ? t.name : String(t)))
-            : (Array.isArray(product.tags) ? product.tags.map(t => (typeof t === 'object' && t ? t.name : String(t))) : []);
+          let tagNames = [];
+          if (Array.isArray(product.tagsList) && product.tagsList.length > 0) {
+            tagNames = product.tagsList.map(t => (typeof t === 'object' && t ? t.name : String(t)));
+          } else if (Array.isArray(product.tags)) {
+            tagNames = product.tags.map(t => (typeof t === 'object' && t ? t.name : String(t)));
+          } else if (typeof product.tags === 'string' && product.tags.trim()) {
+            tagNames = product.tags.split(',').map(s => s.trim()).filter(Boolean);
+          }
           setTags(tagNames);
           setImages(product.images || []);
           setProductType(product.productType || 'simple');
@@ -662,11 +667,31 @@ export default function ProductForm({ productId }) {
 
 
   // Tag helper logic
+  const addTagByName = (tName) => {
+    if (!tName) return;
+    const clean = tName.trim();
+    if (clean && !tags.some(t => t.toLowerCase() === clean.toLowerCase())) {
+      setTags(prev => [...prev, clean]);
+    }
+    setTagInputText('');
+  };
+
+  const toggleTag = (tName) => {
+    if (!tName) return;
+    const clean = tName.trim();
+    if (tags.some(t => t.toLowerCase() === clean.toLowerCase())) {
+      setTags(prev => prev.filter(t => t.toLowerCase() !== clean.toLowerCase()));
+    } else {
+      setTags(prev => [...prev, clean]);
+    }
+  };
+
+  // Tag helper logic
   const handleTagAddKeyPress = (e) => {
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
       const val = tagInputText.trim().replace(/,$/, '');
-      if (val && !tags.includes(val)) {
+      if (val && !tags.some(t => t.toLowerCase() === val.toLowerCase())) {
         setTags(prev => [...prev, val]);
         setTagInputText('');
       }
@@ -674,7 +699,7 @@ export default function ProductForm({ productId }) {
   };
 
   const removeTag = (tName) => {
-    setTags(prev => prev.filter(t => t !== tName));
+    setTags(prev => prev.filter(t => t.toLowerCase() !== tName.toLowerCase()));
   };
 
   // Image helper logic
@@ -1551,12 +1576,12 @@ export default function ProductForm({ productId }) {
                                         spec.key?.toLowerCase() === 'brand'
                                           ? 'Select or type brand (HP, Dell, Lenovo...)'
                                           : spec.key?.toLowerCase() === 'ram'
-                                          ? 'e.g. 8 GB, 16 GB'
-                                          : spec.key?.toLowerCase() === 'storage'
-                                          ? 'e.g. 512 GB SSD, 1 TB SSD'
-                                          : spec.key?.toLowerCase() === 'processor'
-                                          ? 'e.g. Intel Core i5, Ryzen 5'
-                                          : 'e.g. 145 x 70 mm, Aluminum, 2 Years'
+                                            ? 'e.g. 8 GB, 16 GB'
+                                            : spec.key?.toLowerCase() === 'storage'
+                                              ? 'e.g. 512 GB SSD, 1 TB SSD'
+                                              : spec.key?.toLowerCase() === 'processor'
+                                                ? 'e.g. Intel Core i5, Ryzen 5'
+                                                : 'e.g. 145 x 70 mm, Aluminum, 2 Years'
                                       }
                                       className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs text-slate-900 bg-white focus:outline-none focus:ring-1 focus:ring-brand-500 focus:border-brand-500 placeholder:text-slate-400"
                                     />
@@ -1899,35 +1924,125 @@ export default function ProductForm({ productId }) {
 
                 {/* Shopify style tags picker */}
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-600 block">Tags</label>
-
-                  <div className="space-y-2 bg-slate-50 border border-slate-300 p-2.5 rounded-xl min-h-16 flex flex-wrap gap-1.5">
-                    {tags.map((tName) => (
-                      <span
-                        key={tName}
-                        className="inline-flex items-center gap-1.5 px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 shadow-sm"
-                      >
-                        {tName}
-                        <button
-                          type="button"
-                          onClick={() => removeTag(tName)}
-                          className="text-slate-400 hover:text-slate-800 cursor-pointer"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </span>
-                    ))}
-
-                    <input
-                      type="text"
-                      value={tagInputText}
-                      onChange={(e) => setTagInputText(e.target.value)}
-                      onKeyDown={handleTagAddKeyPress}
-                      placeholder="+ Add tags"
-                      className="bg-transparent text-xs focus:outline-none flex-1 py-1 px-1 min-w-[70px]"
-                    />
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-600 block">Tags</label>
+                    <a
+                      href="/admin/products/tags"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[11px] font-semibold text-brand-600 hover:text-brand-700 hover:underline inline-flex items-center gap-1"
+                      title="Manage global tags"
+                    >
+                      Manage Tags <ExternalLink className="w-3 h-3" />
+                    </a>
                   </div>
-                  <p className="text-[9px] text-slate-400">Press Enter or comma to insert tags</p>
+
+                  <div className="relative">
+                    <div className="bg-slate-50 border border-slate-300 p-2.5 rounded-xl min-h-16 flex flex-wrap gap-1.5 focus-within:ring-2 focus-within:ring-brand-500/20 focus-within:border-brand-500 transition-all">
+                      {tags.map((tName) => (
+                        <span
+                          key={tName}
+                          className="inline-flex items-center gap-1.5 px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 shadow-xs"
+                        >
+                          <Tag className="w-3 h-3 text-slate-400" />
+                          {tName}
+                          <button
+                            type="button"
+                            onClick={() => removeTag(tName)}
+                            className="text-slate-400 hover:text-slate-800 cursor-pointer"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))}
+
+                      <input
+                        type="text"
+                        value={tagInputText}
+                        onChange={(e) => setTagInputText(e.target.value)}
+                        onKeyDown={handleTagAddKeyPress}
+                        placeholder="+ Add tags"
+                        className="bg-transparent text-xs focus:outline-none flex-1 py-1 px-1 min-w-[90px]"
+                      />
+                    </div>
+
+                    {/* Autocomplete suggestions from rawTags */}
+                    {tagInputText.trim() && (
+                      <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-48 overflow-y-auto p-1.5 space-y-1">
+                        {rawTags
+                          .filter(
+                            (rt) =>
+                              rt.name.toLowerCase().includes(tagInputText.toLowerCase().trim()) &&
+                              !tags.some((t) => t.toLowerCase() === rt.name.toLowerCase())
+                          )
+                          .map((rt) => (
+                            <button
+                              key={rt.id || rt.name}
+                              type="button"
+                              onClick={() => addTagByName(rt.name)}
+                              className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-700 hover:bg-brand-50 hover:text-brand-700 flex items-center justify-between group transition-colors cursor-pointer"
+                            >
+                              <span className="flex items-center gap-1.5">
+                                <Tag className="w-3 h-3 text-slate-400 group-hover:text-brand-600" />
+                                {rt.name}
+                              </span>
+                              <span className="text-[10px] text-slate-400 font-normal">Add tag</span>
+                            </button>
+                          ))}
+                        {!rawTags.some(
+                          (rt) => rt.name.toLowerCase() === tagInputText.toLowerCase().trim()
+                        ) && (
+                            <button
+                              type="button"
+                              onClick={() => addTagByName(tagInputText.trim())}
+                              className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium text-brand-600 bg-brand-50/50 hover:bg-brand-100/70 flex items-center justify-between transition-colors cursor-pointer"
+                            >
+                              <span className="flex items-center gap-1.5">
+                                <Plus className="w-3 h-3" />
+                                Create new tag "{tagInputText.trim()}"
+                              </span>
+                              <span className="text-[10px] text-brand-500 font-normal">Press Enter</span>
+                            </button>
+                          )}
+                      </div>
+                    )}
+                  </div>
+
+                  <p className="text-[10px] text-slate-400">Press Enter or comma to insert tags</p>
+
+                  {/* Quick Select from existing tags list */}
+                  {rawTags.length > 0 && (
+                    <div className="pt-2 border-t border-slate-100">
+                      <span className="text-[11px] font-semibold text-slate-500 block mb-1.5">
+                        Choose from existing tags:
+                      </span>
+                      <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto pr-1">
+                        {rawTags.map((rt) => {
+                          const isSelected = tags.some(
+                            (t) => t.toLowerCase() === rt.name.toLowerCase()
+                          );
+                          return (
+                            <button
+                              key={rt.id || rt.name}
+                              type="button"
+                              onClick={() => toggleTag(rt.name)}
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] transition-all cursor-pointer ${isSelected
+                                  ? 'bg-brand-50 border border-brand-300 text-brand-700 font-semibold shadow-2xs'
+                                  : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                                }`}
+                            >
+                              {isSelected ? (
+                                <Check className="w-2.5 h-2.5 text-brand-600" />
+                              ) : (
+                                <Plus className="w-2.5 h-2.5 text-slate-400" />
+                              )}
+                              {rt.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

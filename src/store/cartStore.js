@@ -1,12 +1,59 @@
 import { atom, computed } from 'nanostores';
 import { toast } from 'sonner';
 
+const API_URL = import.meta.env.PUBLIC_API_URL || (typeof window !== 'undefined' && window.__PUBLIC_API_URL__) || 'http://localhost:6543';
+
+const getAuthHeaders = () => {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = localStorage.getItem('tradelogix_user');
+    if (raw) {
+      const user = JSON.parse(raw);
+      if (user?.accessToken) {
+        return { Authorization: `Bearer ${user.accessToken}` };
+      }
+    }
+  } catch (e) {}
+  return {};
+};
+
+// Helper to resolve the correct unit price for a given quantity based on wholesale tiers
+export const calculateTierUnitPrice = (item, quantity) => {
+  if (!item) return 0;
+  const rawBase = item.basePrice !== undefined && item.basePrice !== null
+    ? item.basePrice
+    : (item.pricing?.basePrice !== undefined ? item.pricing.basePrice : item.price);
+  const basePrice = parseFloat(rawBase) || 0;
+  const tiers = item.tiers || item.pricing?.tiers || [];
+  if (Array.isArray(tiers) && tiers.length > 0) {
+    const sorted = [...tiers].sort((a, b) => Number(b.minQuantity) - Number(a.minQuantity));
+    const matched = sorted.find((t) => Number(quantity) >= Number(t.minQuantity));
+    if (matched && matched.price !== undefined && matched.price !== null) {
+      return parseFloat(matched.price);
+    }
+  }
+  return basePrice;
+};
+
 // Initial cart state from localStorage if client side
 const getInitialCart = () => {
   if (typeof window !== 'undefined') {
     try {
       const saved = localStorage.getItem('tradelogix_cart');
-      return saved ? JSON.parse(saved) : [];
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.map((item) => {
+            const rawBase = item.basePrice !== undefined && item.basePrice !== null
+              ? item.basePrice
+              : (item.pricing?.basePrice !== undefined ? item.pricing.basePrice : item.price);
+            const basePrice = parseFloat(rawBase) || 0;
+            const itemWithBase = { ...item, basePrice };
+            const correctPrice = calculateTierUnitPrice(itemWithBase, item.quantity);
+            return { ...itemWithBase, price: correctPrice };
+          });
+        }
+      }
     } catch (e) {
       console.error('Failed to load cart state', e);
     }
@@ -27,6 +74,74 @@ if (typeof window !== 'undefined') {
       console.error('Failed to persist cart', e);
     }
   });
+}
+
+// Automatically enrich cart items that might have missing tiers in localStorage
+export const enrichCartItemsWithTiers = async () => {
+  if (typeof window === 'undefined') return;
+  const currentItems = cartItems.get();
+  if (!Array.isArray(currentItems) || currentItems.length === 0) return;
+
+  const itemsNeedingTiers = currentItems.filter((i) => !i.tiers || i.tiers.length === 0);
+  if (itemsNeedingTiers.length === 0) {
+    // Check if any prices mismatch their tier quantities
+    let anyPriceMismatch = false;
+    const verified = currentItems.map((item) => {
+      const expectedPrice = calculateTierUnitPrice(item, item.quantity);
+      if (expectedPrice !== item.price) {
+        anyPriceMismatch = true;
+        return { ...item, price: expectedPrice };
+      }
+      return item;
+    });
+    if (anyPriceMismatch) {
+      cartItems.set(verified);
+    }
+    return;
+  }
+
+  let hasUpdates = false;
+  const updated = [...cartItems.get()];
+  const headers = { 'Content-Type': 'application/json', ...getAuthHeaders() };
+
+  await Promise.all(
+    itemsNeedingTiers.map(async (item) => {
+      try {
+        const identifier = item.slug || item.id;
+        if (!identifier) return;
+        const res = await fetch(`${API_URL}/api/shop/products/${identifier}`, { headers });
+        if (!res.ok) return;
+        const json = await res.json();
+        const p = json.data || json;
+        const tiers = p.pricing?.tiers || p.tiers || [];
+        const rawBase = p.pricing?.basePrice ? parseFloat(p.pricing.basePrice) : (parseFloat(p.price) || item.price);
+
+        const idx = updated.findIndex((i) => String(i.id) === String(item.id) && i.variant === item.variant);
+        if (idx > -1 && Array.isArray(tiers) && tiers.length > 0) {
+          updated[idx] = {
+            ...updated[idx],
+            tiers,
+            basePrice: updated[idx].basePrice || rawBase,
+            pricing: p.pricing || updated[idx].pricing,
+          };
+          updated[idx].price = calculateTierUnitPrice(updated[idx], updated[idx].quantity);
+          hasUpdates = true;
+        }
+      } catch (e) {
+        // network or offline
+      }
+    })
+  );
+
+  if (hasUpdates) {
+    cartItems.set(updated);
+  }
+};
+
+if (typeof window !== 'undefined') {
+  setTimeout(() => {
+    enrichCartItemsWithTiers();
+  }, 100);
 }
 
 // Computed total count of items in cart
@@ -55,20 +170,6 @@ export const getAvailableStock = (product) => {
   return product.inStock !== false ? 9999 : 0;
 };
 
-// Helper to resolve the correct unit price for a given quantity based on wholesale tiers
-export const calculateTierUnitPrice = (item, quantity) => {
-  const basePrice = item.basePrice ? parseFloat(item.basePrice) : (item.price || 0);
-  const tiers = item.tiers || item.pricing?.tiers || [];
-  if (Array.isArray(tiers) && tiers.length > 0) {
-    const sorted = [...tiers].sort((a, b) => b.minQuantity - a.minQuantity);
-    const matched = sorted.find((t) => quantity >= t.minQuantity);
-    if (matched) {
-      return parseFloat(matched.price);
-    }
-  }
-  return basePrice;
-};
-
 // Add item to cart with strict inventory/stock limit checks
 export const addToCart = (product, quantity = 1, selectedVariant = null) => {
   const variantVal = selectedVariant || product.variant || product.variants?.[0] || 'Default';
@@ -90,8 +191,13 @@ export const addToCart = (product, quantity = 1, selectedVariant = null) => {
 
   const fallbackImage = '/placeholder-product.svg';
   const img = product.featuredImage || product.image || (product.images && product.images[0]) || fallbackImage;
-  const basePrice = product.pricing?.basePrice ? parseFloat(product.pricing.basePrice) : (product.price || 0);
-  const tiers = product.pricing?.tiers || product.tiers || [];
+  const rawBase = product.basePrice !== undefined && product.basePrice !== null
+    ? product.basePrice
+    : (product.pricing?.basePrice !== undefined ? product.pricing.basePrice : product.price);
+  const basePrice = parseFloat(rawBase) || 0;
+  const tiers = (product.tiers && product.tiers.length > 0)
+    ? product.tiers
+    : (product.pricing?.tiers || []);
 
   if (existingIndex > -1) {
     const updated = [...currentItems];
@@ -111,10 +217,12 @@ export const addToCart = (product, quantity = 1, selectedVariant = null) => {
     updated[existingIndex].quantity = newQty;
     updated[existingIndex].stockCount = maxStock;
     
-    const existingTiers = (updated[existingIndex].tiers && updated[existingIndex].tiers.length > 0)
-      ? updated[existingIndex].tiers
-      : tiers;
-    const existingBasePrice = updated[existingIndex].basePrice || basePrice || updated[existingIndex].price;
+    const existingTiers = (tiers && tiers.length > 0)
+      ? tiers
+      : (updated[existingIndex].tiers && updated[existingIndex].tiers.length > 0 ? updated[existingIndex].tiers : []);
+    const existingBasePrice = updated[existingIndex].basePrice !== undefined && updated[existingIndex].basePrice !== null
+      ? parseFloat(updated[existingIndex].basePrice)
+      : (basePrice || parseFloat(updated[existingIndex].price) || 0);
 
     updated[existingIndex].tiers = existingTiers;
     updated[existingIndex].basePrice = existingBasePrice;
@@ -151,6 +259,7 @@ export const addToCart = (product, quantity = 1, selectedVariant = null) => {
         basePrice,
         price: initialUnitPrice,
         tiers,
+        pricing: product.pricing || null,
         image: img,
         featuredImage: img,
         category: product.category,
@@ -202,6 +311,35 @@ export const updateQuantity = (id, variant, newQuantity) => {
     return item;
   });
   cartItems.set(updated);
+
+  // If item lacks tiers, fetch them in background and update price
+  if (!targetItem.tiers || targetItem.tiers.length === 0) {
+    const identifier = targetItem.slug || targetItem.id;
+    if (identifier && typeof window !== 'undefined') {
+      const headers = { 'Content-Type': 'application/json', ...getAuthHeaders() };
+      fetch(`${API_URL}/api/shop/products/${identifier}`, { headers })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((json) => {
+          if (!json) return;
+          const p = json.data || json;
+          const tiers = p.pricing?.tiers || p.tiers || [];
+          if (Array.isArray(tiers) && tiers.length > 0) {
+            const latestItems = cartItems.get();
+            const reUpdated = latestItems.map((it) => {
+              if (String(it.id) === String(id) && it.variant === variant) {
+                const basePrice = it.basePrice || (p.pricing?.basePrice ? parseFloat(p.pricing.basePrice) : (parseFloat(p.price) || it.price));
+                const itemWithTiers = { ...it, tiers, basePrice, pricing: p.pricing || it.pricing };
+                const updatedPrice = calculateTierUnitPrice(itemWithTiers, it.quantity);
+                return { ...itemWithTiers, price: updatedPrice };
+              }
+              return it;
+            });
+            cartItems.set(reUpdated);
+          }
+        })
+        .catch(() => {});
+    }
+  }
 };
 
 // Remove item from cart

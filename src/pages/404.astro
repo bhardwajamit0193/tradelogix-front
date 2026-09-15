@@ -1,0 +1,128 @@
+---
+import ShopLayout from '../layouts/ShopLayout.astro';
+
+// Set HTTP 404 status code for SSR responses
+Astro.response.status = 404;
+
+const popularCategories = [
+  { name: 'Laptops & PCs', slug: 'laptops' },
+  { name: 'Monitors & Displays', slug: 'monitors' },
+  { name: 'Processors & CPUs', slug: 'processors' },
+  { name: 'RAM & Memory', slug: 'memory' },
+  { name: 'Storage & SSDs', slug: 'storage' },
+  { name: 'Peripherals & Audio', slug: 'audio' },
+];
+---
+
+<ShopLayout
+  title="404 - Page Not Found | TradeLogix"
+  description="The page you are looking for cannot be found. Browse our hardware catalog or search for products."
+>
+  <div class="relative min-h-[75vh] flex items-center justify-center px-4 sm:px-6 lg:px-8 py-12 sm:py-20 overflow-hidden">
+    <!-- Ambient Background Glows -->
+    <div class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 sm:w-[540px] h-96 sm:h-[540px] bg-brand-500/10 rounded-full blur-3xl pointer-events-none -z-10"></div>
+    <div class="absolute bottom-10 right-10 w-64 h-64 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none -z-10"></div>
+
+    <div class="max-w-3xl w-full text-center space-y-8">
+      <!-- 404 Badge & Visual Headline -->
+      <div class="space-y-4">
+        <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-brand-50 border border-brand-200/80 text-brand-700 text-xs sm:text-sm font-bold shadow-xs">
+          <span class="w-2 h-2 rounded-full bg-brand-600 animate-ping"></span>
+          <span>Error 404 &bull; Resource Missing</span>
+        </div>
+
+        <h1 class="font-display font-black text-7xl sm:text-9xl text-transparent bg-clip-text bg-gradient-to-r from-brand-600 via-indigo-600 to-purple-600 tracking-tight select-none">
+          404
+        </h1>
+
+        <div class="space-y-2">
+          <h2 class="font-display font-extrabold text-2xl sm:text-3xl text-slate-900 tracking-tight">
+            Oops! That page seems to have disconnected.
+          </h2>
+          <p class="text-sm sm:text-base text-slate-500 max-w-lg mx-auto leading-relaxed">
+            The link you followed may be outdated, the hardware listing may have moved, or the URL might have a typo.
+          </p>
+        </div>
+      </div>
+
+      <!-- Quick Catalog Search Box -->
+      <div class="max-w-md mx-auto">
+        <form action="/shop" method="GET" class="relative flex items-center group">
+          <div class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-brand-600 transition-colors pointer-events-none">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+          <input
+            type="text"
+            name="search"
+            placeholder="Search catalog by name, model, SKU..."
+            class="w-full pl-10 pr-28 py-3 bg-white border border-slate-300 rounded-2xl text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 shadow-sm transition-all"
+            required
+          />
+          <button
+            type="submit"
+            class="absolute right-1.5 top-1/2 -translate-y-1/2 px-3.5 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+          >
+            Search
+          </button>
+        </form>
+      </div>
+
+      <!-- Primary Action Buttons -->
+      <div class="flex flex-wrap items-center justify-center gap-3 pt-2">
+        <a
+          href="/shop"
+          class="px-6 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-display font-bold text-xs sm:text-sm transition-all shadow-md hover:shadow-lg inline-flex items-center gap-2 group cursor-pointer"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+          </svg>
+          <span>Explore Catalog</span>
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+          </svg>
+        </a>
+
+        <a
+          href="/"
+          class="px-6 py-3 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-display font-semibold text-xs sm:text-sm transition-all shadow-xs hover:border-slate-300 inline-flex items-center gap-2 cursor-pointer"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+          </svg>
+          <span>Home Page</span>
+        </a>
+
+        <a
+          href="/contact"
+          class="px-5 py-3 rounded-xl bg-transparent hover:bg-slate-100/80 text-slate-600 font-display font-medium text-xs sm:text-sm transition-all inline-flex items-center gap-1.5 cursor-pointer"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          </svg>
+          <span>Help & Support</span>
+        </a>
+      </div>
+
+      <!-- Popular Categories Shortcut Pills -->
+      <div class="pt-6 border-t border-slate-200/80 max-w-2xl mx-auto space-y-3">
+        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+          Or jump into popular hardware categories:
+        </span>
+        <div class="flex flex-wrap items-center justify-center gap-2">
+          {popularCategories.map((cat) => (
+            <a
+              href={`/shop?category=${encodeURIComponent(cat.name)}`}
+              class="px-3 py-1.5 rounded-lg bg-slate-50 hover:bg-brand-50 border border-slate-200 hover:border-brand-200 text-slate-600 hover:text-brand-700 text-xs font-medium transition-all shadow-2xs hover:shadow-xs cursor-pointer"
+            >
+              {cat.name}
+            </a>
+          ))}
+        </div>
+      </div>
+
+
+    </div>
+  </div>
+</ShopLayout>

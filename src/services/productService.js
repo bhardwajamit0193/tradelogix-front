@@ -21,8 +21,21 @@ export async function fetchShopProductsApi({
     if (page) params.append('page', String(page));
     if (limit) params.append('limit', String(limit));
 
+    const headers = { 'Content-Type': 'application/json' };
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = localStorage.getItem('tradelogix_user');
+        if (raw) {
+          const user = JSON.parse(raw);
+          if (user?.accessToken) {
+            headers['Authorization'] = `Bearer ${user.accessToken}`;
+          }
+        }
+      } catch (e) {}
+    }
+
     const res = await fetch(`${API_URL}/api/shop/products?${params.toString()}`, {
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       cache: 'no-store',
     });
 
@@ -39,6 +52,9 @@ export async function fetchShopProductsApi({
         categories: p.categories || [],
         price: parseFloat(p.price) || 0,
         originalPrice: p.originalPrice ? parseFloat(p.originalPrice) : null,
+        pricing: p.pricing || null,
+        tiers: (p.pricing?.tiers && Array.isArray(p.pricing.tiers)) ? p.pricing.tiers : (p.tiers || []),
+        basePrice: p.pricing?.basePrice ? parseFloat(p.pricing.basePrice) : (parseFloat(p.price) || 0),
         rating: p.rating || 0,
         reviewCount: p.reviewCount || 0,
         inStock: p.inStock !== false && (p.stockCount === undefined || p.stockCount > 0),

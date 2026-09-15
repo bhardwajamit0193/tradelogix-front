@@ -338,7 +338,7 @@ export default function TagManager() {
                   </tr>
                 ) : (
                   filtered.map((tag) => {
-                    const count = countForTag(tag);
+                    const count = typeof tag.count === 'number' ? tag.count : countForTag(tag);
                     const isChecked = selected.includes(tag.id);
                     return (
                       <tr key={tag.id} className={`group transition-colors ${isChecked ? 'bg-brand-50/40' : 'hover:bg-slate-50/60'}`}>
